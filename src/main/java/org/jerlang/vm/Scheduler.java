@@ -2,8 +2,10 @@ package org.jerlang.vm;
 
 import java.util.HashSet;
 
+import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
+import org.jerlang.ProcessState;
 import org.jerlang.type.PidOrPortId;
 
 /**
@@ -104,8 +106,22 @@ public class Scheduler extends Thread {
         ProcessOrPort p = runQueue.poll();
         if (p != null) {
             ProcessRegistry.self(p);
-            p.execute();
-            ProcessRegistry.self(null);
+            Throwable failure = null;
+            try {
+                p.execute();
+            } catch (Throwable t) {
+                // An uncaught error terminates the process, but must not
+                // terminate the scheduler thread that ran it.
+                failure = t;
+            } finally {
+                ProcessRegistry.self(null);
+            }
+            if (failure != null) {
+                if (p instanceof Process) {
+                    ((Process) p).setFailure(failure);
+                }
+                p.setState(ProcessState.EXITING);
+            }
             switch (p.state()) {
             case RUNNABLE:
                 runQueue.push(p);

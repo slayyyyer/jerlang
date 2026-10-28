@@ -57,6 +57,9 @@ public class Process extends ProcessOrPort {
     // Exception handling
     private ExceptionHandler exceptionHandler = null;
 
+    // Set when an uncaught Throwable terminated this process
+    private volatile Throwable failure = null;
+
     // Timeout
     private long timeout = 0;
 
@@ -238,6 +241,14 @@ public class Process extends ProcessOrPort {
 
     public ExceptionHandler exceptionHandler() {
         return exceptionHandler;
+    }
+
+    public Throwable failure() {
+        return failure;
+    }
+
+    public void setFailure(Throwable failure) {
+        this.failure = failure;
     }
 
     @Override

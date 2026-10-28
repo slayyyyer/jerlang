@@ -13,6 +13,7 @@ import org.jerlang.type.Atom;
 import org.jerlang.type.Fun;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
+import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 import org.jerlang.util.StringUtil;
 import org.jerlang.vm.VirtualMachine;
@@ -78,10 +79,20 @@ public class Module {
             ProcessRegistry.self(process);
             while (process.state() != ProcessState.EXITING) {
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(10);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+            }
+            Throwable failure = process.failure();
+            if (failure != null) {
+                if (failure instanceof Error) {
+                    throw (Error) failure;
+                }
+                if (failure instanceof RuntimeException) {
+                    throw (RuntimeException) failure;
+                }
+                throw new Error(Str.of(String.valueOf(failure)));
             }
             return process.getX(0);
         } else {
