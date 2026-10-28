@@ -180,17 +180,20 @@ Sockets support binary and list modes, `{active, false | true | once | N}`,
 Active TCP sockets deliver `{tcp, Socket, Data}` and active UDP sockets
 deliver `{udp, Socket, Address, Port, Data}`.
 
-UDP supports multicast through `{add_membership, {Group, Interface}}`,
-`{drop_membership, {Group, Interface}}`, `{multicast_if, Address}`,
+UDP supports IPv4 and IPv6 multicast through
+`{add_membership, {Group, Interface}}`,
+`{drop_membership, {Group, Interface}}`, `{multicast_if, Interface}`,
 `{multicast_ttl, TTL}` and `{multicast_loop, Boolean}`, both at open time and
-through `inet:setopts/2`. `gen_tcp:listen/1` and the less common `inet`
-options are not implemented.
+through `inet:setopts/2`. For IPv4 an interface is an address tuple; for
+IPv6 it is the interface index. `gen_tcp:listen/1` and the less common
+`inet` options are not implemented.
 
 `GenTcpTest` and `GenUdpTest` run
 [`src/test/erl/gen_tcp_demo.erl`](../src/test/erl/gen_tcp_demo.erl) and
 [`src/test/erl/gen_udp_demo.erl`](../src/test/erl/gen_udp_demo.erl). They
-exercise passive, active, list-mode and multicast round trips, receive
-timeouts, option changes and address helpers.
+exercise passive, active, list-mode and IPv4/IPv6 multicast round trips,
+receive timeouts, option changes and address helpers. The IPv6 test selects
+an up, multicast-capable interface by index and is skipped when none exists.
 
 ## Not implemented yet
 

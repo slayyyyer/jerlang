@@ -144,7 +144,9 @@ public final class UdpSocket implements InetEndpoint {
         if (settings.multicastLoop != null) {
             socket.setLoopbackMode(!settings.multicastLoop);
         }
-        if (settings.multicastIf != null) {
+        if (settings.multicastIfIndex >= 0) {
+            socket.setNetworkInterface(networkInterface(settings.multicastIfIndex));
+        } else if (settings.multicastIf != null) {
             NetworkInterface network = networkInterface(settings.multicastIf);
             if (network != null) {
                 socket.setNetworkInterface(network);
@@ -153,7 +155,9 @@ public final class UdpSocket implements InetEndpoint {
         for (InetOptions.Membership membership : settings.memberships) {
             InetAddress group = InetAddress.getByAddress(membership.group);
             InetSocketAddress target = new InetSocketAddress(group, 0);
-            NetworkInterface network = networkInterface(membership.interfaceAddress);
+            NetworkInterface network = membership.interfaceIndex >= 0
+                ? networkInterface(membership.interfaceIndex)
+                : networkInterface(membership.interfaceAddress);
             if (membership.drop) {
                 socket.leaveGroup(target, network);
             } else {
@@ -287,7 +291,18 @@ public final class UdpSocket implements InetEndpoint {
         }
     }
 
+    private static NetworkInterface networkInterface(int index) throws IOException {
+        NetworkInterface network = NetworkInterface.getByIndex(index);
+        if (network == null) {
+            throw new IOException("Unknown multicast interface index " + index);
+        }
+        return network;
+    }
+
     private static NetworkInterface networkInterface(byte[] addressBytes) throws IOException {
+        if (addressBytes == null) {
+            return null;
+        }
         InetAddress address = InetAddress.getByAddress(addressBytes);
         if (address.isAnyLocalAddress()) {
             return null;

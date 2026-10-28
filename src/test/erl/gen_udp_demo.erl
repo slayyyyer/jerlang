@@ -6,7 +6,8 @@
 
 -export([roundtrip/0, active_roundtrip/0, connected_roundtrip/0,
          list_roundtrip/0, timeout_test/0, getopts_test/0,
-         multicast_roundtrip/0, multicast_setopts/0]).
+         multicast_roundtrip/0, multicast_setopts/0,
+         ipv6_multicast_roundtrip/1]).
 
 roundtrip() ->
     {ok, Receiver} = gen_udp:open(0, [binary, {active, false}]),
@@ -98,6 +99,22 @@ multicast_setopts() ->
     ok = gen_udp:send(Sender, Group, Port, <<"setopts">>),
     {ok, {_, _, <<"setopts">>}} = gen_udp:recv(Receiver, 7, 3000),
     ok = inet:setopts(Receiver, [{drop_membership, {Group, {0, 0, 0, 0}}}]),
+    ok = gen_udp:close(Sender),
+    ok = gen_udp:close(Receiver),
+    ok.
+
+ipv6_multicast_roundtrip(IfIndex) ->
+    Group = {16#ff12, 0, 0, 0, 0, 0, 0, 16#1234},
+    {ok, Receiver} = gen_udp:open(0,
+        [inet6, binary, {active, false}, {reuseaddr, true},
+         {multicast_if, IfIndex}, {multicast_loop, true},
+         {add_membership, {Group, IfIndex}}]),
+    {ok, {_, Port}} = inet:sockname(Receiver),
+    {ok, Sender} = gen_udp:open(0,
+        [inet6, binary, {active, false}, {multicast_if, IfIndex},
+         {multicast_loop, true}, {multicast_ttl, 1}]),
+    ok = gen_udp:send(Sender, Group, Port, <<"ipv6-multicast">>),
+    {ok, {_, _, <<"ipv6-multicast">>}} = gen_udp:recv(Receiver, 14, 3000),
     ok = gen_udp:close(Sender),
     ok = gen_udp:close(Receiver),
     ok.

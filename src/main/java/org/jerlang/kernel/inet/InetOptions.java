@@ -31,11 +31,13 @@ public final class InetOptions {
 
         public final byte[] group;
         public final byte[] interfaceAddress;
+        public final int interfaceIndex;
         public final boolean drop;
 
-        Membership(byte[] group, byte[] interfaceAddress, boolean drop) {
+        Membership(byte[] group, byte[] interfaceAddress, int interfaceIndex, boolean drop) {
             this.group = group;
             this.interfaceAddress = interfaceAddress;
+            this.interfaceIndex = interfaceIndex;
             this.drop = drop;
         }
 
@@ -54,6 +56,7 @@ public final class InetOptions {
     public int multicastTtl = -1;
     public Boolean multicastLoop = null;
     public byte[] multicastIf = null;
+    public int multicastIfIndex = -1;
     public final java.util.List<Membership> memberships = new java.util.ArrayList<>();
 
     public static InetOptions parse(List options) {
@@ -77,6 +80,7 @@ public final class InetOptions {
         copy.multicastTtl = multicastTtl;
         copy.multicastLoop = multicastLoop;
         copy.multicastIf = multicastIf == null ? null : multicastIf.clone();
+        copy.multicastIfIndex = multicastIfIndex;
         return copy;
     }
 
@@ -148,7 +152,13 @@ public final class InetOptions {
                 multicastLoop = truth(value);
                 break;
             case "multicast_if":
-                multicastIf = InetSupport.addressBytes(value);
+                if (value instanceof Integer) {
+                    multicastIfIndex = value.toInteger().toInt();
+                    multicastIf = null;
+                } else {
+                    multicastIf = InetSupport.addressBytes(value);
+                    multicastIfIndex = -1;
+                }
                 break;
             case "add_membership":
                 memberships.add(membership(value, false));
@@ -213,9 +223,16 @@ public final class InetOptions {
         if (pair.arity() != 2) {
             throw Error.badarg;
         }
+        // IPv4 names an interface by address, IPv6 by interface index.
+        Term intf = pair.element(2);
+        if (intf instanceof Integer) {
+            return new Membership(InetSupport.addressBytes(pair.element(1)), null,
+                intf.toInteger().toInt(), drop);
+        }
         return new Membership(
             InetSupport.addressBytes(pair.element(1)),
-            InetSupport.addressBytes(pair.element(2)),
+            InetSupport.addressBytes(intf),
+            -1,
             drop);
     }
 
