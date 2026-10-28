@@ -160,6 +160,30 @@ mvn test -Dtest=OtpInteropTest -Djerlang.dist.otp=true
 `pong`, and a message to `{sink, 'jerlang@<host>'}` must arrive at the
 JErlang process registered as `sink`.
 
+## Local links and monitors
+
+A node also needs the local half of Erlang's process semantics, because that
+is what supervision and `rpc` are built on. `link/1`, `unlink/1`,
+`monitor/2`, `demonitor/1,2`, `exit/1,2`, `process_flag(trap_exit, Boolean)`,
+`whereis/1`, `unregister/1`, `registered/0` and `is_process_alive/1` work
+within the node.
+
+A process that terminates reports its reason to every linked process and
+sends `{'DOWN', Ref, process, Pid, Reason}` to every monitor. A linked
+process without `trap_exit` gets the exit signal, and terminates with the
+same reason; a trapping process receives `{'EXIT', From, Reason}` instead.
+`exit(Pid, kill)` kills regardless of `trap_exit` and reports `killed`, and
+a link or monitor on a process that is already gone reports `noproc`.
+
+Exit signals take effect at the next instruction, or at the next scheduling
+boundary when the process is waiting. A linked process that exits with
+reason `normal` is ignored unless the peer traps exits.
+
+[`LinkMonitorTest`](../src/test/java/org/jerlang/jvm/LinkMonitorTest.java)
+runs [`src/test/erl/link_demo.erl`](../src/test/erl/link_demo.erl), which
+covers link propagation, `trap_exit`, `unlink`, `demonitor`, `kill`, the
+`noproc` cases and the registry functions.
+
 ## Sockets
 
 `kernel/gen_tcp`, `kernel/gen_udp` and `kernel/inet` are implemented
@@ -211,8 +235,10 @@ exists.
 
 ## Not implemented yet
 
-* Links, monitors and `EXIT` signals. Unknown signals are ignored, so a
-  crashing peer does not propagate an exit.
+* Distributed links and monitors. The local semantics above exist, but the
+  connection only understands `SEND` and `REG_SEND`: `LINK`, `UNLINK`,
+  `MONITOR`, `EXIT` and `MONITOR_NODES` signals from a peer are ignored, so
+  an exit never crosses a node boundary.
 * Remote process spawn (`rex`), registered-name monitoring and the
   `global` name server. OTP's messages to those names are dropped.
 * Atom cache in the distribution header, compressed terms, funs and

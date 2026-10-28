@@ -1,10 +1,15 @@
 package org.jerlang;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -17,10 +22,12 @@ import org.jerlang.type.Fun;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
+import org.jerlang.type.Reference;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 import org.jerlang.type.stack.ExceptionHandler;
 import org.jerlang.type.stack.StackFrame;
+import org.jerlang.vm.Scheduler;
 
 /**
  * Erlang is designed for massive concurrency.
@@ -92,6 +99,24 @@ public class Process extends ProcessOrPort {
     private volatile boolean waitTimedOut = false;
     private long waitGeneration = 0;
     private ScheduledFuture<?> waitTimer = null;
+
+    private static final Atom DOWN = Atom.of("DOWN");
+    private static final Atom PROCESS = Atom.of("process");
+    private static final Atom EXIT = Atom.of("EXIT");
+    private static final Atom NORMAL = Atom.of("normal");
+    private static final Atom KILL = Atom.of("kill");
+    private static final Atom KILLED = Atom.of("killed");
+
+    // Links are bidirectional, monitors are one-way and keyed by reference.
+    // The maps hold pids rather than processes, so a terminated peer can be
+    // resolved (and ignored) instead of being kept alive.
+    private final Set<PID> links = ConcurrentHashMap.newKeySet();
+    private final Map<Reference, PID> monitors = new ConcurrentHashMap<>();
+    private final Map<Reference, PID> monitoredBy = new ConcurrentHashMap<>();
+
+    private volatile boolean trapExit = false;
+    private volatile Term pendingExit = null;
+    private volatile boolean terminated = false;
 
     public Process(PID pid) {
         super(pid);
@@ -442,6 +467,211 @@ public class Process extends ProcessOrPort {
             System.out.println("Skipping process " + pid() + " in state " + state());
             break;
         }
+    }
+
+    public boolean hasPendingExit() {
+        return pendingExit != null;
+    }
+
+    public Term pendingExitReason() {
+        return pendingExit;
+    }
+
+    public boolean trapExit() {
+        return trapExit;
+    }
+
+    /**
+     * Set trap_exit and return its previous value, like process_flag/2.
+     */
+    public synchronized boolean setTrapExit(boolean value) {
+        boolean previous = trapExit;
+        trapExit = value;
+        return previous;
+    }
+
+    /**
+     * Link to another process. Linking to a process that is already gone
+     * is an immediate noproc exit signal, as in Erlang/OTP.
+     */
+    public void link(PID other) {
+        ProcessOrPort peer = ProcessRegistry.resolve(other);
+        Process target = peer instanceof Process ? (Process) peer : null;
+        if (target == null || !target.addLink(pid())) {
+            exitSignal(Atom.of("noproc"), other);
+            return;
+        }
+        addLink(other);
+    }
+
+    public void unlink(PID other) {
+        removeLink(other);
+        ProcessOrPort peer = ProcessRegistry.resolve(other);
+        if (peer instanceof Process) {
+            ((Process) peer).removeLink(pid());
+        }
+    }
+
+    /**
+     * Monitor another process. Monitoring a process that already
+     * terminated delivers DOWN with noproc straight away.
+     */
+    public Reference monitor(PID target) {
+        Reference reference = new Reference();
+        ProcessOrPort peer = ProcessRegistry.resolve(target);
+        Process process = peer instanceof Process ? (Process) peer : null;
+        if (process == null || !process.addMonitoredBy(reference, pid())) {
+            send(Tuple.of(DOWN, reference, PROCESS, target, Atom.of("noproc")));
+        } else {
+            addMonitor(reference, target);
+        }
+        return reference;
+    }
+
+    /**
+     * Remove a monitor. Returns true when the monitor or a queued DOWN
+     * message was found.
+     */
+    public boolean demonitor(Reference reference, boolean flush) {
+        PID target = monitorTarget(reference);
+        boolean found = removeMonitor(reference);
+        if (target != null) {
+            ProcessOrPort peer = ProcessRegistry.resolve(target);
+            if (peer instanceof Process) {
+                ((Process) peer).removeMonitoredBy(reference);
+            }
+        }
+        if (flush) {
+            found |= flushDown(reference);
+        }
+        return found;
+    }
+
+    public synchronized boolean addLink(PID other) {
+        if (terminated) {
+            return false;
+        }
+        links.add(other);
+        return true;
+    }
+
+    public synchronized void removeLink(PID other) {
+        links.remove(other);
+    }
+
+    public synchronized boolean addMonitoredBy(Reference reference, PID watcher) {
+        if (terminated) {
+            return false;
+        }
+        monitoredBy.put(reference, watcher);
+        return true;
+    }
+
+    public synchronized void removeMonitoredBy(Reference reference) {
+        monitoredBy.remove(reference);
+    }
+
+    public synchronized void addMonitor(Reference reference, PID target) {
+        monitors.put(reference, target);
+    }
+
+    public synchronized boolean removeMonitor(Reference reference) {
+        return monitors.remove(reference) != null;
+    }
+
+    public synchronized PID monitorTarget(Reference reference) {
+        return monitors.get(reference);
+    }
+
+    /**
+     * Deliver an exit signal. trap_exit turns it into a message; otherwise a
+     * non-normal reason becomes the pending exit of this process, which the
+     * interpreter and the scheduler act on.
+     */
+    public void exitSignal(Term reason, PID from) {
+        boolean waiting;
+        synchronized (this) {
+            if (terminated) {
+                return;
+            }
+            if (trapExit) {
+                send(Tuple.of(EXIT, from, reason));
+                return;
+            }
+            if (NORMAL.equals(reason)) {
+                return;
+            }
+            pendingExit = KILL.equals(reason) ? KILLED : reason;
+            waiting = state() == ProcessState.WAITING;
+        }
+        if (waiting) {
+            Scheduler scheduler = scheduler();
+            if (scheduler != null) {
+                scheduler.add(this);
+            }
+        }
+    }
+
+    /**
+     * Record the final reason of this process and return what has to be
+     * notified. Returns null when the process already terminated.
+     */
+    public synchronized Termination terminate(Term reason) {
+        if (terminated) {
+            return null;
+        }
+        terminated = true;
+        setState(ProcessState.EXITING);
+        if (waitTimer != null) {
+            waitTimer.cancel(false);
+            waitTimer = null;
+        }
+        Termination termination = new Termination(pid(), reason,
+            new ArrayList<>(links), new HashMap<>(monitoredBy), new HashMap<>(monitors));
+        links.clear();
+        monitoredBy.clear();
+        monitors.clear();
+        return termination;
+    }
+
+    public boolean isTerminated() {
+        return terminated;
+    }
+
+    private boolean flushDown(Reference reference) {
+        for (Term message : mailbox) {
+            if (message instanceof Tuple) {
+                Tuple tuple = (Tuple) message;
+                if (tuple.arity() == 5 && DOWN.equals(tuple.element(1))
+                    && reference.equals(tuple.element(2))) {
+                    return mailbox.remove(message);
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The links and monitors a terminating process had, captured exactly
+     * once so that every peer hears about the exit one time.
+     */
+    public static final class Termination {
+
+        public final PID pid;
+        public final Term reason;
+        public final java.util.List<PID> links;
+        public final Map<Reference, PID> monitoredBy;
+        public final Map<Reference, PID> monitors;
+
+        Termination(PID pid, Term reason, java.util.List<PID> links,
+            Map<Reference, PID> monitoredBy, Map<Reference, PID> monitors) {
+            this.pid = pid;
+            this.reason = reason;
+            this.links = links;
+            this.monitoredBy = monitoredBy;
+            this.monitors = monitors;
+        }
+
     }
 
     public void loop_rec_end() {

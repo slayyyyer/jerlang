@@ -10,8 +10,10 @@ import org.jerlang.erts.erlang.ErlangBinaryPart;
 import org.jerlang.erts.erlang.ErlangBinaryToTerm;
 import org.jerlang.erts.erlang.ErlangBitstringToList;
 import org.jerlang.erts.erlang.ErlangByteSize;
+import org.jerlang.erts.erlang.ErlangDemonitor;
 import org.jerlang.erts.erlang.ErlangDisplay;
 import org.jerlang.erts.erlang.ErlangError;
+import org.jerlang.erts.erlang.ErlangExit;
 import org.jerlang.erts.erlang.ErlangFunctionExported;
 import org.jerlang.erts.erlang.ErlangGet;
 import org.jerlang.erts.erlang.ErlangGetKeys;
@@ -30,14 +32,17 @@ import org.jerlang.erts.erlang.ErlangIsList;
 import org.jerlang.erts.erlang.ErlangIsMap;
 import org.jerlang.erts.erlang.ErlangIsNumber;
 import org.jerlang.erts.erlang.ErlangIsPid;
+import org.jerlang.erts.erlang.ErlangIsProcessAlive;
 import org.jerlang.erts.erlang.ErlangIsRecord;
 import org.jerlang.erts.erlang.ErlangIsReference;
 import org.jerlang.erts.erlang.ErlangIsTuple;
 import org.jerlang.erts.erlang.ErlangLength;
+import org.jerlang.erts.erlang.ErlangLink;
 import org.jerlang.erts.erlang.ErlangListToAtom;
 import org.jerlang.erts.erlang.ErlangListToBitstring;
 import org.jerlang.erts.erlang.ErlangListToInteger;
 import org.jerlang.erts.erlang.ErlangMakeRef;
+import org.jerlang.erts.erlang.ErlangMonitor;
 import org.jerlang.erts.erlang.ErlangNode;
 import org.jerlang.erts.erlang.ErlangNodes;
 import org.jerlang.erts.erlang.ErlangOpenPort;
@@ -46,6 +51,7 @@ import org.jerlang.erts.erlang.ErlangPortControl;
 import org.jerlang.erts.erlang.ErlangProcessFlag;
 import org.jerlang.erts.erlang.ErlangPut;
 import org.jerlang.erts.erlang.ErlangRegister;
+import org.jerlang.erts.erlang.ErlangRegistered;
 import org.jerlang.erts.erlang.ErlangRem;
 import org.jerlang.erts.erlang.ErlangSelf;
 import org.jerlang.erts.erlang.ErlangSendAfter;
@@ -58,6 +64,9 @@ import org.jerlang.erts.erlang.ErlangThrow;
 import org.jerlang.erts.erlang.ErlangTl;
 import org.jerlang.erts.erlang.ErlangTupleSize;
 import org.jerlang.erts.erlang.ErlangTupleToList;
+import org.jerlang.erts.erlang.ErlangUnlink;
+import org.jerlang.erts.erlang.ErlangUnregister;
+import org.jerlang.erts.erlang.ErlangWhereis;
 import org.jerlang.exception.ThrowException;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Binary;
@@ -302,6 +311,50 @@ public class Erlang {
 
     public static Term register(Atom regName, PID pid) {
         return ErlangRegister.register_2(regName, pid);
+    }
+
+    public static Term demonitor(Reference reference) {
+        return ErlangDemonitor.demonitor_1(reference);
+    }
+
+    public static Term demonitor(Reference reference, List options) {
+        return ErlangDemonitor.demonitor_2(reference, options);
+    }
+
+    public static Term exit(Term reason) {
+        return ErlangExit.exit_1(reason);
+    }
+
+    public static Term exit(PID pid, Term reason) {
+        return ErlangExit.exit_2(pid, reason);
+    }
+
+    public static Term is_process_alive(PID pid) {
+        return ErlangIsProcessAlive.is_process_alive_1(pid);
+    }
+
+    public static Term link(PID pid) {
+        return ErlangLink.link_1(pid);
+    }
+
+    public static Term monitor(Atom type, Term target) {
+        return ErlangMonitor.monitor_2(type, target);
+    }
+
+    public static List registered() {
+        return ErlangRegistered.registered_0();
+    }
+
+    public static Term unlink(PID pid) {
+        return ErlangUnlink.unlink_1(pid);
+    }
+
+    public static Term unregister(Atom name) {
+        return ErlangUnregister.unregister_1(name);
+    }
+
+    public static Term whereis(Atom name) {
+        return ErlangWhereis.whereis_1(name);
     }
 
     public static Integer rem(Integer a, Integer b) {

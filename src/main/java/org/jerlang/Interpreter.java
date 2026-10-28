@@ -9,6 +9,7 @@ import org.jerlang.stdlib.beam_lib.BeamData;
 import org.jerlang.stdlib.beam_lib.CodeChunk;
 import org.jerlang.type.Atom;
 import org.jerlang.type.List;
+import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 import org.jerlang.type.stack.ExceptionHandler;
 
@@ -68,6 +69,11 @@ public class Interpreter {
         Term params = List.nil; // TODO: is this correct?
 
         for (int index = start; index < maxInstructions; index++) {
+            if (process.hasPendingExit()) {
+                // An exit signal is not an Erlang exception: it unwinds all
+                // the way out of the process instead of into a catch clause.
+                throw new ProcessExit();
+            }
             Instruction i = instructions.get(index);
 
             // process.printStack();
@@ -113,16 +119,19 @@ public class Interpreter {
                     // and restores the enclosing handler.
                     handler.handle(process, error);
                 } else {
-                    System.err.println("Raise catched");
-                    error.printStackTrace();
-                    System.exit(1);
-                    break;
+                    // No handler: the process terminates with this reason.
+                    // The scheduler turns it into EXIT signals and DOWN
+                    // messages for its links and monitors.
+                    throw error;
                 }
             } catch (Throwable e) {
-                System.err.println("Index: " + index);
-                e.printStackTrace();
-                System.exit(1);
-                break;
+                if (e instanceof ProcessExit) {
+                    throw (ProcessExit) e;
+                }
+                if (e instanceof RuntimeException) {
+                    throw (RuntimeException) e;
+                }
+                throw new Error(Str.of(String.valueOf(e)));
             }
 
             if (process.state() == ProcessState.WAITING) {

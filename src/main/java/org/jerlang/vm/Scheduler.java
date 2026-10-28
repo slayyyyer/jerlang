@@ -5,8 +5,11 @@ import java.util.HashSet;
 import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
+import org.jerlang.ProcessSignals;
 import org.jerlang.ProcessState;
+import org.jerlang.type.Atom;
 import org.jerlang.type.PidOrPortId;
+import org.jerlang.type.Term;
 
 /**
  * References:
@@ -104,9 +107,18 @@ public class Scheduler extends Thread {
         ProcessOrPort p = runQueue.poll();
         if (p != null) {
             ProcessRegistry.self(p);
+            Process process = p instanceof Process ? (Process) p : null;
             Throwable failure = null;
             try {
-                p.execute();
+                // An exit signal that arrived while the process was off the
+                // run queue takes effect before another instruction runs.
+                if (process != null && process.hasPendingExit()
+                    && p.state() != ProcessState.EXITING) {
+                    p.setState(ProcessState.EXITING);
+                }
+                if (p.state() != ProcessState.EXITING) {
+                    p.execute();
+                }
             } catch (Throwable t) {
                 // An uncaught error terminates the process, but must not
                 // terminate the scheduler thread that ran it.
@@ -115,10 +127,21 @@ public class Scheduler extends Thread {
                 ProcessRegistry.self(null);
             }
             if (failure != null) {
-                if (p instanceof Process) {
-                    ((Process) p).setFailure(failure);
+                if (process != null) {
+                    process.setFailure(failure);
                 }
                 p.setState(ProcessState.EXITING);
+            }
+            if (process != null && p.state() == ProcessState.EXITING) {
+                // The exit reason is the pending signal when there is one,
+                // otherwise what the process crashed with or `normal`.
+                Term reason = process.pendingExitReason();
+                if (reason == null) {
+                    reason = process.failure() == null
+                        ? Atom.of("normal")
+                        : ProcessSignals.reason(process.failure());
+                }
+                ProcessSignals.terminate(process, reason);
             }
             switch (p.state()) {
             case RUNNABLE:

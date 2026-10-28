@@ -561,7 +561,22 @@ public enum Opcode {
     call_fun2(178, 3),
 
     /** Implemented in org.jerlang.erts.emulator.op.InitYregs */
-    init_yregs(172, 1);
+    init_yregs(172, 1),
+
+    // ------------------------------------------------------------------------
+    // OTP 28
+
+    /** Implemented in org.jerlang.erts.emulator.op.RecvMarkerBind */
+    recv_marker_bind(173, 2),
+
+    /** Implemented in org.jerlang.erts.emulator.op.RecvMarkerClear */
+    recv_marker_clear(174, 1),
+
+    /** Implemented in org.jerlang.erts.emulator.op.RecvMarkerReserve */
+    recv_marker_reserve(175, 1),
+
+    /** Implemented in org.jerlang.erts.emulator.op.RecvMarkerUse */
+    recv_marker_use(176, 1);
 
     // ========================================================================
 
