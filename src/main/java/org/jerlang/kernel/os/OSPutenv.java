@@ -35,7 +35,13 @@ public class OSPutenv {
      * http://www.erlang.org/doc/man/os.html#putenv-2
      */
     public static Term putenv_2(Str varName, Str value) {
-        posix.setenv(varName.string(), value.string(), 1);
+        OSGetenv.set(varName.string(), value.string());
+        try {
+            posix.setenv(varName.string(), value.string(), 1);
+        } catch (Throwable t) {
+            // The JVM-side overlay still reflects the change; only child
+            // processes miss out when the platform has no setenv(3).
+        }
         return Boolean.am_true;
     }
 

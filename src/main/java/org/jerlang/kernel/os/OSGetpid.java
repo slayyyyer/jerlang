@@ -1,20 +1,11 @@
 package org.jerlang.kernel.os;
 
-import jnr.posix.POSIX;
-import jnr.posix.POSIXFactory;
-
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.List;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 
 public class OSGetpid {
-
-    static {
-        posix = POSIXFactory.getPOSIX();
-    }
-
-    private static final POSIX posix;
 
     public static Term dispatch(List params) {
         switch (params.length()) {
@@ -34,7 +25,7 @@ public class OSGetpid {
      * http://www.erlang.org/doc/man/os.html#getpid-0
      */
     public static Str getpid_0() {
-        return Str.of(String.valueOf(posix.getpid()));
+        return Str.of(String.valueOf(ProcessHandle.current().pid()));
     }
 
 }
