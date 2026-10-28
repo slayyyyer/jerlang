@@ -58,6 +58,8 @@ import org.jerlang.erts.erlang.ErlangSendAfter;
 import org.jerlang.erts.erlang.ErlangSend;
 import org.jerlang.erts.erlang.ErlangSetelement;
 import org.jerlang.erts.erlang.ErlangSpawn;
+import org.jerlang.erts.erlang.ErlangSpawnRequest;
+import org.jerlang.erts.erlang.ErlangSpawnRequestAbandon;
 import org.jerlang.erts.erlang.ErlangSystemInfo;
 import org.jerlang.erts.erlang.ErlangTermToBinary;
 import org.jerlang.erts.erlang.ErlangThrow;
@@ -383,6 +385,18 @@ public class Erlang {
 
     public static PID spawn(Atom m, Atom f, List a) {
         return ErlangSpawn.spawn_3(m, f, a);
+    }
+
+    public static PID spawn(Atom node, Atom m, Atom f, List a) {
+        return ErlangSpawn.spawn_4(node, m, f, a);
+    }
+
+    public static Reference spawn_request(Atom node, Atom m, Atom f, List a, List options) {
+        return ErlangSpawnRequest.spawn_request_5(node, m, f, a, options);
+    }
+
+    public static Term spawn_request_abandon(Reference requestId) {
+        return ErlangSpawnRequestAbandon.spawn_request_abandon_1(requestId);
     }
 
     public static Term system_info(Term term) {

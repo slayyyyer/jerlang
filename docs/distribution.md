@@ -74,11 +74,30 @@ The decoder also understands the older `PID_EXT`, `REFERENCE_EXT`,
 length (4 bytes) | 112 | control term | message term
 ```
 
-The control term selects the signal. `SEND` (`{2, Unused, ToPid}`) and
-`REG_SEND` (`{6, FromPid, Unused, ToName}`) carry a message; other signals
-are ignored. Messages for processes and names this node does not have are
-not decoded and do not close the connection. A message that can not be
-decoded is dropped for the same reason.
+The control term selects the signal:
+
+| Signal | Control message |
+|--------|-----------------|
+| `LINK` | `{1, FromPid, ToPid}` |
+| `SEND` | `{2, Unused, ToPid}`, followed by the message |
+| `EXIT` | `{3, FromPid, ToPid, Reason}` |
+| `UNLINK` (legacy) | `{4, FromPid, ToPid}` |
+| `REG_SEND` | `{6, FromPid, Unused, ToName}`, followed by the message |
+| `EXIT2` | `{8, FromPid, ToPid, Reason}` |
+| `MONITOR_P` | `{19, FromPid, ToProc, Ref}` |
+| `DEMONITOR_P` | `{20, FromPid, ToProc, Ref}` |
+| `MONITOR_P_EXIT` | `{21, FromProc, ToPid, Ref, Reason}` |
+| `SPAWN_REQUEST` | `{29, ReqId, From, GroupLeader, {M,F,A}, Opts}`, followed by the argument list |
+| `SPAWN_REPLY` | `{31, ReqId, To, Flags, Result}` |
+| `UNLINK_ID` | `{35, Id, FromPid, ToPid}` |
+| `UNLINK_ID_ACK` | `{36, Id, FromPid, ToPid}` |
+
+`SEND` and `REG_SEND` carry a message; the other signals carry their
+reason in the control term, because `DFLAG_EXIT_PAYLOAD` is not
+negotiated. `NODE_LINK` and signals this node does not act on are ignored.
+Messages for processes and names this node does not have are not decoded
+and do not close the connection. A message that can not be decoded is
+dropped for the same reason.
 
 `Distribution` keeps the open connections and implements `!`:
 
@@ -139,6 +158,17 @@ closes the connection and `net_adm:ping` returns `pang`.
   node. It checks `net_adm:ping/1`, both message directions, `nodes/0`,
   and a compiled Erlang module that receives a remote reply in a
   `receive ... after` expression.
+* [`DistSignalsTest`](../src/test/java/org/jerlang/erts/dist/DistSignalsTest.java)
+  runs [`dist_signals_demo.erl`](../src/test/erl/dist_signals_demo.erl)
+  against a fake peer and checks `LINK`, `UNLINK_ID`/`UNLINK_ID_ACK`,
+  `EXIT`, `EXIT2`, `MONITOR_P`, `DEMONITOR_P`, `MONITOR_P_EXIT`, name
+  monitors and `noconnection` in both directions.
+* [`DistSpawnTest`](../src/test/java/org/jerlang/erts/dist/DistSpawnTest.java)
+  runs [`dist_spawn_demo.erl`](../src/test/erl/dist_spawn_demo.erl) and
+  checks `spawn/4`, the reply, `link` and `monitor` options of
+  `spawn_request/5`, `spawn_request_abandon/1`, error replies, local
+  requests, and incoming `SPAWN_REQUEST`/`SPAWN_REPLY` in both
+  directions.
 * [`ExternalTermFormatTest`](../src/test/java/org/jerlang/erts/etf/ExternalTermFormatTest.java)
   round-trips every supported term, including improper lists and five-word
   references, and compares byte sequences with `erlang:term_to_binary/1`
@@ -183,6 +213,123 @@ reason `normal` is ignored unless the peer traps exits.
 runs [`src/test/erl/link_demo.erl`](../src/test/erl/link_demo.erl), which
 covers link propagation, `trap_exit`, `unlink`, `demonitor`, `kill`, the
 `noproc` cases and the registry functions.
+
+## Distributed links and monitors
+
+`link/1`, `unlink/1`, `monitor/2` (PIDs and `{Name, Node}`),
+`demonitor/1,2` and `exit/2` treat a PID on another node as a distributed
+signal instead of a local operation. `Process` records the link and
+monitor state; `Distribution` encodes the matching control message.
+
+### The link protocol
+
+JErlang advertises `DFLAG_DIST_MONITOR`, `DFLAG_DIST_MONITOR_NAME`,
+`DFLAG_UNLINK_ID` and `DFLAG_SPAWN`, so a peer knows that monitors, the
+new link protocol and remote spawn work in both directions. `DFLAG_UNLINK_ID`
+is required by OTP 26 and later, so JErlang implements the new link
+protocol rather than the obsolete `UNLINK` signal:
+
+* `link/1` sends `LINK` and records the link as active. A second `link/1`
+  while the link is active sends nothing.
+* `unlink/1` marks the link inactive, gives it a new unlink identifier and
+  sends `UNLINK_ID`. The link information stays until the peer acknowledges
+  it, so both sides agree on whether the link exists.
+* A received `UNLINK_ID` is acknowledged straight from the connection
+  reader thread, before any other signal can be written to that peer, as
+  the protocol requires. The link information is removed if the link was
+  active.
+* A received `UNLINK_ID_ACK` removes the inactive link information when its
+  identifier matches.
+* A received `LINK` is ignored when link information for that peer already
+  exists: an outstanding unlink has to win, or a link could be resurrected
+  after it was removed.
+* The legacy `UNLINK` signal is accepted and removes the link, for peers
+  that do not use identifiers.
+
+An exit signal from a link (`EXIT`) is acted on only while the link is
+active; an inactive link is waiting for its acknowledgement. `EXIT2`,
+which `exit/2` sends, is delivered regardless of any link. `kill` stays
+uncatchable because the signal ends up in the same pending exit a local
+kill uses.
+
+### Monitors
+
+A remote PID, or `{Name, Node}`, gets `MONITOR_P` with the caller's
+reference. `DEMONITOR_P` removes it. `MONITOR_P_EXIT` becomes
+`{'DOWN', Ref, process, Object, Reason}`, where `Object` is the PID, or
+`{Name, Node}` when a registered name was monitored. Monitoring a
+`{Name, Node}` whose name is not registered reports `noproc`, whether the
+node is local or remote.
+
+A peer can also monitor a name registered on this node. The name is kept
+with the monitor information, so `MONITOR_P_EXIT` reports the name back
+rather than the PID.
+
+### Remote spawn
+
+`erlang:spawn(Node, Module, Function, Args)` starts a process on another
+node. The node is sent a `SPAWN_REQUEST` and the call waits for the
+`SPAWN_REPLY`, so it returns the real PID of the new process. A node that
+can not be reached yields a PID that names no process, as documented for
+`spawn/4`; a connection that is lost while the request is in flight, or a
+peer that does not advertise `DFLAG_SPAWN`, raises an error instead. The
+wait is bounded by a 30 second timeout.
+
+`erlang:spawn_request(Node, Module, Function, Args, Options)` returns a
+request identifier immediately and reports the result as a message:
+
+```erlang
+{spawn_reply, ReqId, ok, Pid}
+{spawn_reply, ReqId, error, Reason}
+```
+
+`spawn_request_abandon(ReqId)` drops a request whose reply has not arrived
+yet; it returns `true` when the caller was still waiting.
+
+The request identifier is also the monitor reference when `monitor` is
+used, exactly as in Erlang/OTP. The supported options are:
+
+| Option | Effect |
+|--------|--------|
+| `link` | The peer links the new process to the caller before answering. |
+| `monitor` | The peer sets up a monitor to the new process. `{monitor, []}` is also accepted; monitor sub-options such as `alias` are not. |
+| `{reply_tag, Tag}` | First element of the reply message; `spawn_reply` by default. |
+| `{reply, yes \| no \| error_only \| success_only}` | Which reply messages to deliver. |
+
+An invalid option produces `{spawn_reply, ReqId, error, badopt}` without
+contacting the peer. A failed remote spawn produces `noconnection`,
+`notsup` or `system_limit`, and never activates the requested link or
+monitor.
+
+The `link` and `monitor` flags in `SPAWN_REPLY` (bits 1 and 2) tell the
+caller which state the peer established. The caller records it before the
+reply message is delivered, so a signal that follows the reply always
+finds its link or monitor.
+
+A node that receives a `SPAWN_REQUEST` creates the process without
+scheduling it, sets up the requested link and monitor, and sends the
+`SPAWN_REPLY` before the new process can run. The reply therefore always
+precedes an `EXIT` or `MONITOR_P_EXIT` the new process may produce. The
+group leader in the request is accepted but ignored, because JErlang does
+not implement process groups yet.
+
+A spawn request still pending when the connection closes fails with
+`noconnection`. If a process was created on the peer, its link state is
+what tells it that the connection disappeared.
+
+### Losing the connection
+
+When a connection closes, every link to a process on that node receives an
+exit signal with reason `noconnection`, and every monitor on that node
+delivers `DOWN` with `noconnection`. A process that traps exits sees
+`{'EXIT', Pid, noconnection}`. If a second connection to the same node
+exists, closing the duplicate does not fail anything.
+
+Only a closed or broken TCP connection is detected. Ticks are sent but not
+used to time out a silent peer, so a node that disappears without closing
+its connection is not noticed. A node that can not be reached at all fails
+the link or monitor immediately with `noconnection` instead of retrying
+through connection setup.
 
 ## Sockets
 
@@ -235,12 +382,12 @@ exists.
 
 ## Not implemented yet
 
-* Distributed links and monitors. The local semantics above exist, but the
-  connection only understands `SEND` and `REG_SEND`: `LINK`, `UNLINK`,
-  `MONITOR`, `EXIT` and `MONITOR_NODES` signals from a peer are ignored, so
-  an exit never crosses a node boundary.
-* Remote process spawn (`rex`), registered-name monitoring and the
-  `global` name server. OTP's messages to those names are dropped.
+* Node monitoring (`monitor_node/2`, `NODE_LINK`, `MONITOR_NODES`).
+* `rex`, the `global` name server and remote `rpc:call/4`. OTP's messages
+  to those names are dropped. Remote spawn itself does not use `rex`; it
+  uses `SPAWN_REQUEST`, which is implemented.
+* `spawn_opt/5`, `spawn_link/4` and remote funs are not implemented yet;
+  use `spawn_request/5` with `link` or `monitor` instead.
 * Atom cache in the distribution header, compressed terms, funs and
   ports in messages.
 * Tick handling: the connection sends ticks but does not use them to

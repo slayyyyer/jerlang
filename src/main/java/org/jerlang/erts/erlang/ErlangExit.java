@@ -4,6 +4,7 @@ import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
 import org.jerlang.ProcessSignals;
+import org.jerlang.erts.dist.Distribution;
 import org.jerlang.type.Atom;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
@@ -45,9 +46,17 @@ public class ErlangExit {
         if (!(target instanceof PID)) {
             throw Error.badarg;
         }
-        ProcessOrPort peer = ProcessRegistry.resolve((PID) target);
+        PID pid = (PID) target;
+        PID self = ProcessSignals.self().pid();
+        if (!Process.onThisNode(pid)) {
+            // EXIT2 is the explicit signal of exit/2, unlike the EXIT that
+            // a broken link produces.
+            Distribution.sendExit(self, pid, reason, true);
+            return org.jerlang.type.Boolean.am_true;
+        }
+        ProcessOrPort peer = ProcessRegistry.resolve(pid);
         if (peer instanceof Process) {
-            ((Process) peer).exitSignal(reason, ProcessSignals.self().pid());
+            ((Process) peer).exitSignal(reason, self);
         }
         return org.jerlang.type.Boolean.am_true;
     }

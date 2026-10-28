@@ -8,6 +8,7 @@ import org.jerlang.type.PID;
 import org.jerlang.type.PidOrPortId;
 import org.jerlang.type.Reference;
 import org.jerlang.type.Term;
+import org.jerlang.type.Tuple;
 
 public class ErlangMonitor {
 
@@ -29,6 +30,17 @@ public class ErlangMonitor {
      */
     public static Term monitor_2(Atom type, Term target) {
         if (!"process".equals(type.toString())) {
+            throw Error.badarg;
+        }
+        if (target instanceof Tuple) {
+            // {Name, Node} monitors a registered name, possibly on another
+            // node; a bare name only works on this node.
+            Tuple nameAndNode = (Tuple) target;
+            if (nameAndNode.arity() == 2 && nameAndNode.element(1) instanceof Atom
+                && nameAndNode.element(2) instanceof Atom) {
+                return ProcessSignals.self().monitor(nameAndNode.element(1).toAtom(),
+                    nameAndNode.element(2).toAtom());
+            }
             throw Error.badarg;
         }
         return ProcessSignals.self().monitor(process(target));

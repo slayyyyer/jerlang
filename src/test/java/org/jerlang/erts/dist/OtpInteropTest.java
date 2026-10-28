@@ -39,13 +39,16 @@ import org.junit.Test;
  *
  *   mvn test -Dtest=OtpInteropTest -Djerlang.dist.otp=true
  *
- * Without -Djerlang.dist.otp=true the test is skipped.
+ * Without -Djerlang.dist.otp=true the test is skipped. Pass
+ * -Djerlang.dist.otp.peer=name@host to use a peer under another name.
  */
 public class OtpInteropTest {
 
     private static final Atom LOCAL = Atom.of("jerlang@localhost");
-    private static final Atom PEER = Atom.of("peer@localhost");
+    private static final Atom PEER = Atom.of(
+        System.getProperty("jerlang.dist.otp.peer", "peer@localhost"));
     private static final Path DIST_DEMO = Paths.get("dist_demo.beam");
+    private static final Path SPAWN_DEMO = Paths.get("dist_spawn_demo.beam");
 
     private VirtualMachine vm;
     private Atom previousNode;
@@ -64,6 +67,8 @@ public class OtpInteropTest {
         DistCookie.setCookie("dist-test-cookie");
         Files.copy(Paths.get("src/test/resources/dist_demo.beam"), DIST_DEMO,
             StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(Paths.get("src/test/resources/dist_spawn_demo.beam"), SPAWN_DEMO,
+            StandardCopyOption.REPLACE_EXISTING);
         vm.start();
         started = true;
     }
@@ -79,6 +84,7 @@ public class OtpInteropTest {
         vm.setNode(previousNode, previousCreation);
         try {
             Files.deleteIfExists(DIST_DEMO);
+            Files.deleteIfExists(SPAWN_DEMO);
         } catch (Exception ignored) {
             // Nothing to clean up if the file was never copied.
         }
@@ -107,6 +113,42 @@ public class OtpInteropTest {
         Term reply = sink.nextMessage();
         assertNotNull(reply);
         assertEquals(Tuple.of(Atom.of("echo"), hello), reply);
+    }
+
+    @Test
+    public void spawnsAProcessOnOtp() throws Throwable {
+        assertEquals(Atom.of("pong"),
+            Erlang.apply(Atom.of("net_adm"), Atom.of("ping"), List.of(PEER)));
+
+        Process sink = new Process(new PID(321));
+        ProcessRegistry.register(sink);
+        ProcessRegistry.register(Atom.of("spawn_sink"), sink.id());
+
+        Term target = Tuple.of(Atom.of("spawn_sink"), LOCAL);
+        PID child = Erlang.apply(Atom.of("dist_spawn_demo"), Atom.of("spawn_mfa"),
+            List.of(PEER, Atom.of("erlang"), Atom.of("send"),
+                List.of(target, Atom.of("from_otp")))).toPID();
+        assertEquals(PEER, child.node());
+
+        long deadline = System.currentTimeMillis() + 5000;
+        while (!sink.hasMessage() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10);
+        }
+        assertTrue("the OTP process did not send its message", sink.hasMessage());
+        assertEquals(Atom.of("from_otp"), sink.nextMessage());
+    }
+
+    @Test
+    public void spawnRequestMonitorToOtpReportsDown() throws Throwable {
+        assertEquals(Atom.of("pong"),
+            Erlang.apply(Atom.of("net_adm"), Atom.of("ping"), List.of(PEER)));
+
+        Term result = Erlang.apply(Atom.of("dist_spawn_demo"), Atom.of("monitor_mfa"),
+            List.of(PEER, Atom.of("erlang"), Atom.of("node"), List.nil));
+        Tuple down = result.toTuple();
+        assertEquals(Atom.of("down"), down.element(1));
+        assertEquals(PEER, down.element(3).toPID().node());
+        assertEquals(Atom.of("normal"), down.element(4));
     }
 
     @Test

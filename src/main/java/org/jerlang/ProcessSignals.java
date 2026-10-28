@@ -2,6 +2,7 @@ package org.jerlang;
 
 import java.util.Map;
 
+import org.jerlang.erts.dist.Distribution;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
 import org.jerlang.type.PID;
@@ -46,23 +47,47 @@ public final class ProcessSignals {
         if (termination == null) {
             return;
         }
-        for (Map.Entry<Reference, PID> monitor : termination.monitoredBy.entrySet()) {
-            Process watcher = resolve(monitor.getValue());
-            if (watcher != null) {
-                watcher.send(Tuple.of(DOWN, monitor.getKey(), PROCESS,
-                    termination.pid, termination.reason));
+        for (Map.Entry<Reference, Process.Monitor> monitor : termination.monitoredBy.entrySet()) {
+            Process.Monitor watchedBy = monitor.getValue();
+            if (Process.onThisNode(watchedBy.watcher)) {
+                Process watcher = resolve(watchedBy.watcher);
+                if (watcher != null) {
+                    Term object = watchedBy.name != null ? watchedBy.name : termination.pid;
+                    watcher.send(Tuple.of(DOWN, monitor.getKey(), PROCESS,
+                        object, termination.reason));
+                }
+            } else {
+                // A remote monitor reports the name it watched, if any, so
+                // that the peer can reconstruct the {Name, Node} object.
+                Distribution.sendMonitorExit(
+                    watchedBy.name != null ? watchedBy.name : termination.pid,
+                    watchedBy.watcher, monitor.getKey(), termination.reason);
             }
         }
         for (PID link : termination.links) {
             Process peer = resolve(link);
             if (peer != null) {
                 peer.exitSignal(termination.reason, termination.pid);
+            } else if (!Process.onThisNode(link)) {
+                Distribution.sendExit(termination.pid, link, termination.reason, false);
             }
         }
-        for (Map.Entry<Reference, PID> monitor : termination.monitors.entrySet()) {
-            Process target = resolve(monitor.getValue());
-            if (target != null) {
-                target.removeMonitoredBy(monitor.getKey());
+        for (Map.Entry<Reference, Term> monitor : termination.monitors.entrySet()) {
+            Term target = monitor.getValue();
+            if (target instanceof PID) {
+                PID pid = (PID) target;
+                Process peer = resolve(pid);
+                if (peer != null) {
+                    peer.removeMonitoredBy(monitor.getKey());
+                } else if (!Process.onThisNode(pid)) {
+                    Distribution.sendDemonitor(termination.pid, pid, pid.node(), monitor.getKey());
+                }
+            } else if (target instanceof Tuple) {
+                Tuple nameAndNode = (Tuple) target;
+                if (nameAndNode.arity() == 2 && nameAndNode.element(2) instanceof Atom) {
+                    Distribution.sendDemonitor(termination.pid, nameAndNode.element(1),
+                        nameAndNode.element(2).toAtom(), monitor.getKey());
+                }
             }
         }
         ProcessRegistry.remove(termination.pid);

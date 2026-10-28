@@ -14,7 +14,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
+import org.jerlang.erts.dist.Distribution;
 import org.jerlang.type.Atom;
 import org.jerlang.type.BitString;
 import org.jerlang.type.Float;
@@ -23,11 +25,13 @@ import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
 import org.jerlang.type.Reference;
+import org.jerlang.type.PidOrPortId;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 import org.jerlang.type.stack.ExceptionHandler;
 import org.jerlang.type.stack.StackFrame;
 import org.jerlang.vm.Scheduler;
+import org.jerlang.vm.VirtualMachine;
 
 /**
  * Erlang is designed for massive concurrency.
@@ -106,13 +110,20 @@ public class Process extends ProcessOrPort {
     private static final Atom NORMAL = Atom.of("normal");
     private static final Atom KILL = Atom.of("kill");
     private static final Atom KILLED = Atom.of("killed");
+    private static final Atom NOCONNECTION = Atom.of("noconnection");
+
+    // Unlink identifiers are unique among the outstanding unlink operations
+    // of a node, which is all the link protocol asks for.
+    private static final AtomicLong UNLINK_IDS = new AtomicLong();
 
     // Links are bidirectional, monitors are one-way and keyed by reference.
     // The maps hold pids rather than processes, so a terminated peer can be
-    // resolved (and ignored) instead of being kept alive.
+    // resolved (and ignored) instead of being kept alive. Links to other
+    // nodes carry the extra state the OTP 26 link protocol needs.
     private final Set<PID> links = ConcurrentHashMap.newKeySet();
-    private final Map<Reference, PID> monitors = new ConcurrentHashMap<>();
-    private final Map<Reference, PID> monitoredBy = new ConcurrentHashMap<>();
+    private final Map<PID, RemoteLink> remoteLinks = new ConcurrentHashMap<>();
+    private final Map<Reference, Term> monitors = new ConcurrentHashMap<>();
+    private final Map<Reference, Monitor> monitoredBy = new ConcurrentHashMap<>();
 
     private volatile boolean trapExit = false;
     private volatile Term pendingExit = null;
@@ -492,9 +503,14 @@ public class Process extends ProcessOrPort {
 
     /**
      * Link to another process. Linking to a process that is already gone
-     * is an immediate noproc exit signal, as in Erlang/OTP.
+     * is an immediate noproc exit signal, as in Erlang/OTP. A process on
+     * another node gets a LINK signal instead.
      */
     public void link(PID other) {
+        if (!onThisNode(other)) {
+            linkRemote(other);
+            return;
+        }
         ProcessOrPort peer = ProcessRegistry.resolve(other);
         Process target = peer instanceof Process ? (Process) peer : null;
         if (target == null || !target.addLink(pid())) {
@@ -505,6 +521,10 @@ public class Process extends ProcessOrPort {
     }
 
     public void unlink(PID other) {
+        if (!onThisNode(other)) {
+            unlinkRemote(other);
+            return;
+        }
         removeLink(other);
         ProcessOrPort peer = ProcessRegistry.resolve(other);
         if (peer instanceof Process) {
@@ -514,10 +534,20 @@ public class Process extends ProcessOrPort {
 
     /**
      * Monitor another process. Monitoring a process that already
-     * terminated delivers DOWN with noproc straight away.
+     * terminated delivers DOWN with noproc straight away. A process on
+     * another node gets a MONITOR_P signal, and DOWN with noconnection
+     * when that node can not be reached.
      */
     public Reference monitor(PID target) {
         Reference reference = new Reference();
+        if (!onThisNode(target)) {
+            addMonitor(reference, target);
+            if (!Distribution.sendMonitor(pid(), target, target.node(), reference)) {
+                removeMonitor(reference);
+                send(Tuple.of(DOWN, reference, PROCESS, target, NOCONNECTION));
+            }
+            return reference;
+        }
         ProcessOrPort peer = ProcessRegistry.resolve(target);
         Process process = peer instanceof Process ? (Process) peer : null;
         if (process == null || !process.addMonitoredBy(reference, pid())) {
@@ -529,22 +559,261 @@ public class Process extends ProcessOrPort {
     }
 
     /**
+     * Monitor a registered name on a node, as
+     * erlang:monitor(process, {Name, Node}) does. The DOWN message reports
+     * the object as {Name, Node}, like Erlang/OTP.
+     */
+    public Reference monitor(Atom name, Atom node) {
+        Reference reference = new Reference();
+        if (!node.equals(VirtualMachine.instance().node())) {
+            Tuple target = Tuple.of(name, node);
+            addMonitor(reference, target);
+            if (!Distribution.sendMonitor(pid(), name, node, reference)) {
+                removeMonitor(reference);
+                send(Tuple.of(DOWN, reference, PROCESS, target, NOCONNECTION));
+            }
+            return reference;
+        }
+        PidOrPortId id = ProcessRegistry.instance().get(name);
+        ProcessOrPort peer = id == null ? null : ProcessRegistry.resolve(id);
+        if (peer instanceof Process) {
+            Process process = (Process) peer;
+            if (process.addMonitoredBy(reference, pid())) {
+                addMonitor(reference, process.pid());
+                return reference;
+            }
+        }
+        send(Tuple.of(DOWN, reference, PROCESS, Tuple.of(name, node), Atom.of("noproc")));
+        return reference;
+    }
+
+    /**
      * Remove a monitor. Returns true when the monitor or a queued DOWN
      * message was found.
      */
     public boolean demonitor(Reference reference, boolean flush) {
-        PID target = monitorTarget(reference);
+        Term target = monitorTarget(reference);
         boolean found = removeMonitor(reference);
-        if (target != null) {
-            ProcessOrPort peer = ProcessRegistry.resolve(target);
-            if (peer instanceof Process) {
-                ((Process) peer).removeMonitoredBy(reference);
+        if (target instanceof PID) {
+            PID pid = (PID) target;
+            if (onThisNode(pid)) {
+                ProcessOrPort peer = ProcessRegistry.resolve(pid);
+                if (peer instanceof Process) {
+                    ((Process) peer).removeMonitoredBy(reference);
+                }
+            } else {
+                Distribution.sendDemonitor(pid(), pid, pid.node(), reference);
+            }
+        } else if (target instanceof Tuple) {
+            Tuple nameAndNode = (Tuple) target;
+            if (nameAndNode.arity() == 2 && nameAndNode.element(1) instanceof Atom
+                && nameAndNode.element(2) instanceof Atom) {
+                Distribution.sendDemonitor(pid(), nameAndNode.element(1),
+                    nameAndNode.element(2).toAtom(), reference);
             }
         }
         if (flush) {
             found |= flushDown(reference);
         }
         return found;
+    }
+
+    /**
+     * True when a PID names a process on this node. A PID from an older
+     * incarnation of the node also counts, because it names no process at
+     * all rather than one on a peer.
+     */
+    public static boolean onThisNode(PID pid) {
+        return pid.node().equals(VirtualMachine.instance().node());
+    }
+
+    /**
+     * Link to a process on another node. The link is recorded first, so
+     * that an immediate signal from the peer is never missed, and the LINK
+     * signal is only sent when there is no active link yet.
+     */
+    private void linkRemote(PID other) {
+        boolean signal;
+        synchronized (this) {
+            if (terminated) {
+                return;
+            }
+            RemoteLink link = remoteLinks.get(other);
+            signal = link == null || !link.active;
+            if (link == null) {
+                link = new RemoteLink();
+                remoteLinks.put(other, link);
+            }
+            link.active = true;
+            link.unlinkId = 0;
+            links.add(other);
+        }
+        if (signal && !Distribution.sendLink(pid(), other)) {
+            synchronized (this) {
+                RemoteLink link = remoteLinks.get(other);
+                if (link != null && link.active) {
+                    remoteLinks.remove(other);
+                    links.remove(other);
+                }
+            }
+            exitSignal(NOCONNECTION, other);
+        }
+    }
+
+    /**
+     * Request the end of a link to another node. The link stays around,
+     * inactive, until the peer acknowledges the UNLINK_ID signal.
+     */
+    private void unlinkRemote(PID other) {
+        long id;
+        synchronized (this) {
+            RemoteLink link = remoteLinks.get(other);
+            if (link == null || !link.active) {
+                return;
+            }
+            id = UNLINK_IDS.incrementAndGet();
+            if (id <= 0) {
+                UNLINK_IDS.set(1);
+                id = 1;
+            }
+            link.active = false;
+            link.unlinkId = id;
+            links.remove(other);
+        }
+        Distribution.sendUnlink(pid(), other, id);
+    }
+
+    /**
+     * Record a link that the peer already set up, as the `link` flag of a
+     * SPAWN_REPLY announces for an atomically linked remote spawn. No LINK
+     * signal is sent: the peer created the link together with the process.
+     */
+    public synchronized void remoteLinkEstablished(PID other) {
+        if (terminated) {
+            return;
+        }
+        RemoteLink link = remoteLinks.get(other);
+        if (link == null) {
+            link = new RemoteLink();
+            remoteLinks.put(other, link);
+        }
+        link.active = true;
+        link.unlinkId = 0;
+        links.add(other);
+    }
+
+    /**
+     * A LINK signal arrived from another node. A second LINK for a link
+     * that is already known is ignored: the peer has not acknowledged our
+     * UNLINK_ID yet, so the two operations must not resurrect the link.
+     * Returns false when this process is already gone.
+     */
+    public synchronized boolean linkReceived(PID from) {
+        if (terminated) {
+            return false;
+        }
+        if (remoteLinks.containsKey(from)) {
+            return true;
+        }
+        RemoteLink link = new RemoteLink();
+        link.active = true;
+        remoteLinks.put(from, link);
+        links.add(from);
+        return true;
+    }
+
+    /**
+     * A UNLINK_ID signal arrived. The acknowledgement has already been
+     * sent. An outstanding unlink of our own stays in place: the peer will
+     * acknowledge it, and only then is the link information gone.
+     */
+    public synchronized void unlinkIdReceived(PID from, long id) {
+        RemoteLink link = remoteLinks.get(from);
+        if (link != null && link.active) {
+            remoteLinks.remove(from);
+            links.remove(from);
+        }
+    }
+
+    /**
+     * The peer acknowledged our UNLINK_ID, so the link information can go.
+     */
+    public synchronized void unlinkIdAckReceived(PID from, long id) {
+        RemoteLink link = remoteLinks.get(from);
+        if (link != null && !link.active && link.unlinkId == id) {
+            remoteLinks.remove(from);
+            links.remove(from);
+        }
+    }
+
+    /**
+     * A legacy UNLINK signal arrived. It has no acknowledgement and always
+     * removes the link information.
+     */
+    public synchronized void remoteUnlinkReceived(PID from) {
+        remoteLinks.remove(from);
+        links.remove(from);
+    }
+
+    /**
+     * An exit signal arrived from another node. A signal that came from a
+     * link is only acted on while that link is active: an inactive link is
+     * waiting for its UNLINK_ID_ACK and ignores it.
+     */
+    public void exitReceived(PID from, Term reason, boolean explicit) {
+        if (explicit) {
+            exitSignal(reason, from);
+            return;
+        }
+        synchronized (this) {
+            RemoteLink link = remoteLinks.get(from);
+            if (link == null || !link.active) {
+                return;
+            }
+            remoteLinks.remove(from);
+            links.remove(from);
+        }
+        exitSignal(reason, from);
+    }
+
+    /**
+     * The connection to a node is gone: every link to it receives an exit
+     * signal with reason noconnection and every monitor on it reports DOWN
+     * with noconnection, as Erlang/OTP does.
+     */
+    public void connectionLost(Atom node) {
+        ArrayList<PID> lostLinks = new ArrayList<>();
+        ArrayList<Tuple> lostMonitors = new ArrayList<>();
+        synchronized (this) {
+            for (PID link : new ArrayList<>(remoteLinks.keySet())) {
+                if (link.node().equals(node)) {
+                    RemoteLink state = remoteLinks.remove(link);
+                    links.remove(link);
+                    if (state != null && state.active) {
+                        lostLinks.add(link);
+                    }
+                }
+            }
+            for (Map.Entry<Reference, Term> monitor : new ArrayList<>(monitors.entrySet())) {
+                Term target = monitor.getValue();
+                Atom targetNode = null;
+                if (target instanceof PID) {
+                    targetNode = ((PID) target).node();
+                } else if (target instanceof Tuple && ((Tuple) target).arity() == 2) {
+                    targetNode = ((Tuple) target).element(2).toAtom();
+                }
+                if (node.equals(targetNode)) {
+                    monitors.remove(monitor.getKey());
+                    lostMonitors.add(Tuple.of(monitor.getKey(), target));
+                }
+            }
+        }
+        for (PID link : lostLinks) {
+            exitSignal(NOCONNECTION, link);
+        }
+        for (Tuple monitor : lostMonitors) {
+            send(Tuple.of(DOWN, monitor.element(1), PROCESS, monitor.element(2), NOCONNECTION));
+        }
     }
 
     public synchronized boolean addLink(PID other) {
@@ -560,10 +829,18 @@ public class Process extends ProcessOrPort {
     }
 
     public synchronized boolean addMonitoredBy(Reference reference, PID watcher) {
+        return addMonitoredBy(reference, watcher, null);
+    }
+
+    /**
+     * A process started monitoring this one, possibly through a registered
+     * name. The name is what MONITOR_P_EXIT reports back to the peer.
+     */
+    public synchronized boolean addMonitoredBy(Reference reference, PID watcher, Atom name) {
         if (terminated) {
             return false;
         }
-        monitoredBy.put(reference, watcher);
+        monitoredBy.put(reference, new Monitor(watcher, name));
         return true;
     }
 
@@ -571,7 +848,7 @@ public class Process extends ProcessOrPort {
         monitoredBy.remove(reference);
     }
 
-    public synchronized void addMonitor(Reference reference, PID target) {
+    public synchronized void addMonitor(Reference reference, Term target) {
         monitors.put(reference, target);
     }
 
@@ -579,7 +856,7 @@ public class Process extends ProcessOrPort {
         return monitors.remove(reference) != null;
     }
 
-    public synchronized PID monitorTarget(Reference reference) {
+    public synchronized Term monitorTarget(Reference reference) {
         return monitors.get(reference);
     }
 
@@ -660,16 +937,43 @@ public class Process extends ProcessOrPort {
         public final PID pid;
         public final Term reason;
         public final java.util.List<PID> links;
-        public final Map<Reference, PID> monitoredBy;
-        public final Map<Reference, PID> monitors;
+        public final Map<Reference, Monitor> monitoredBy;
+        public final Map<Reference, Term> monitors;
 
         Termination(PID pid, Term reason, java.util.List<PID> links,
-            Map<Reference, PID> monitoredBy, Map<Reference, PID> monitors) {
+            Map<Reference, Monitor> monitoredBy, Map<Reference, Term> monitors) {
             this.pid = pid;
             this.reason = reason;
             this.links = links;
             this.monitoredBy = monitoredBy;
             this.monitors = monitors;
+        }
+
+    }
+
+    /**
+     * The process local state of a link to another node, as the OTP 26 link
+     * protocol defines it: the link is active until an unlink is requested,
+     * and the outstanding unlink identifier identifies the request that the
+     * peer still has to acknowledge.
+     */
+    private static final class RemoteLink {
+        private boolean active;
+        private long unlinkId;
+    }
+
+    /**
+     * A monitor that another process holds on this one. The name is set
+     * when a peer monitors a registered name rather than a PID.
+     */
+    public static final class Monitor {
+
+        public final PID watcher;
+        public final Atom name;
+
+        Monitor(PID watcher, Atom name) {
+            this.watcher = watcher;
+            this.name = name;
         }
 
     }

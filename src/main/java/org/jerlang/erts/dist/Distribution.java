@@ -13,6 +13,7 @@ import org.jerlang.type.Atom;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
 import org.jerlang.type.PidOrPortId;
+import org.jerlang.type.Reference;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 import org.jerlang.vm.VirtualMachine;
@@ -30,6 +31,9 @@ public final class Distribution {
     private static final Object CONNECT_LOCK = new Object();
 
     private static final Map<Atom, DistConnection> CONNECTIONS = new ConcurrentHashMap<>();
+
+    private static final Atom DOWN = Atom.of("DOWN");
+    private static final Atom PROCESS = Atom.of("process");
 
     private Distribution() {
     }
@@ -166,16 +170,10 @@ public final class Distribution {
     }
 
     private static void sendRemote(Atom node, PID to, Atom name, PID from, Term message) {
-        DistConnection connection = CONNECTIONS.get(node);
-        if (connection == null || !connection.isOpen()) {
-            if (!connect(node)) {
-                // Sending to a node that can not be reached is not an error
-                // in Erlang; the message is dropped.
-                return;
-            }
-            connection = CONNECTIONS.get(node);
-        }
+        DistConnection connection = connection(node);
         if (connection == null) {
+            // Sending to a node that can not be reached is not an error
+            // in Erlang; the message is dropped.
             return;
         }
         try {
@@ -185,11 +183,251 @@ public final class Distribution {
                 connection.sendName(name, from != null ? from : new PID(0), message);
             }
         } catch (IOException e) {
-            if (Boolean.getBoolean("jerlang.dist.debug")) {
-                System.err.println("jerlang dist: can not send to " + node + ": " + e);
-            }
-            connection.close();
+            failed(connection, e);
         }
+    }
+
+    /**
+     * The open connection to a node, connecting on demand. Returns null
+     * when the node can not be reached.
+     */
+    private static DistConnection connection(Atom node) {
+        DistConnection connection = CONNECTIONS.get(node);
+        if (connection != null && connection.isOpen()) {
+            return connection;
+        }
+        if (!connect(node)) {
+            return null;
+        }
+        connection = CONNECTIONS.get(node);
+        return connection != null && connection.isOpen() ? connection : null;
+    }
+
+    /**
+     * The connection to a node if one is already open. Signals that belong
+     * to existing state, such as an exit or a demonitor, do not establish a
+     * new connection: a node that just went away must not block the sender
+     * in connection setup.
+     */
+    private static DistConnection openConnection(Atom node) {
+        DistConnection connection = CONNECTIONS.get(node);
+        return connection != null && connection.isOpen() ? connection : null;
+    }
+
+    private static void failed(DistConnection connection, IOException e) {
+        if (Boolean.getBoolean("jerlang.dist.debug")) {
+            System.err.println("jerlang dist: can not send to " + connection.peer() + ": " + e);
+        }
+        connection.close();
+    }
+
+    /**
+     * Link a local process to a process on another node. Returns false when
+     * the connection can not be established, which erlang:link/1 reports as
+     * a noconnection exit signal.
+     */
+    public static boolean sendLink(PID from, PID to) {
+        DistConnection connection = connection(to.node());
+        if (connection == null) {
+            return false;
+        }
+        try {
+            connection.sendLink(from, to);
+            return true;
+        } catch (IOException e) {
+            failed(connection, e);
+            return false;
+        }
+    }
+
+    public static void sendUnlink(PID from, PID to, long id) {
+        DistConnection connection = openConnection(to.node());
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.sendUnlink(from, to, id);
+        } catch (IOException e) {
+            failed(connection, e);
+        }
+    }
+
+    public static void sendExit(PID from, PID to, Term reason, boolean explicit) {
+        // An explicit exit/2 may open a connection, like a send does. The
+        // EXIT of a broken link only travels over an existing connection.
+        DistConnection connection = explicit ? connection(to.node()) : openConnection(to.node());
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.sendExit(from, to, reason, explicit);
+        } catch (IOException e) {
+            failed(connection, e);
+        }
+    }
+
+    /**
+     * Monitor a process, or a registered name, on another node. `target` is
+     * a PID or an atom.
+     */
+    public static boolean sendMonitor(PID from, Term target, Atom node, Reference reference) {
+        DistConnection connection = connection(node);
+        if (connection == null) {
+            return false;
+        }
+        try {
+            connection.sendMonitor(from, target, reference);
+            return true;
+        } catch (IOException e) {
+            failed(connection, e);
+            return false;
+        }
+    }
+
+    public static void sendDemonitor(PID from, Term target, Atom node, Reference reference) {
+        DistConnection connection = openConnection(node);
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.sendDemonitor(from, target, reference);
+        } catch (IOException e) {
+            failed(connection, e);
+        }
+    }
+
+    /**
+     * Send a SPAWN_REQUEST to a node. Returns null on success, or the
+     * reason the request could not be sent. A request that could be sent
+     * is answered later by a SPAWN_REPLY.
+     */
+    static Term sendSpawnRequest(PID from, Atom node, Reference requestId, Atom module,
+        Atom function, List args, List options) {
+        DistConnection connection = connection(node);
+        if (connection == null) {
+            return Atom.of("noconnection");
+        }
+        if (!connection.supportsSpawn()) {
+            return Atom.of("notsup");
+        }
+        try {
+            connection.sendSpawnRequest(requestId, from, from, module, function, args, options);
+            return null;
+        } catch (IOException e) {
+            failed(connection, e);
+            return Atom.of("noconnection");
+        }
+    }
+
+    public static void sendMonitorExit(Term from, PID to, Reference reference, Term reason) {
+        DistConnection connection = openConnection(to.node());
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.sendMonitorExit(from, to, reference, reason);
+        } catch (IOException e) {
+            failed(connection, e);
+        }
+    }
+
+    /**
+     * A peer asked to link to a local process. Returns false when the
+     * process is gone; the connection answers with EXIT noproc, like a
+     * local link.
+     */
+    static boolean linkReceived(PID from, PID to) {
+        Process target = localProcess(to);
+        return target != null && target.linkReceived(from);
+    }
+
+    static void unlinkReceived(PID from, PID to) {
+        Process target = localProcess(to);
+        if (target != null) {
+            target.remoteUnlinkReceived(from);
+        }
+    }
+
+    static void unlinkIdReceived(long id, PID from, PID to) {
+        Process target = localProcess(to);
+        if (target != null) {
+            target.unlinkIdReceived(from, id);
+        }
+    }
+
+    static void unlinkIdAckReceived(long id, PID from, PID to) {
+        Process target = localProcess(to);
+        if (target != null) {
+            target.unlinkIdAckReceived(from, id);
+        }
+    }
+
+    static void exitReceived(PID from, PID to, Term reason, boolean explicit) {
+        Process target = localProcess(to);
+        if (target != null) {
+            target.exitReceived(from, reason, explicit);
+        }
+    }
+
+    /**
+     * A peer started monitoring a local PID or name. Returns false when the
+     * process is gone; the connection answers with MONITOR_P_EXIT noproc.
+     */
+    static boolean monitorReceived(PID from, Term to, Reference reference) {
+        Process target = monitoredProcess(to);
+        Atom name = to instanceof Atom ? (Atom) to : null;
+        return target != null && target.addMonitoredBy(reference, from, name);
+    }
+
+    static void demonitorReceived(PID from, Term to, Reference reference) {
+        Process target = monitoredProcess(to);
+        if (target != null) {
+            target.removeMonitoredBy(reference);
+        }
+    }
+
+    /**
+     * A monitored process on `peer` terminated, or the name it was
+     * registered under disappeared. Monitoring a name reports the object
+     * as {Name, Node}, like Erlang/OTP does.
+     */
+    static void monitorExitReceived(Atom peer, Term from, PID to, Reference reference, Term reason) {
+        Process target = localProcess(to);
+        if (Boolean.getBoolean("jerlang.dist.debug")) {
+            System.err.println("jerlang dist: MONITOR_P_EXIT " + from + " to " + to
+                + " ref " + reference + " reason " + reason
+                + (target == null ? " without a process" : ""));
+        }
+        if (target == null) {
+            return;
+        }
+        if (!target.removeMonitor(reference)) {
+            if (Boolean.getBoolean("jerlang.dist.debug")) {
+                System.err.println("jerlang dist: no such monitor " + reference);
+            }
+            // The monitor is gone, for example because this node sent a
+            // DEMONITOR_P just before the peer's signal arrived.
+            return;
+        }
+        Term object = from instanceof Atom ? Tuple.of(from, peer) : from;
+        target.send(Tuple.of(DOWN, reference, PROCESS, object, reason));
+    }
+
+    private static Process localProcess(PID pid) {
+        ProcessOrPort process = ProcessRegistry.resolve(pid);
+        return process instanceof Process ? (Process) process : null;
+    }
+
+    private static Process monitoredProcess(Term target) {
+        if (target instanceof PID) {
+            return localProcess((PID) target);
+        }
+        if (target instanceof Atom) {
+            PidOrPortId id = ProcessRegistry.instance().get((Atom) target);
+            ProcessOrPort process = id == null ? null : ProcessRegistry.resolve(id);
+            return process instanceof Process ? (Process) process : null;
+        }
+        return null;
     }
 
     static boolean hasLocal(PID pid) {
@@ -236,7 +474,28 @@ public final class Distribution {
      * Called by a connection when its reader thread terminates.
      */
     static void remove(DistConnection connection) {
-        CONNECTIONS.remove(connection.peer(), connection);
+        if (CONNECTIONS.remove(connection.peer(), connection)) {
+            fail(connection.peer());
+        }
+    }
+
+    /**
+     * A node is no longer reachable: every link to it receives
+     * noconnection and every monitor reports DOWN with noconnection, as in
+     * Erlang/OTP. A replacement connection to the same node keeps the
+     * signals alive.
+     */
+    private static void fail(Atom node) {
+        DistConnection stillOpen = CONNECTIONS.get(node);
+        if (stillOpen != null && stillOpen.isOpen()) {
+            return;
+        }
+        SpawnRequests.connectionLost(node);
+        for (ProcessOrPort process : ProcessRegistry.all()) {
+            if (process instanceof Process) {
+                ((Process) process).connectionLost(node);
+            }
+        }
     }
 
 }

@@ -1,5 +1,6 @@
 package org.jerlang;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -75,6 +76,14 @@ public class ProcessRegistry {
     public static boolean isAlive(PidOrPortId id) {
         ProcessOrPort process = instance.id2process.get(id);
         return process != null && process.state() != ProcessState.EXITING;
+    }
+
+    /**
+     * Every process and port that is still registered, for signals that
+     * apply to the whole node, such as a lost distribution connection.
+     */
+    public static java.util.List<ProcessOrPort> all() {
+        return new ArrayList<>(instance.id2process.values());
     }
 
     /**

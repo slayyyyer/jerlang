@@ -141,7 +141,7 @@ public final class DistListener {
             socket.close();
             return;
         }
-        name.readLong(); // peer flags
+        long peerFlags = name.readLong();
         name.readInt(); // peer creation
         Atom peer = Atom.of(readShortString(name));
         if (!DistNodeName.isValid(peer) || peer.equals(node)) {
@@ -185,7 +185,7 @@ public final class DistListener {
         writePacket2(out, ackBuffer.toByteArray());
 
         socket.setSoTimeout(0);
-        DistConnection.accepted(peer, socket, in, out);
+        DistConnection.accepted(peer, peerFlags, socket, in, out);
     }
 
     private static byte[] digest(int challenge) throws IOException {

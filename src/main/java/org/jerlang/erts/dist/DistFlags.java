@@ -14,6 +14,12 @@ public final class DistFlags {
     /** The node implements extended (3 x 32 bit) references. Mandatory. */
     public static final long EXTENDED_REFERENCES = 0x04;
 
+    /** The node implements distributed process monitoring. */
+    public static final long DIST_MONITOR = 0x08;
+
+    /** The node implements distributed monitoring of registered names. */
+    public static final long DIST_MONITOR_NAME = 0x20;
+
     /** The node uses separate tags for funs. Mandatory. */
     public static final long FUN_TAGS = 0x10;
 
@@ -56,6 +62,9 @@ public final class DistFlags {
     /** The node supports the capabilities that are mandatory in OTP 25. */
     public static final long MANDATORY_25_DIGEST = 0x4000000;
 
+    /** The node supports SPAWN_REQUEST and SPAWN_REPLY. */
+    public static final long SPAWN = 0x100000000L;
+
     /** The node accepts 32 bit pids and up to 5 word references. */
     public static final long V4_NC = 0x400000000L;
 
@@ -83,7 +92,7 @@ public final class DistFlags {
      * DIST_HDR_ATOM_CACHE, so the peer sends control messages in the
      * old 112-tagged format, which does not use an atom cache.
      */
-    public static final long OURS = PUBLISHED | MANDATORY;
+    public static final long OURS = PUBLISHED | MANDATORY | DIST_MONITOR | DIST_MONITOR_NAME | SPAWN;
 
     private DistFlags() {
     }

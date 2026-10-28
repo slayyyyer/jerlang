@@ -129,21 +129,50 @@ public class VirtualMachine {
     }
 
     public Process spawn(Fun fun) {
-        PID pid = new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
-        Process process = new Process(pid, fun);
-        ProcessRegistry.register(process);
-        // Round-robin process assignment
-        schedulers[nextScheduler++ % schedulers.length].add(process);
+        Process process = prepare(fun);
+        schedule(process);
         return process;
     }
 
     public Process spawn(Atom module, Atom fun, List args) {
+        Process process = prepare(module, fun, args);
+        schedule(process);
+        return process;
+    }
+
+    /**
+     * Create a process without putting it on a run queue. A remote spawn
+     * uses this to send its SPAWN_REPLY, with the link and monitor already
+     * in place, before the new process can run and terminate.
+     */
+    public Process prepare(Fun fun) {
+        PID pid = new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
+        Process process = new Process(pid, fun);
+        ProcessRegistry.register(process);
+        return process;
+    }
+
+    public Process prepare(Atom module, Atom fun, List args) {
         PID pid = new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
         Process process = new Process(pid, module, fun, args);
         ProcessRegistry.register(process);
+        return process;
+    }
+
+    /**
+     * Put a prepared process on a run queue.
+     */
+    public void schedule(Process process) {
         // Round-robin process assignment
         schedulers[nextScheduler++ % schedulers.length].add(process);
-        return process;
+    }
+
+    /**
+     * A PID that names no process. erlang:spawn/4 returns one when the
+     * target node can not be reached, like Erlang/OTP.
+     */
+    public PID uselessPid() {
+        return new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
     }
 
     public PortID spawn_port(Term command, List portSettings) {
