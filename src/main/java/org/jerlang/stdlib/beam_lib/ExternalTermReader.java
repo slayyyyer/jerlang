@@ -3,6 +3,7 @@ package org.jerlang.stdlib.beam_lib;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -37,7 +38,13 @@ public class ExternalTermReader extends AbstractReader {
         ExternalTermFormatTag tag = ExternalTermFormatTag.of(tagId);
         switch (tag) {
         case ATOM_EXT:
-            return readAtom();
+            return readAtom(read2Bytes());
+        case ATOM_UTF8_EXT:
+            return readUtf8Atom(read2Bytes());
+        case SMALL_ATOM_EXT:
+            return readAtom(read1Byte());
+        case SMALL_ATOM_UTF8_EXT:
+            return readUtf8Atom(read1Byte());
         case BINARY_EXT:
             return readBinary();
         case BIT_BINARY_EXT:
@@ -90,10 +97,16 @@ public class ExternalTermReader extends AbstractReader {
         return new Float(Double.longBitsToDouble(read8Bytes()));
     }
 
-    private Atom readAtom() throws IOException {
-        byte[] bytes = new byte[read2Bytes()];
+    private Atom readAtom(int length) throws IOException {
+        byte[] bytes = new byte[length];
         readBytes(bytes);
         return Atom.of(bytes);
+    }
+
+    private Atom readUtf8Atom(int length) throws IOException {
+        byte[] bytes = new byte[length];
+        readBytes(bytes);
+        return Atom.of(new String(bytes, StandardCharsets.UTF_8));
     }
 
     private Binary readBinary() throws IOException {

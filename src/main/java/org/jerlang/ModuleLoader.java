@@ -90,45 +90,55 @@ public class ModuleLoader {
                 Chunk chunk = new Chunk(chunkId, offset, length);
                 DataInputStream dis = new DataInputStream(new ByteArrayInputStream(bytes));
                 dis.skipBytes(offset);
-                switch (chunkId) {
-                case ABST:
-                    abstractSyntaxTreeChunk = new AbstractSyntaxTreeChunkReader(chunk, dis).read();
-                    break;
-                case ATOM:
-                    atomChunk = new AtomChunkReader(chunk, dis).read();
-                    break;
-                case ATTR:
-                    attributeChunk = new AttributeChunkReader(chunk, dis).read();
-                    break;
-                case CINF:
-                    compileInfoChunk = new CompileInfoChunkReader(chunk, dis).read();
-                    break;
-                case CODE:
-                    codeChunk = new CodeChunkReader(chunk, dis, atomChunk, literalTableChunk).read();
-                    break;
-                case EXPT:
-                    exportTableChunk = new ExportTableChunkReader(chunk, dis, atomChunk).read();
-                    break;
-                case FUNT:
-                    functionTableChunk = new FunctionTableChunkReader(chunk, dis, atomChunk).read();
-                    break;
-                case IMPT:
-                    importTableChunk = new ImportTableChunkReader(chunk, dis, atomChunk).read();
-                    break;
-                case LINE:
-                    lineTableChunk = new LineTableChunkReader(chunk, dis, atomChunk).read();
-                    break;
-                case LITT:
-                    literalTableChunk = new LiteralTableChunkReader(chunk, dis).read();
-                    break;
-                case LOCT:
-                    localFunctionTableChunk = new LocalFunctionTableChunkReader(chunk, dis, atomChunk).read();
-                    break;
-                case STRT:
-                    stringTableChunk = new StringTableChunkReader(chunk, dis).read();
-                    break;
-                default:
-                    break;
+                try {
+                    switch (chunkId) {
+                    case ABST:
+                        abstractSyntaxTreeChunk = new AbstractSyntaxTreeChunkReader(chunk, dis).read();
+                        break;
+                    case ATOM:
+                        atomChunk = new AtomChunkReader(chunk, dis).read();
+                        break;
+                    case ATU8:
+                        atomChunk = new AtomChunkReader(chunk, dis, true).read();
+                        break;
+                    case ATTR:
+                        attributeChunk = new AttributeChunkReader(chunk, dis).read();
+                        break;
+                    case CINF:
+                        compileInfoChunk = new CompileInfoChunkReader(chunk, dis).read();
+                        break;
+                    case CODE:
+                        codeChunk = new CodeChunkReader(chunk, dis, atomChunk, literalTableChunk).read();
+                        break;
+                    case EXPT:
+                        exportTableChunk = new ExportTableChunkReader(chunk, dis, atomChunk).read();
+                        break;
+                    case FUNT:
+                        functionTableChunk = new FunctionTableChunkReader(chunk, dis, atomChunk).read();
+                        break;
+                    case IMPT:
+                        importTableChunk = new ImportTableChunkReader(chunk, dis, atomChunk).read();
+                        break;
+                    case LINE:
+                        lineTableChunk = new LineTableChunkReader(chunk, dis, atomChunk).read();
+                        break;
+                    case LITT:
+                        literalTableChunk = new LiteralTableChunkReader(chunk, dis).read();
+                        break;
+                    case LOCT:
+                        localFunctionTableChunk = new LocalFunctionTableChunkReader(chunk, dis, atomChunk).read();
+                        break;
+                    case STRT:
+                        stringTableChunk = new StringTableChunkReader(chunk, dis).read();
+                        break;
+                    default:
+                        break;
+                    }
+                } catch (Throwable e) {
+                    // A chunk this loader does not understand (for example a
+                    // line table written by a newer compiler) must not stop
+                    // the module from loading.
+                    System.err.println("Can not read chunk " + chunkId + ": " + e);
                 }
                 chunkList = chunkList.tail();
             }

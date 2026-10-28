@@ -14,19 +14,25 @@ public class LiteralTableChunkReader extends AbstractChunkReader<LiteralTableChu
     public LiteralTableChunk read() throws Throwable {
         LiteralTableChunk literalTableChunk = new LiteralTableChunk(chunk());
         int uncompressedSize = read4Bytes();
-        byte[] uncompressed = new byte[uncompressedSize];
-        int offset = 0;
-        int left = uncompressedSize;
 
-        try (InflaterInputStream iis = new InflaterInputStream(inputStream())) {
-            do {
-                int decompressed = iis.read(uncompressed, offset, left);
-                offset += decompressed;
-                left -= decompressed;
-            } while (left > 0);
+        if (uncompressedSize != 0) {
+            // OTP 27 and earlier: a compressed term follows the size word.
+            byte[] uncompressed = new byte[uncompressedSize];
+            int offset = 0;
+            int left = uncompressedSize;
+
+            try (InflaterInputStream iis = new InflaterInputStream(inputStream())) {
+                do {
+                    int decompressed = iis.read(uncompressed, offset, left);
+                    offset += decompressed;
+                    left -= decompressed;
+                } while (left > 0);
+            }
+
+            setInputStream(new DataInputStream(new ByteArrayInputStream(uncompressed)));
         }
-
-        setInputStream(new DataInputStream(new ByteArrayInputStream(uncompressed)));
+        // OTP 28 and later: a zero size word means the literals follow
+        // uncompressed, starting with their count.
 
         int literals = read4Bytes();
         while (literals-- > 0) {

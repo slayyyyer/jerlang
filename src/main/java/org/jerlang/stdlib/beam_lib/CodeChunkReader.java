@@ -45,7 +45,13 @@ public class CodeChunkReader extends AbstractChunkReader<CodeChunk> {
     }
 
     private void checkMaxOpcode(int maxOpcode) throws IOException {
-        check(maxOpcode > Opcode.max(), "maxOpcode > " + Opcode.max());
+        // Newer compilers declare opcodes this interpreter does not implement
+        // yet. Decoding an instruction we cannot execute fails with a clear
+        // message, so the header alone must not reject the whole module.
+        if (maxOpcode > Opcode.max()) {
+            System.err.println("Module declares opcodes up to " + maxOpcode
+                + ", interpreter knows " + Opcode.max());
+        }
     }
 
     private Instruction nextInstruction(int count) throws Throwable {

@@ -1,11 +1,11 @@
 package org.jerlang.stdlib.beam_lib;
 
 import java.io.DataInputStream;
+import java.nio.charset.StandardCharsets;
 
+import org.jerlang.OpcodeTag;
 import org.jerlang.type.Atom;
-import org.jerlang.type.Integer;
 import org.jerlang.type.Str;
-import org.jerlang.type.Term;
 
 public class LineTableChunkReader extends AbstractChunkReader<LineTableChunk> {
 
@@ -25,21 +25,38 @@ public class LineTableChunkReader extends AbstractChunkReader<LineTableChunk> {
         // Tag the FnameIndex with an 'a' tag (atom) and
         // only include it when it has changed.
         // Tag the line numbers with an 'i' (integer) tag."
-        Atom filename = atomChunk.atoms()[0];
+        //
+        // The 'a' tag carries an index into this chunk's own filename table,
+        // not an index into the atom chunk.
+        int[] filenameIndexes = new int[lineTableChunk.records().length];
+        int[] lineNumbers = new int[lineTableChunk.records().length];
+        int filenameIndex = 0;
+
         for (int index = 0; index < lineTableChunk.records().length; index++) {
-            Term t = decodeArg(null, null);
-            if (t instanceof Atom) {
-                filename = t.toAtom();
-            } else if (t instanceof Integer) {
-                lineTableChunk.records()[index] = new LineRecord(filename, t.toInteger().toInt());
+            int b = read1Byte();
+            if (OpcodeTag.decode(b) == OpcodeTag.a) {
+                filenameIndex = decodeInt(b).toInt();
+                b = read1Byte();
             }
+            filenameIndexes[index] = filenameIndex;
+            lineNumbers[index] = decodeInt(b).toInt();
         }
 
-        for (int index = 0; index < lineTableChunk.fnames().length; index++) {
+        Str[] fnames = lineTableChunk.fnames();
+        for (int index = 0; index < fnames.length; index++) {
             int len = read2Bytes();
             byte[] bytes = new byte[len];
             readBytes(bytes);
-            lineTableChunk.fnames()[index] = new Str(new String(bytes));
+            fnames[index] = new Str(new String(bytes, StandardCharsets.UTF_8));
+        }
+
+        Atom module = atomChunk == null ? Atom.of("?") : atomChunk.atoms()[0];
+        for (int index = 0; index < lineTableChunk.records().length; index++) {
+            int fname = filenameIndexes[index];
+            Atom filename = fname < fnames.length && fnames[fname] != null
+                ? Atom.of(fnames[fname].string())
+                : module;
+            lineTableChunk.records()[index] = new LineRecord(filename, lineNumbers[index]);
         }
 
         return lineTableChunk;

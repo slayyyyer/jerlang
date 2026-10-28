@@ -51,7 +51,8 @@ public class AtomChunk extends Chunk {
     private Atom[] atoms;
 
     public AtomChunk(Chunk chunk, int numberOfAtoms) {
-        super(ChunkId.ATOM, chunk);
+        // Both Atom (latin-1) and AtU8 (UTF-8) chunks hold an atom table.
+        super(chunk.id(), chunk);
         atoms = new Atom[numberOfAtoms];
     }
 

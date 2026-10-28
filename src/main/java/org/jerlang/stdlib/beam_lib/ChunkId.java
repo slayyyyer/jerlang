@@ -5,7 +5,8 @@ import org.jerlang.type.Str;
 public enum ChunkId implements Comparable<ChunkId> {
 
     ABST("Abst", 10), // Abstract Code
-    ATOM("Atom", 1), // Atoms
+    ATOM("Atom", 1), // Atoms, latin-1, OTP 27 and earlier
+    ATU8("AtU8", 1), // Atoms, UTF-8, OTP 20 and later
     ATTR("Attr", 11), // Attributes
     CINF("CInf", 12), // Compile Information
     CODE("Code", 8), // Code
@@ -16,6 +17,10 @@ public enum ChunkId implements Comparable<ChunkId> {
     LITT("LitT", 2), // Literal Table
     LOCT("LocT", 7), // Local Table
     STRT("StrT", 3), // String Table
+    // Chunks written by newer compilers that carry no code or metadata we use.
+    DBGI("Dbgi", -1), // Debug Information
+    META("Meta", -1), // Metadata
+    TYPE("Type", -1), // Types
     // See lib/kernel/src/hipe_unified_loader.erl:
     HA64("HA64", -1), // HiPE, x86_64, (implicit: 64-bit, Unix)
     HARM("HARM", -1), // HiPE, arm, v5 (implicit: 32-bit, Linux)
