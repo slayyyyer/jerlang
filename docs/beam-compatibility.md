@@ -135,6 +135,20 @@ its reason instead of stopping the virtual machine. The scheduler then sends
 the reason to the process's links as exit signals and to its monitors as
 `DOWN` messages.
 
+The scheduler also prints an Erlang-style error report, on standard output
+like OTP's default logger handler, with the stacktrace captured at the raise:
+
+```text
+=ERROR REPORT==== 2026-10-28::17:00:00.000000 ===
+Error in process <0.33.0> with exit value:
+{{badmatch,2},[{crash_demo,crash_now,1,[{file,"crash_demo.erl"},{line,18}]}]}
+```
+
+An uncaught `throw` is reported as `{nocatch, Value}`; `erlang:throw/1` raises
+the `throw` class that makes that possible. An uncaught `exit/1` is a normal
+way to stop a process, so it prints nothing, and a process killed by an exit
+signal prints nothing either.
+
 ## Stack frames
 
 `Process` keeps one activation per Erlang function call. A frame is recorded

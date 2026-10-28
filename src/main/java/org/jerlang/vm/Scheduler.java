@@ -133,6 +133,10 @@ public class Scheduler extends Thread {
                 p.setState(ProcessState.EXITING);
             }
             if (process != null && p.state() == ProcessState.EXITING) {
+                // An uncaught exception is reported before the links and
+                // monitors hear about it, so the report is not lost when a
+                // linked process handles the exit first.
+                CrashReport.print(process);
                 // The exit reason is the pending signal when there is one,
                 // otherwise what the process crashed with or `normal`.
                 Term reason = process.pendingExitReason();
