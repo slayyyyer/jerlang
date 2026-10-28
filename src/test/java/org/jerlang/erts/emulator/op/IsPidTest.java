@@ -7,6 +7,7 @@ import org.jerlang.exception.ThrowException;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Boolean;
 import org.jerlang.type.List;
+import org.jerlang.type.PID;
 import org.jerlang.type.Term;
 import org.junit.Test;
 
@@ -21,7 +22,8 @@ public class IsPidTest extends AbstractOpTest {
         List params1 = List.of(List.nil);
         Term result1 = Erlang.apply(Atom.of("test_functions"), Atom.of("test_is_pid"), params1);
         assertEquals(Boolean.am_false, result1);
-        List params2 = List.of(Erlang.self());
+        // self() is only defined inside a process; use a PID directly.
+        List params2 = List.of(new PID(1));
         Term result2 = Erlang.apply(Atom.of("test_functions"), Atom.of("test_is_pid"), params2);
         assertEquals(Boolean.am_true, result2);
     }

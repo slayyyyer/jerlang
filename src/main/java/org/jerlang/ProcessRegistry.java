@@ -1,7 +1,7 @@
 package org.jerlang;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jerlang.type.Atom;
 import org.jerlang.type.PidOrPortId;
@@ -15,8 +15,8 @@ public class ProcessRegistry {
     private ThreadLocal<ProcessOrPort> process = new ThreadLocal<>();
 
     public ProcessRegistry() {
-        processes = new HashMap<>();
-        id2process = new HashMap<>();
+        processes = new ConcurrentHashMap<>();
+        id2process = new ConcurrentHashMap<>();
     }
 
     public void cleanup() {

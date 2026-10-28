@@ -68,6 +68,7 @@ rejects the module before decoding.
 | `call_fun2` | 178 | Calling anonymous functions (OTP 24+) | Tag and type operands are ignored |
 | `build_stacktrace` | 160 | `try ... catch Class:Reason:Stack` (OTP 22+) | Normalises the recorded frame list |
 | `raw_raise` | 161 | `erlang:raise/3` in a catch clause (OTP 22+) | Class, reason and stacktrace are re-raised unchanged |
+| `is_tagged_tuple` | 159 | Tuple patterns and record tests (OTP 22+) | Checks arity and the first element |
 
 `put_list` also had to accept a literal tail, which is how an empty list is
 encoded when building a list from a literal and a register.
@@ -155,7 +156,6 @@ emit them, because that is what decides which programs can run.
 
 | Number | Opcode | Needed for |
 |-------:|--------|------------|
-| 159 | `is_tagged_tuple` | Record tests and record patterns |
 | 162, 163 | `get_hd`, `get_tl` | OTP 26 `hd`/`tl` optimizations |
 | 165 | `bs_get_tail` | Binary matching |
 | 166, 170 | `bs_start_match3`, `bs_start_match4` | Binary matching (OTP 23+) |

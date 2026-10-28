@@ -536,6 +536,9 @@ public enum Opcode {
     /** Implemented in org.jerlang.erts.emulator.op.GetMapElements */
     get_map_elements(158, 3),
 
+    /** Implemented in org.jerlang.erts.emulator.op.IsTaggedTuple */
+    is_tagged_tuple(159, 4),
+
     // ------------------------------------------------------------------------
     // OTP 22
 

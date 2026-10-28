@@ -28,6 +28,11 @@ public class VirtualMachine {
 
     private ScheduledThreadPoolExecutor timerExecutor;
 
+    // Identity of this node. A node starts out unnamed, exactly like an
+    // Erlang node that was not started with -name or -sname.
+    private volatile Atom node = Atom.of("nonode@nohost");
+    private volatile int nodeCreation = 0;
+
     private static final VirtualMachine VIRTUAL_MACHINE = new VirtualMachine();
 
     private VirtualMachine() {
@@ -57,9 +62,11 @@ public class VirtualMachine {
         }
         timerExecutor = new ScheduledThreadPoolExecutor(processors);
         ProcessRegistry.instance().cleanup();
+        org.jerlang.erts.dist.Distribution.start();
     }
 
     public void shutdown() {
+        org.jerlang.erts.dist.Distribution.shutdown();
         for (Scheduler scheduler : schedulers) {
             scheduler.interrupt();
         }
@@ -75,6 +82,34 @@ public class VirtualMachine {
 
     public static VirtualMachine instance() {
         return VIRTUAL_MACHINE;
+    }
+
+    /**
+     * The name of this node, or `nonode@nohost` if it has no name yet.
+     */
+    public Atom node() {
+        return node;
+    }
+
+    /**
+     * The creation number of this node. It changes when the node is
+     * restarted with the same name, so that stale PIDs and references
+     * from the previous incarnation do not match the new one.
+     */
+    public int nodeCreation() {
+        return nodeCreation;
+    }
+
+    /**
+     * Name this node, as -name and -sname do.
+     */
+    public void setNode(Atom node) {
+        this.node = node;
+    }
+
+    public void setNode(Atom node, int creation) {
+        this.node = node;
+        this.nodeCreation = creation;
     }
 
     public Process resolve(PID pid) {
@@ -94,7 +129,7 @@ public class VirtualMachine {
     }
 
     public Process spawn(Fun fun) {
-        PID pid = new PID(nextPID.incrementAndGet());
+        PID pid = new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
         Process process = new Process(pid, fun);
         ProcessRegistry.register(process);
         // Round-robin process assignment
@@ -103,7 +138,7 @@ public class VirtualMachine {
     }
 
     public Process spawn(Atom module, Atom fun, List args) {
-        PID pid = new PID(nextPID.incrementAndGet());
+        PID pid = new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
         Process process = new Process(pid, module, fun, args);
         ProcessRegistry.register(process);
         // Round-robin process assignment

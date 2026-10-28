@@ -6,6 +6,9 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.Stack;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.jerlang.type.Atom;
 import org.jerlang.type.BitString;
@@ -29,6 +32,16 @@ import org.jerlang.type.stack.StackFrame;
  * http://www.erlang.org/doc/reference_manual/processes.html
  */
 public class Process extends ProcessOrPort {
+
+    /**
+     * Fires the timers of `receive ... after Timeout` expressions. Daemon
+     * threads, so a waiting process never keeps the VM alive.
+     */
+    private static final ScheduledThreadPoolExecutor WAIT_TIMERS = new ScheduledThreadPoolExecutor(1, runnable -> {
+        Thread thread = new Thread(runnable, "jerlang-wait-timer");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     // See "erts/emulator/beam/erl_vm.h":
     private final int MAX_REG = 1024;
@@ -73,6 +86,12 @@ public class Process extends ProcessOrPort {
 
     // Timeout
     private long timeout = 0;
+
+    // Where a suspended receive loop resumes, and its pending timeout.
+    private volatile Term waitLabel = null;
+    private volatile boolean waitTimedOut = false;
+    private long waitGeneration = 0;
+    private ScheduledFuture<?> waitTimer = null;
 
     public Process(PID pid) {
         super(pid);
@@ -198,13 +217,73 @@ public class Process extends ProcessOrPort {
     public void send(Term message) {
         try {
             mailbox.put(message);
-            if (state() == ProcessState.WAITING) {
-                setState(ProcessState.RUNNABLE);
+            if (wake()) {
                 scheduler().add(this);
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    /**
+     * A waiting process received a message: make it runnable again and
+     * invalidate its pending timeout. Returns true when the caller has to
+     * put the process back on a scheduler queue.
+     */
+    private synchronized boolean wake() {
+        if (state() != ProcessState.WAITING) {
+            return false;
+        }
+        waitGeneration++;
+        waitTimedOut = false;
+        if (waitTimer != null) {
+            waitTimer.cancel(false);
+            waitTimer = null;
+        }
+        // Stay WAITING: execute() dispatches a wakeup by resuming the
+        // receive loop at waitLabel, instead of re-running the wait opcode.
+        return true;
+    }
+
+    /**
+     * Suspend in a receive loop. A later message resumes at Label; when
+     * TimeoutMillis elapses first, execution resumes after the wait
+     * instruction that saved the continuation pointer. A negative timeout
+     * waits forever.
+     */
+    public synchronized void waitForMessage(Term label, long timeoutMillis) {
+        waitLabel = label;
+        waitTimedOut = false;
+        waitGeneration++;
+        if (waitTimer != null) {
+            waitTimer.cancel(false);
+            waitTimer = null;
+        }
+        setState(ProcessState.WAITING);
+        if (timeoutMillis >= 0) {
+            if (timeoutMillis == 0) {
+                waitTimedOut = true;
+            } else {
+                long generation = waitGeneration;
+                waitTimer = WAIT_TIMERS.schedule(() -> timeout(generation),
+                    timeoutMillis, TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
+    private void timeout(long generation) {
+        synchronized (this) {
+            if (generation != waitGeneration || waitTimedOut) {
+                return;
+            }
+            waitTimedOut = true;
+            waitTimer = null;
+            if (state() != ProcessState.WAITING) {
+                return;
+            }
+            // Stay WAITING: execute() takes the timeout continuation.
+        }
+        scheduler().add(this);
     }
 
     public void setCP(int cp) {
@@ -341,7 +420,19 @@ public class Process extends ProcessOrPort {
         case WAITING:
             if (hasMessage()) {
                 setState(ProcessState.RUNNING);
-                Interpreter.continueExecution(signatures.peek(), cp);
+                Term label = waitLabel;
+                waitLabel = null;
+                if (label != null) {
+                    Interpreter.continueExecutionAtLabel(signatures.peek(), label);
+                } else {
+                    Interpreter.continueExecution(signatures.peek(), cp);
+                }
+            } else if (waitTimedOut) {
+                setState(ProcessState.RUNNING);
+                waitTimedOut = false;
+                waitLabel = null;
+                // cp points at wait_timeout: resume with the timeout code.
+                Interpreter.continueExecution(signatures.peek(), cp + 1);
             }
             break;
         case RUNNABLE:
@@ -388,9 +479,12 @@ public class Process extends ProcessOrPort {
         System.out.println();
     }
 
+    /**
+     * Remove the message the receive loop is looking at. Like the BEAM
+     * instruction, this does not touch any register.
+     */
     public void removeMessage() {
-        Term message = mailbox.remove();
-        setX(0, message);
+        mailbox.remove();
         // TODO: remove timer
     }
 

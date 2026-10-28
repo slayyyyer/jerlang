@@ -78,27 +78,34 @@ public class Module {
         if (process == null) {
             // We have been probably invoked from plain Java code,
             // So we need to spawn a process and execute the function
-            // within that process.
+            // within that process. The calling thread must not keep the
+            // spawned process as its "self": a later call would otherwise
+            // run in the finished process instead of spawning a new one.
+            ProcessOrPort previous = ProcessRegistry.self();
             process = VirtualMachine.instance().spawn(signature.module(), signature.function(), params.toList());
             ProcessRegistry.self(process);
-            while (process.state() != ProcessState.EXITING) {
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+            try {
+                while (process.state() != ProcessState.EXITING) {
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
+                Throwable failure = process.failure();
+                if (failure != null) {
+                    if (failure instanceof Error) {
+                        throw (Error) failure;
+                    }
+                    if (failure instanceof RuntimeException) {
+                        throw (RuntimeException) failure;
+                    }
+                    throw new Error(Str.of(String.valueOf(failure)));
+                }
+                return process.getX(0);
+            } finally {
+                ProcessRegistry.self(previous);
             }
-            Throwable failure = process.failure();
-            if (failure != null) {
-                if (failure instanceof Error) {
-                    throw (Error) failure;
-                }
-                if (failure instanceof RuntimeException) {
-                    throw (RuntimeException) failure;
-                }
-                throw new Error(Str.of(String.valueOf(failure)));
-            }
-            return process.getX(0);
         } else {
             process.pushSignature(signature);
             if (!isInternal()) {

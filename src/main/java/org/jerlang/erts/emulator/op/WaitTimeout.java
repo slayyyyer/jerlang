@@ -2,21 +2,27 @@ package org.jerlang.erts.emulator.op;
 
 import org.jerlang.Module;
 import org.jerlang.Process;
-import org.jerlang.ProcessState;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
 
 /**
- * Sets up a timeout of Time milliseconds and saves the address of the
- * following instruction as the entry point if the timeout triggers.
+ * Suspend in the receive loop at Label, but wake up after Timeout
+ * milliseconds if no matching message arrives first. The continuation
+ * pointer saved by the interpreter points at this instruction, so a timeout
+ * resumes with the following `timeout` instruction.
+ *
+ * Arguments:
+ * 1. Label of the receive loop
+ * 2. Timeout in milliseconds, or a negative value for infinity
  */
 public class WaitTimeout {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
-        proc.setState(ProcessState.WAITING);
-        // TODO: Set timeout
-        return i.arg(0);
+        Term label = i.arg(0);
+        long timeout = i.arg(1).toInteger().toLong();
+        proc.waitForMessage(label, timeout);
+        return null;
     }
 
 }

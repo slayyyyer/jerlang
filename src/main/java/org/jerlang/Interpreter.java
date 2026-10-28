@@ -79,7 +79,6 @@ public class Interpreter {
             }
 
             try {
-                // System.out.println("" + process + ": " + String.format("%2d", index) + ": " + i);
 
                 if (i.opcode().methodHandle() != null) {
                     Term r = (Term) i.opcode().methodHandle().invoke(process, m, i, params);
@@ -149,6 +148,19 @@ public class Interpreter {
             }
         }
         return result;
+    }
+
+    /**
+     * Resume execution at a label such as `{f,3}`. Used when a suspended
+     * receive loop is woken by a message.
+     */
+    public static Term continueExecutionAtLabel(FunctionSignature signature, Term label) {
+        Module m = ModuleRegistry.get(signature.module());
+        Integer index = m.beamData().codeChunk().labels().get(label.toRegisterIndex().toInt());
+        if (index == null) {
+            throw new Error("No instruction for label " + label + " in " + signature.module());
+        }
+        return continueExecution(signature, index);
     }
 
     /**

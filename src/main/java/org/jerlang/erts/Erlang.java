@@ -7,6 +7,7 @@ import org.jerlang.erts.erlang.ErlangAtomMultiply;
 import org.jerlang.erts.erlang.ErlangAtomPlus;
 import org.jerlang.erts.erlang.ErlangAtomPlusPlus;
 import org.jerlang.erts.erlang.ErlangBinaryPart;
+import org.jerlang.erts.erlang.ErlangBinaryToTerm;
 import org.jerlang.erts.erlang.ErlangBitstringToList;
 import org.jerlang.erts.erlang.ErlangByteSize;
 import org.jerlang.erts.erlang.ErlangDisplay;
@@ -37,6 +38,8 @@ import org.jerlang.erts.erlang.ErlangListToAtom;
 import org.jerlang.erts.erlang.ErlangListToBitstring;
 import org.jerlang.erts.erlang.ErlangListToInteger;
 import org.jerlang.erts.erlang.ErlangMakeRef;
+import org.jerlang.erts.erlang.ErlangNode;
+import org.jerlang.erts.erlang.ErlangNodes;
 import org.jerlang.erts.erlang.ErlangOpenPort;
 import org.jerlang.erts.erlang.ErlangPortClose;
 import org.jerlang.erts.erlang.ErlangPortControl;
@@ -46,9 +49,11 @@ import org.jerlang.erts.erlang.ErlangRegister;
 import org.jerlang.erts.erlang.ErlangRem;
 import org.jerlang.erts.erlang.ErlangSelf;
 import org.jerlang.erts.erlang.ErlangSendAfter;
+import org.jerlang.erts.erlang.ErlangSend;
 import org.jerlang.erts.erlang.ErlangSetelement;
 import org.jerlang.erts.erlang.ErlangSpawn;
 import org.jerlang.erts.erlang.ErlangSystemInfo;
+import org.jerlang.erts.erlang.ErlangTermToBinary;
 import org.jerlang.erts.erlang.ErlangThrow;
 import org.jerlang.erts.erlang.ErlangTl;
 import org.jerlang.erts.erlang.ErlangTupleSize;
@@ -105,6 +110,10 @@ public class Erlang {
 
     public static Binary binary_part(Binary subject, Integer start, Integer length) {
         return ErlangBinaryPart.binary_part_3(subject, start, length);
+    }
+
+    public static Term binary_to_term(Binary binary) {
+        return ErlangBinaryToTerm.binary_to_term_1(binary);
     }
 
     public static List bitstring_to_list(BitString bitString) {
@@ -259,6 +268,18 @@ public class Erlang {
         return ErlangMakeRef.make_ref_0();
     }
 
+    public static Atom node() {
+        return ErlangNode.node_0();
+    }
+
+    public static Atom node(Term term) {
+        return ErlangNode.node_1(term);
+    }
+
+    public static List nodes() {
+        return ErlangNodes.nodes_0();
+    }
+
     public static PortID open_port(Tuple portName, List portSettings) {
         return ErlangOpenPort.open_port_2(portName, portSettings);
     }
@@ -291,6 +312,10 @@ public class Erlang {
         return ErlangSelf.self_0();
     }
 
+    public static Term send(Term target, Term message) {
+        return ErlangSend.send_2(target, message);
+    }
+
     public static TimerReference send_after(Integer time, PID pid, Term msg) {
         return ErlangSendAfter.send_after_3(time, pid, msg);
     }
@@ -309,6 +334,10 @@ public class Erlang {
 
     public static Term system_info(Term term) {
         return ErlangSystemInfo.system_info_1(term);
+    }
+
+    public static Binary term_to_binary(Term term) {
+        return ErlangTermToBinary.term_to_binary_1(term);
     }
 
     public static void _throw(Term reason) throws ThrowException {

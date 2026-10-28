@@ -30,11 +30,9 @@ public class Scheduler extends Thread {
     }
 
     public ProcessOrPort add(ProcessOrPort p) {
-        if (ids.contains(p.id())) {
-            System.err.println("Process or port already scheduled");
-            return p;
-        }
-
+        // A waiting process keeps its id while it is off the run queue, so
+        // membership must not prevent a message or timeout from re-queueing
+        // it. Only RUNNABLE processes are ever pushed back.
         ids.add(p.id());
 
         p.setScheduler(this);
@@ -125,6 +123,10 @@ public class Scheduler extends Thread {
             switch (p.state()) {
             case RUNNABLE:
                 runQueue.push(p);
+                break;
+            case WAITING:
+                // Keep it known to this scheduler. Process.send or its
+                // timer will make it runnable and enqueue it again.
                 break;
             default:
                 ids.remove(p.pid());

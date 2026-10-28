@@ -1,8 +1,11 @@
 package org.jerlang.erts;
 
+import java.net.UnknownHostException;
 import java.util.HashMap;
 
 import org.jerlang.FunctionSignature;
+import org.jerlang.erts.dist.DistCookie;
+import org.jerlang.erts.dist.DistNodeName;
 import org.jerlang.erts.emulator.EmulatorFlag;
 import org.jerlang.erts.emulator.InitFlag;
 import org.jerlang.erts.erlang.Error;
@@ -12,6 +15,7 @@ import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Str;
+import org.jerlang.vm.VirtualMachine;
 
 /**
  * The erl program starts an Erlang runtime system.
@@ -76,12 +80,27 @@ public class Emulator {
         case RUN:
         case S:
             return parseRunFlag(args, index);
+        case NAME:
         case SNAME:
-            // TODO
-            return index + 1;
+            return parseNodeFlag(args, index, flag == InitFlag.NAME);
+        case SETCOOKIE:
+            DistCookie.setCookie(args[++index]);
+            return index;
         default:
             throw new Error("Unsupported init flag: " + flag);
         }
+    }
+
+    private static int parseNodeFlag(String[] args, int index, boolean longNames) {
+        String name = args[++index];
+        try {
+            String host = longNames ? DistNodeName.localHost(true) : DistNodeName.localHost(false);
+            String nodeName = name.contains("@") ? name : name + "@" + host;
+            VirtualMachine.instance().setNode(Atom.of(nodeName), 1);
+        } catch (UnknownHostException e) {
+            throw new Error("Can not determine the host name: " + e.getMessage());
+        }
+        return index;
     }
 
     private static int parseRunFlag(String[] args, int index) {
