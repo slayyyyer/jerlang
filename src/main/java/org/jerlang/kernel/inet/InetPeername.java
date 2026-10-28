@@ -10,7 +10,7 @@ public class InetPeername {
         if (params.length() != 1) {
             throw Error.badarg;
         }
-        return InetSupport.connected(params.head()).peername();
+        return InetSupport.endpoint(params.head()).peername();
     }
 
 }

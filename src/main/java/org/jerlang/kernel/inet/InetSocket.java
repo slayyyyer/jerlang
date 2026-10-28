@@ -28,7 +28,7 @@ import org.jerlang.type.Tuple;
  * recv; active mode runs a reader thread which sends {tcp, Socket, Data}
  * messages to the controlling process.
  */
-public final class InetSocket {
+public final class InetSocket implements InetEndpoint {
 
     private static final Atom tcp = Atom.of("tcp");
     private static final Atom tcpClosed = Atom.of("tcp_closed");

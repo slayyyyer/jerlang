@@ -10,7 +10,7 @@ public class InetSockname {
         if (params.length() != 1) {
             throw Error.badarg;
         }
-        return InetSupport.socket(params.head()).sockname();
+        return InetSupport.endpoint(params.head()).sockname();
     }
 
 }

@@ -13,7 +13,7 @@ import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 
 /**
- * The subset of inet options that matters for TCP sockets.
+ * The subset of inet options that matters for TCP and UDP sockets.
  *
  * See:
  * http://www.erlang.org/doc/man/inet.html#setopts-2

@@ -10,7 +10,7 @@ public class InetPort {
         if (params.length() != 1) {
             throw Error.badarg;
         }
-        return InetSupport.socket(params.head()).port();
+        return InetSupport.endpoint(params.head()).port();
     }
 
 }

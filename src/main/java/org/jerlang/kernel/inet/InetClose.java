@@ -11,7 +11,7 @@ public class InetClose {
         if (params.length() != 1) {
             throw Error.badarg;
         }
-        InetSupport.socket(params.head()).close();
+        InetSupport.endpoint(params.head()).close();
         return Atom.of("ok");
     }
 

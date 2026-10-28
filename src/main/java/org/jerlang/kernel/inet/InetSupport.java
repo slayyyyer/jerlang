@@ -14,13 +14,14 @@ import org.jerlang.type.BitString;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
+import org.jerlang.type.PortID;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 
 /**
  * Conversions between Erlang terms and the java.net types used by the
- * native gen_tcp and inet modules.
+ * native gen_tcp, gen_udp and inet modules.
  */
 public final class InetSupport {
 
@@ -38,12 +39,44 @@ public final class InetSupport {
         return Tuple.of(error, reason);
     }
 
+    /**
+     * The TCP socket behind a port, for gen_tcp.
+     */
     public static InetSocket socket(Term term) {
         InetSocket socket = InetSockets.get(term);
         if (socket == null) {
             throw Error.badarg;
         }
         return socket;
+    }
+
+    /**
+     * The UDP socket behind a port, for gen_udp.
+     */
+    public static UdpSocket udp(Term term) {
+        UdpSocket socket = UdpSockets.get(term);
+        if (socket == null) {
+            throw Error.badarg;
+        }
+        return socket;
+    }
+
+    /**
+     * Resolve a port to either kind of socket, for the inet module.
+     */
+    public static InetEndpoint endpoint(Term term) {
+        if (!(term instanceof PortID)) {
+            throw Error.badarg;
+        }
+        InetSocket tcp = InetSockets.get(term);
+        if (tcp != null) {
+            return tcp;
+        }
+        UdpSocket udp = UdpSockets.get(term);
+        if (udp != null) {
+            return udp;
+        }
+        throw Error.badarg;
     }
 
     public static InetSocket listener(Term term) {

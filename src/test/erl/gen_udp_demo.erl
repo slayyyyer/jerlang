@@ -1,0 +1,70 @@
+%% Exercises the native gen_udp and inet modules.
+%%
+%% Compile with:
+%%   erlc -o src/test/resources src/test/erl/gen_udp_demo.erl
+-module(gen_udp_demo).
+
+-export([roundtrip/0, active_roundtrip/0, connected_roundtrip/0,
+         list_roundtrip/0, timeout_test/0, getopts_test/0]).
+
+roundtrip() ->
+    {ok, Receiver} = gen_udp:open(0, [binary, {active, false}]),
+    {ok, {_, Port}} = inet:sockname(Receiver),
+    {ok, Port} = inet:port(Receiver),
+    {ok, Sender} = gen_udp:open(0, [binary, {active, false}]),
+    ok = gen_udp:send(Sender, {127, 0, 0, 1}, Port, <<"ping">>),
+    {ok, {{127, 0, 0, 1}, _, <<"ping">>}} = gen_udp:recv(Receiver, 4, 2000),
+    ok = gen_udp:close(Sender),
+    ok = gen_udp:close(Receiver),
+    ok.
+
+active_roundtrip() ->
+    {ok, Receiver} = gen_udp:open(0, [binary, {active, true}]),
+    {ok, {_, Port}} = inet:sockname(Receiver),
+    {ok, Sender} = gen_udp:open(0, [binary, {active, false}]),
+    ok = gen_udp:send(Sender, {127, 0, 0, 1}, Port, <<"active">>),
+    receive
+        {udp, Receiver, {127, 0, 0, 1}, _, <<"active">>} -> ok
+    after 2000 ->
+        error(active_datagram_timeout)
+    end,
+    ok = gen_udp:close(Sender),
+    ok = gen_udp:close(Receiver),
+    ok.
+
+connected_roundtrip() ->
+    {ok, Receiver} = gen_udp:open(0, [binary, {active, false}]),
+    {ok, {_, Port}} = inet:sockname(Receiver),
+    {ok, Sender} = gen_udp:open(0, [binary, {active, false}]),
+    ok = gen_udp:connect(Sender, {127, 0, 0, 1}, Port),
+    {ok, {{127, 0, 0, 1}, Port}} = inet:peername(Sender),
+    ok = gen_udp:send(Sender, <<"connected">>),
+    {ok, {{127, 0, 0, 1}, _, <<"connected">>}} = gen_udp:recv(Receiver, 9, 2000),
+    ok = gen_udp:close(Sender),
+    ok = gen_udp:close(Receiver),
+    ok.
+
+list_roundtrip() ->
+    {ok, Receiver} = gen_udp:open(0, [{active, false}]),
+    {ok, {_, Port}} = inet:sockname(Receiver),
+    {ok, Sender} = gen_udp:open(0, [{active, false}]),
+    ok = gen_udp:send(Sender, {127, 0, 0, 1}, Port, "hello"),
+    {ok, {{127, 0, 0, 1}, _, "hello"}} = gen_udp:recv(Receiver, 5, 2000),
+    ok = gen_udp:close(Sender),
+    ok = gen_udp:close(Receiver),
+    ok.
+
+timeout_test() ->
+    {ok, Receiver} = gen_udp:open(0, [binary, {active, false}]),
+    {error, timeout} = gen_udp:recv(Receiver, 0, 100),
+    ok = gen_udp:close(Receiver),
+    ok.
+
+getopts_test() ->
+    {ok, Receiver} = gen_udp:open(0, [binary, {active, false}]),
+    {ok, [{active, false}]} = inet:getopts(Receiver, [active]),
+    {error, enotconn} = inet:peername(Receiver),
+    ok = inet:setopts(Receiver, [{active, true}]),
+    {ok, [{active, true}]} = inet:getopts(Receiver, [active]),
+    ok = gen_udp:close(Receiver),
+    ok.

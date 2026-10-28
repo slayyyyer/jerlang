@@ -2,10 +2,11 @@
 
 Milestone 0.4 (Network) has two parts: the distribution protocol, which is
 what connects Erlang nodes, and the socket API (`kernel/inet`,
-`kernel/gen_tcp`), which is what Erlang programs use to open their own
-connections. This document covers both, starting with distribution, which
-works in both directions: JErlang can connect to an Erlang/OTP node, and an
-Erlang/OTP node can find, connect to and send messages to JErlang.
+`kernel/gen_tcp`, `kernel/gen_udp`), which is what Erlang programs use to
+open their own connections. This document covers both, starting with
+distribution, which works in both directions: JErlang can connect to an
+Erlang/OTP node, and an Erlang/OTP node can find, connect to and send
+messages to JErlang.
 
 ## Node identity
 
@@ -161,20 +162,29 @@ JErlang process registered as `sink`.
 
 ## Sockets
 
-`kernel/gen_tcp` and `kernel/inet` are implemented natively on
-`java.net.Socket` and `java.net.ServerSocket`, so compiled Erlang can open,
-send on, receive from and accept TCP connections without a separate Erlang
-runtime. The supported calls are `gen_tcp:listen/2`, `accept/1,2`,
-`connect/3,4`, `send/2`, `recv/2,3`, `close/1`, `shutdown/2` and
-`controlling_process/2`, plus `inet:setopts/2`, `getopts/2`, `sockname/1`,
-`peername/1`, `port/1`, `ntoa/1`, `parse_address/1` and `close/1`.
+`kernel/gen_tcp`, `kernel/gen_udp` and `kernel/inet` are implemented
+natively on `java.net.Socket`, `java.net.ServerSocket` and
+`java.net.DatagramSocket`, so compiled Erlang can open, send on, receive
+from and accept connections without a separate Erlang runtime.
+
+The TCP calls are `gen_tcp:listen/2`, `accept/1,2`, `connect/3,4`, `send/2`,
+`recv/2,3`, `close/1`, `shutdown/2` and `controlling_process/2`. The UDP
+calls are `gen_udp:open/1,2`, `close/1`, `send/2,4`, `recv/2,3`, `connect/3`
+and `controlling_process/2`. Both socket types share `inet:setopts/2`,
+`getopts/2`, `sockname/1`, `peername/1`, `port/1`, `ntoa/1`,
+`parse_address/1` and `close/1`.
 
 Sockets support binary and list modes, `{active, false | true | once | N}`,
-`{packet, 1 | 2 | 4 | line}`, `reuseaddr`, `nodelay`, `keepalive` and
-`backlog`. UDP, `gen_tcp:listen/1` and the less common `inet` options are
-not implemented. `GenTcpTest` runs
-[`src/test/erl/gen_tcp_demo.erl`](../src/test/erl/gen_tcp_demo.erl), which
-exercises passive, active and list-mode round trips, receive timeouts, option
+`reuseaddr`, `nodelay`, `keepalive` and `backlog`. TCP additionally supports
+`{packet, 1 | 2 | 4 | line}` framing; the packet option is ignored for UDP.
+Active TCP sockets deliver `{tcp, Socket, Data}` and active UDP sockets
+deliver `{udp, Socket, Address, Port, Data}`. UDP multicast,
+`gen_tcp:listen/1` and the less common `inet` options are not implemented.
+
+`GenTcpTest` and `GenUdpTest` run
+[`src/test/erl/gen_tcp_demo.erl`](../src/test/erl/gen_tcp_demo.erl) and
+[`src/test/erl/gen_udp_demo.erl`](../src/test/erl/gen_udp_demo.erl). They
+exercise passive, active and list-mode round trips, receive timeouts, option
 changes and address helpers.
 
 ## Not implemented yet

@@ -10,7 +10,7 @@ public class InetGetopts {
         if (params.length() != 2) {
             throw Error.badarg;
         }
-        return InetSupport.socket(params.head()).getopts(params.tail().head().toList());
+        return InetSupport.endpoint(params.head()).getopts(params.tail().head().toList());
     }
 
 }
