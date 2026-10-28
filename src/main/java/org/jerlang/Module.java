@@ -98,9 +98,13 @@ public class Module {
         } else {
             process.pushSignature(signature);
             Fun fun = exported_functions.get(signature);
-            Term result = fun.apply(params);
-            process.popSignature();
-            return result;
+            process.enterApply();
+            try {
+                return fun.apply(params);
+            } finally {
+                process.leaveApply();
+                process.popSignature();
+            }
         }
     }
 

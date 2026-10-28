@@ -60,6 +60,10 @@ public class Process extends ProcessOrPort {
     // Set when an uncaught Throwable terminated this process
     private volatile Throwable failure = null;
 
+    // Number of function applications that run synchronously on this process
+    // without sharing its instruction stream, see Module.apply.
+    private int applyDepth = 0;
+
     // Timeout
     private long timeout = 0;
 
@@ -245,6 +249,18 @@ public class Process extends ProcessOrPort {
 
     public Throwable failure() {
         return failure;
+    }
+
+    public int applyDepth() {
+        return applyDepth;
+    }
+
+    public void enterApply() {
+        applyDepth++;
+    }
+
+    public void leaveApply() {
+        applyDepth--;
     }
 
     public void setFailure(Throwable failure) {

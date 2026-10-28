@@ -127,10 +127,13 @@ public class Interpreter {
 
             Opcode opcode = i.opcode();
 
+            // A tail call or a return jumps to the continuation pointer of
+            // the calling function. Without one (index 0) the process ends.
+            // apply_last tears down its own frame, so it always ends here.
             if (opcode == Opcode.apply_last
-                || opcode == Opcode.call_ext_last
-                || opcode == Opcode.call_ext_only
-                || (opcode == Opcode._return && index <= 0)) {
+                || ((opcode == Opcode.call_ext_last
+                    || opcode == Opcode.call_ext_only
+                    || opcode == Opcode._return) && index <= 0)) {
                 // The result of the call or return
                 // is stored in the x0 register
                 result = process.registers()[0];
