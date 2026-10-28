@@ -20,7 +20,7 @@ import org.jerlang.type.Tuple;
  * <pre>
  * =ERROR REPORT==== 2026-10-28::17:00:00.000000 ===
  * Error in process &lt;0.33.0&gt; with exit value:
- * {{badmatch,2},[{crash_demo,crash_now,0,[{file,"crash_demo.erl"},{line,17}]}]}
+ * {{badmatch,2},[{crash_demo,crash_now,1,[{file,"crash_demo.erl"},{line,19}]}]}
  * </pre>
  *
  * An uncaught `exit` is a normal way to stop a process and prints nothing,
@@ -49,10 +49,12 @@ public final class CrashReport {
         if (failure instanceof Error && EXIT.equals(((Error) failure).exceptionClass())) {
             return;
         }
-        Term stacktrace = failure instanceof Error
-            ? ((Error) failure).stacktrace()
-            : process.stacktrace();
-        Term value = Tuple.of(ProcessSignals.reason(failure), stacktrace);
+        // The termination reason of an uncaught error or throw already
+        // carries its captured stacktrace; only a Java exception still
+        // needs the process stack appended.
+        Term value = failure instanceof Error
+            ? ProcessSignals.reason(failure)
+            : Tuple.of(ProcessSignals.reason(failure), process.stacktrace());
 
         // One print call, so that reports from different schedulers do not
         // interleave line by line.

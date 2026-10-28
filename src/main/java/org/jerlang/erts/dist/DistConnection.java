@@ -50,7 +50,7 @@ public final class DistConnection {
 
     private static final int MAX_PACKET = 64 * 1024 * 1024;
     private static final int CONNECT_TIMEOUT = 5000;
-    private static final int TICK_INTERVAL = 30000;
+    private static final int DEFAULT_TICK_TIME_SECONDS = 60;
 
     // Control message tags, see the distribution protocol.
     private static final int LINK = 1;
@@ -75,6 +75,7 @@ public final class DistConnection {
     private final Thread reader;
     private final Thread ticker;
     private volatile boolean open = true;
+    private volatile long lastReceived = System.currentTimeMillis();
 
     private DistConnection(Atom peer, long peerFlags, Socket socket, DataInputStream in,
         DataOutputStream out) {
@@ -382,8 +383,10 @@ public final class DistConnection {
         try {
             while (open) {
                 int length = in.readInt();
+                // Any packet proves that the peer is alive, including a
+                // zero length net tick.
+                lastReceived = System.currentTimeMillis();
                 if (length == 0) {
-                    // A tick: no payload.
                     continue;
                 }
                 if (length < 0 || length > MAX_PACKET) {
@@ -575,8 +578,18 @@ public final class DistConnection {
 
     private void tickLoop() {
         while (open) {
+            long timeout = tickTimeMillis();
+            long interval = Math.max(100, timeout / 4);
             try {
-                Thread.sleep(TICK_INTERVAL);
+                Thread.sleep(interval);
+                if (!open) {
+                    return;
+                }
+                if (System.currentTimeMillis() - lastReceived > timeout) {
+                    debug("no traffic from " + peer + " for " + timeout + " ms");
+                    close();
+                    return;
+                }
                 synchronized (out) {
                     if (open) {
                         out.writeInt(0);
@@ -590,6 +603,20 @@ public final class DistConnection {
                 return;
             }
         }
+    }
+
+    /**
+     * Net tick time in milliseconds. The default matches Erlang/OTP's
+     * 60 second net_ticktime; tests can shorten it with the
+     * jerlang.dist.ticktime system property (in seconds).
+     */
+    private static long tickTimeMillis() {
+        int seconds = java.lang.Integer.getInteger("jerlang.dist.ticktime",
+            DEFAULT_TICK_TIME_SECONDS);
+        if (seconds <= 0) {
+            seconds = DEFAULT_TICK_TIME_SECONDS;
+        }
+        return seconds * 1000L;
     }
 
     public void close() {

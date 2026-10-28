@@ -6,7 +6,9 @@
 
 -export([linked_crash/0, trapped_crash/0, exit_signal/0, kill/0,
          unlink_test/0, demonitor_test/0, monitor_dead/0, link_dead/0,
-         registry/0]).
+         registry/0, spawn_link_crash/0, spawn_link_fun/0,
+         spawn_monitor_test/0, spawn_monitor_fun/0,
+         spawn_opt_link_monitor/0, spawn_opt_fun/0]).
 
 -export([link_and_wait/1, crash_after_go/0, normal_return/0,
          wait/0, wait_plain/0]).
@@ -161,6 +163,68 @@ registry() ->
     receive after 200 -> ok end,
     false = is_process_alive(Pid),
     ok.
+
+%% spawn_link is atomic: the child is linked before it can run.
+spawn_link_crash() ->
+    false = process_flag(trap_exit, true),
+    Pid = spawn_link(link_demo, crash_after_go, []),
+    Pid ! go,
+    receive
+        {'EXIT', Pid, boom} -> ok
+    after 2000 ->
+        error(no_exit)
+    end.
+
+spawn_link_fun() ->
+    false = process_flag(trap_exit, true),
+    Pid = spawn_link(fun() -> exit(boom) end),
+    receive
+        {'EXIT', Pid, boom} -> ok
+    after 2000 ->
+        error(no_exit)
+    end.
+
+spawn_monitor_test() ->
+    {Pid, Ref} = spawn_monitor(link_demo, wait_plain, []),
+    true = exit(Pid, die),
+    receive
+        {'DOWN', Ref, process, Pid, die} -> ok
+    after 2000 ->
+        error(no_down)
+    end.
+
+spawn_monitor_fun() ->
+    {Pid, Ref} = spawn_monitor(fun() -> wait_plain() end),
+    true = exit(Pid, kill),
+    receive
+        {'DOWN', Ref, process, Pid, killed} -> ok
+    after 2000 ->
+        error(no_down)
+    end.
+
+spawn_opt_link_monitor() ->
+    false = process_flag(trap_exit, true),
+    {Pid, Ref} = spawn_opt(link_demo, crash_after_go, [], [link, monitor]),
+    Pid ! go,
+    receive
+        {'EXIT', Pid, boom} -> ok
+    after 2000 ->
+        error(no_exit)
+    end,
+    receive
+        {'DOWN', Ref, process, Pid, boom} -> ok
+    after 2000 ->
+        error(no_down)
+    end.
+
+spawn_opt_fun() ->
+    {Pid, Ref} = spawn_opt(fun() -> wait_plain() end, [monitor, {priority, high}]),
+    true = exit(Pid, kill),
+    receive
+        {'DOWN', Ref, process, Pid, killed} -> ok
+    after 2000 ->
+        error(no_down)
+    end.
 
 member([Name | _], Name) -> true;
 member([_ | Rest], Name) -> member(Rest, Name);

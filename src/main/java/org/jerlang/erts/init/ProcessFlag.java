@@ -16,6 +16,8 @@ public class ProcessFlag {
         switch (flag.toString()) {
         case "trap_exit":
             return process.setTrapExit(value);
+        case "monitor_nodes":
+            return process.monitorNodeEvents(value);
         default:
             return false;
         }

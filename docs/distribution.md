@@ -162,7 +162,8 @@ closes the connection and `net_adm:ping` returns `pang`.
   runs [`dist_signals_demo.erl`](../src/test/erl/dist_signals_demo.erl)
   against a fake peer and checks `LINK`, `UNLINK_ID`/`UNLINK_ID_ACK`,
   `EXIT`, `EXIT2`, `MONITOR_P`, `DEMONITOR_P`, `MONITOR_P_EXIT`, name
-  monitors and `noconnection` in both directions.
+  monitors, `noconnection`, node monitoring, the net-tick timeout, and
+  `rpc:call`/`rpc:cast` in both directions.
 * [`DistSpawnTest`](../src/test/java/org/jerlang/erts/dist/DistSpawnTest.java)
   runs [`dist_spawn_demo.erl`](../src/test/erl/dist_spawn_demo.erl) and
   checks `spawn/4`, the reply, `link` and `monitor` options of
@@ -203,7 +204,9 @@ sends `{'DOWN', Ref, process, Pid, Reason}` to every monitor. A linked
 process without `trap_exit` gets the exit signal, and terminates with the
 same reason; a trapping process receives `{'EXIT', From, Reason}` instead.
 `exit(Pid, kill)` kills regardless of `trap_exit` and reports `killed`, and
-a link or monitor on a process that is already gone reports `noproc`.
+a link or monitor on a process that is already gone reports `noproc`. An
+uncaught error or throw makes the reason a `{Reason, Stacktrace}` tuple, as
+in OTP; a plain `exit/1` or `killed` reason stays bare.
 
 Exit signals take effect at the next instruction, or at the next scheduling
 boundary when the process is waiting. A linked process that exits with
@@ -212,7 +215,8 @@ reason `normal` is ignored unless the peer traps exits.
 [`LinkMonitorTest`](../src/test/java/org/jerlang/jvm/LinkMonitorTest.java)
 runs [`src/test/erl/link_demo.erl`](../src/test/erl/link_demo.erl), which
 covers link propagation, `trap_exit`, `unlink`, `demonitor`, `kill`, the
-`noproc` cases and the registry functions.
+`noproc` cases, `spawn_link`, `spawn_monitor`, `spawn_opt` and the registry
+functions.
 
 ## Distributed links and monitors
 
@@ -257,7 +261,9 @@ kill uses.
 A remote PID, or `{Name, Node}`, gets `MONITOR_P` with the caller's
 reference. `DEMONITOR_P` removes it. `MONITOR_P_EXIT` becomes
 `{'DOWN', Ref, process, Object, Reason}`, where `Object` is the PID, or
-`{Name, Node}` when a registered name was monitored. Monitoring a
+`{Name, Node}` when a registered name was monitored. The reason is
+forwarded unchanged, so a remote monitor of a process that died of an
+uncaught error also receives `{Reason, Stacktrace}`. Monitoring a
 `{Name, Node}` whose name is not registered reports `noproc`, whether the
 node is local or remote.
 
@@ -294,12 +300,22 @@ used, exactly as in Erlang/OTP. The supported options are:
 | `link` | The peer links the new process to the caller before answering. |
 | `monitor` | The peer sets up a monitor to the new process. `{monitor, []}` is also accepted; monitor sub-options such as `alias` are not. |
 | `{reply_tag, Tag}` | First element of the reply message; `spawn_reply` by default. |
-| `{reply, yes \| no \| error_only \| success_only}` | Which reply messages to deliver. |
+| `{reply, yes \| no \| error_only \| success_only}` | Which reply messages the peer sends. `error_only` and `no` are forwarded, so an OTP `erpc` caller gets exactly the replies it asked for. |
 
 An invalid option produces `{spawn_reply, ReqId, error, badopt}` without
 contacting the peer. A failed remote spawn produces `noconnection`,
 `notsup` or `system_limit`, and never activates the requested link or
 monitor.
+
+`spawn_link/1,3,4`, `spawn_monitor/1,3` and `spawn_opt/2,4,5` use the same
+machinery. Locally they create the process, install the link or monitor
+before the process is scheduled, and return the PID (or `{Pid, Ref}` when
+monitoring). `spawn_opt` accepts `link`, `monitor` and
+`{priority, max | high | normal | low}`; the heap and scheduler options
+(`{fullsweep_after, ...}`, `{min_heap_size, ...}`, `{message_queue_data, ...}`
+and similar) are accepted for source compatibility and ignored by the JVM
+runtime. On another node only `link` and `monitor` have meaning; the other
+options describe the local scheduler.
 
 The `link` and `monitor` flags in `SPAWN_REPLY` (bits 1 and 2) tell the
 caller which state the peer established. The caller records it before the
@@ -317,6 +333,37 @@ A spawn request still pending when the connection closes fails with
 `noconnection`. If a process was created on the peer, its link state is
 what tells it that the connection disappeared.
 
+### Remote calls
+
+`kernel/rpc` is implemented on the same `SPAWN_REQUEST`/monitor protocol
+instead of the legacy `rex` server:
+
+| Function | Behaviour |
+|----------|-----------|
+| `rpc:call/4,5` | Starts `erpc:execute_call/4` on the peer. A returned value comes back as the monitor `DOWN` reason `{ResultRef, return, Value}`. Failures use `rpc`'s `{badrpc, Reason}` form; a plain thrown value is returned unchanged. |
+| `rpc:cast/4` | Sends a no-reply spawn request for the target function. It returns `true` without waiting. |
+| `rpc:block_call/4,5` | Behaves like `rpc:call`; there is no global serialization lock. |
+| `rpc:multicall/3,4,5` | Calls the listed nodes in order and returns `{Replies, BadNodes}`. |
+| `rpc:eval_everywhere/4`, `rpc:abcast/3` | Cast or send to every listed node. |
+
+An incoming OTP `erpc:call` arrives as a `SPAWN_REQUEST` for
+`erpc:execute_call/4`; the process exits with the result tuple and the
+caller's monitor reports it as the `DOWN` reason. An incoming
+`erpc:cast` uses `erpc:execute_cast/3` and normally carries
+`{reply, no}`. Both are covered by `DistSignalsTest`. The old `rex`
+protocol is not spoken, so a node that still uses `rex` for `rpc:call`
+can not call this node.
+
+### Node monitoring
+
+`erlang:monitor_node/2,3` and `net_kernel:monitor_nodes/1,2` work from the
+local process side. A subscription receives `{nodeup, Node}` when a
+connection is established and `{nodedown, Node}` when it is lost, with one
+message per subscription for `monitor_node` and one for each
+`monitor_nodes` subscriber. A node that is not connected at subscription
+time reports `nodedown` immediately. The wire-level `NODE_LINK` signal used
+by OTP's own node monitor is not sent or interpreted yet.
+
 ### Losing the connection
 
 When a connection closes, every link to a process on that node receives an
@@ -325,11 +372,14 @@ delivers `DOWN` with `noconnection`. A process that traps exits sees
 `{'EXIT', Pid, noconnection}`. If a second connection to the same node
 exists, closing the duplicate does not fail anything.
 
-Only a closed or broken TCP connection is detected. Ticks are sent but not
-used to time out a silent peer, so a node that disappears without closing
-its connection is not noticed. A node that can not be reached at all fails
-the link or monitor immediately with `noconnection` instead of retrying
-through connection setup.
+The connection also detects a peer that stops answering without closing
+the socket. A ticker sends a zero-length net tick every quarter of the net
+tick time, and a connection that has received no packet for a full net tick
+time is closed and fails its links and monitors with `noconnection`. The
+default is 60 seconds, matching Erlang/OTP; tests shorten it with the
+`jerlang.dist.ticktime` system property (in seconds). A node that can not
+be reached at all fails the link or monitor immediately with
+`noconnection` instead of retrying through connection setup.
 
 ## Sockets
 
@@ -382,13 +432,15 @@ exists.
 
 ## Not implemented yet
 
-* Node monitoring (`monitor_node/2`, `NODE_LINK`, `MONITOR_NODES`).
-* `rex`, the `global` name server and remote `rpc:call/4`. OTP's messages
-  to those names are dropped. Remote spawn itself does not use `rex`; it
-  uses `SPAWN_REQUEST`, which is implemented.
-* `spawn_opt/5`, `spawn_link/4` and remote funs are not implemented yet;
-  use `spawn_request/5` with `link` or `monitor` instead.
+* The `NODE_LINK` wire signal and OTP's `MONITOR_NODES` subscription
+  messages. Local `monitor_node` and `net_kernel:monitor_nodes` work from
+  connection state; a peer running OTP can not ask this node to monitor a
+  node through those signals.
+* `rex`, the `global` name server and the old `rpc:call` wire protocol.
+  Messages to those names are dropped. `rpc:call` between this node and
+  OTP uses `erpc`'s `SPAWN_REQUEST`/monitor protocol.
+* Remote funs: `spawn_link(Node, Fun)` and sending a fun to another node
+  are not implemented. Remote spawn requires a module, function and
+  arguments.
 * Atom cache in the distribution header, compressed terms, funs and
   ports in messages.
-* Tick handling: the connection sends ticks but does not use them to
-  detect a dead peer.

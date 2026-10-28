@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.jerlang.erts.dist.Distribution;
+import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
 import org.jerlang.type.BitString;
 import org.jerlang.type.Float;
@@ -102,6 +103,11 @@ public class Process extends ProcessOrPort {
     private volatile Term waitLabel = null;
     private volatile boolean waitTimedOut = false;
     private long waitGeneration = 0;
+
+    // The mailbox position of the current receive loop. Messages before
+    // this position did not match the clauses already tried and stay in
+    // the mailbox for later receives, as Erlang/OTP requires.
+    private int receivePosition = 0;
     private ScheduledFuture<?> waitTimer = null;
 
     private static final Atom DOWN = Atom.of("DOWN");
@@ -125,6 +131,12 @@ public class Process extends ProcessOrPort {
     private final Map<Reference, Term> monitors = new ConcurrentHashMap<>();
     private final Map<Reference, Monitor> monitoredBy = new ConcurrentHashMap<>();
 
+    // One count per monitor_node(Node, true) call. A node failure clears
+    // the subscription, as Erlang/OTP does, so a later reconnection does
+    // not produce another nodedown for the same call.
+    private final Map<Atom, java.lang.Integer> monitoredNodes = new ConcurrentHashMap<>();
+    private volatile boolean monitorNodeEvents = false;
+
     private volatile boolean trapExit = false;
     private volatile Term pendingExit = null;
     private volatile boolean terminated = false;
@@ -137,6 +149,24 @@ public class Process extends ProcessOrPort {
 
     public Process(PID pid, Fun fun) {
         this(pid);
+
+        // A process started with a fun begins at the lambda's label, with
+        // the free variables in X0..X(NumFree-1), exactly as call_fun does
+        // when the fun is applied in the current process.
+        FunctionSignature signature = fun.signature();
+        signatures.push(signature);
+        pushFrame(new StackFrame(signature.module(), signature.function(), 0));
+        Term[] saved = fun.savedRegisters();
+        for (int index = 0; index < saved.length; index++) {
+            setX(index, saved[index]);
+        }
+        Module module = ModuleRegistry.get(signature.module());
+        int label = fun.label().toRegisterIndex().toInt();
+        java.lang.Integer start = module.beamData().codeChunk().labels().get(label);
+        if (start == null) {
+            throw new Error("No instruction for fun label " + label);
+        }
+        cp = start;
     }
 
     public Process(PID pid, Atom module, Atom fun, List args) {
@@ -199,7 +229,7 @@ public class Process extends ProcessOrPort {
     }
 
     public boolean hasMessage() {
-        return !mailbox.isEmpty();
+        return receivePosition < mailbox.size();
     }
 
     public int getCP() {
@@ -211,7 +241,43 @@ public class Process extends ProcessOrPort {
     }
 
     public Term nextMessage() {
-        return mailbox.peek();
+        int index = 0;
+        for (Term message : mailbox) {
+            if (index++ == receivePosition) {
+                return message;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Wait until a message matching `predicate` is in the mailbox, remove
+     * it, and return it. Messages that do not match stay in order.
+     *
+     * This is used by calls that need to wait for a protocol reply from
+     * inside a BIF, such as a remote RPC. It returns null on timeout.
+     */
+    public Term awaitMessage(java.util.function.Predicate<Term> predicate, long timeoutMillis) {
+        long deadline = timeoutMillis < 0 ? Long.MAX_VALUE
+            : System.currentTimeMillis() + timeoutMillis;
+        while (true) {
+            for (Term message : mailbox) {
+                if (predicate.test(message) && mailbox.remove(message)) {
+                    return message;
+                }
+            }
+            long remaining = deadline == Long.MAX_VALUE ? Long.MAX_VALUE
+                : deadline - System.currentTimeMillis();
+            if (remaining <= 0) {
+                return null;
+            }
+            try {
+                Thread.sleep(Math.min(remaining, 5));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
     }
 
     public Tuple getTuple() {
@@ -467,6 +533,9 @@ public class Process extends ProcessOrPort {
                 setState(ProcessState.RUNNING);
                 waitTimedOut = false;
                 waitLabel = null;
+                // A timed-out receive leaves its scan position behind; the
+                // next receive starts again at the head of the mailbox.
+                receivePosition = 0;
                 // cp points at wait_timeout: resume with the timeout code.
                 Interpreter.continueExecution(signatures.peek(), cp + 1);
             }
@@ -585,6 +654,92 @@ public class Process extends ProcessOrPort {
         }
         send(Tuple.of(DOWN, reference, PROCESS, Tuple.of(name, node), Atom.of("noproc")));
         return reference;
+    }
+
+    /**
+     * Monitor the status of a node, one independent subscription per
+     * monitor_node(Node, true) call. A node that can not be reached
+     * reports nodedown immediately. The subscription ends when the node
+     * goes down.
+     *
+     * http://www.erlang.org/doc/man/erlang.html#monitor_node-2
+     */
+    public void monitorNode(Atom node, boolean flag) {
+        if (flag) {
+            if (node.equals(VirtualMachine.instance().node())) {
+                return;
+            }
+            if (!Distribution.isConnected(node) && !Distribution.connect(node)) {
+                send(Tuple.of(Atom.of("nodedown"), node));
+                return;
+            }
+            monitoredNodes.merge(node, 1, java.lang.Integer::sum);
+            if (!Distribution.isConnected(node)) {
+                // The connection went away between connect/1 and the
+                // subscription. Clear the subscription and report it as
+                // down instead of keeping a monitor on a dead node.
+                nodeDown(node);
+            }
+            return;
+        }
+        decrementNodeSubscription(node);
+    }
+
+    /**
+     * Subscribe to the node events that net_kernel:monitor_nodes/1
+     * delivers. Unlike monitor_node/2 this subscription survives a
+     * disconnect and reports nodeup when the node comes back.
+     */
+    public boolean monitorNodeEvents(boolean flag) {
+        boolean previous = monitorNodeEvents;
+        monitorNodeEvents = flag;
+        return previous;
+    }
+
+    private synchronized int decrementNodeSubscription(Atom node) {
+        java.lang.Integer count = monitoredNodes.get(node);
+        if (count == null) {
+            return -1;
+        }
+        if (count <= 1) {
+            monitoredNodes.remove(node);
+            return 0;
+        }
+        monitoredNodes.put(node, count - 1);
+        return count - 1;
+    }
+
+    /**
+     * A distribution connection to `node` was established.
+     */
+    public void nodeUp(Atom node) {
+        java.lang.Integer count = monitoredNodes.get(node);
+        if (count != null) {
+            for (int index = 0; index < count; index++) {
+                send(Tuple.of(Atom.of("nodeup"), node));
+            }
+        }
+        if (monitorNodeEvents) {
+            send(Tuple.of(Atom.of("nodeup"), node));
+        }
+    }
+
+    /**
+     * A distribution connection to `node` is gone. Every outstanding
+     * monitor_node subscription gets one nodedown, and a monitor_nodes
+     * subscriber gets one as well. monitor_node subscriptions are
+     * one-shot and are cleared here.
+     */
+    public void nodeDown(Atom node) {
+        java.lang.Integer count = monitoredNodes.remove(node);
+        if (count != null) {
+            for (int index = 0; index < count; index++) {
+                send(Tuple.of(Atom.of("nodedown"), node));
+            }
+        }
+        if (monitorNodeEvents) {
+            send(Tuple.of(Atom.of("nodedown"), node));
+        }
     }
 
     /**
@@ -979,9 +1134,9 @@ public class Process extends ProcessOrPort {
     }
 
     public void loop_rec_end() {
-        // TODO: this is technically not correct
-        // TODO: we need to advance the message index instead
-        mailbox.remove();
+        // This message did not match. Keep it in the mailbox and advance
+        // the scan position to the next one.
+        receivePosition++;
     }
 
     public Term[] registers() {
@@ -1018,7 +1173,16 @@ public class Process extends ProcessOrPort {
      * instruction, this does not touch any register.
      */
     public void removeMessage() {
-        mailbox.remove();
+        Iterator<Term> iterator = mailbox.iterator();
+        int index = 0;
+        while (iterator.hasNext()) {
+            iterator.next();
+            if (index++ == receivePosition) {
+                iterator.remove();
+                break;
+            }
+        }
+        receivePosition = 0;
         // TODO: remove timer
     }
 

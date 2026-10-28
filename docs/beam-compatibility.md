@@ -69,7 +69,7 @@ rejects the module before decoding.
 | `build_stacktrace` | 160 | `try ... catch Class:Reason:Stack` (OTP 22+) | Normalises the recorded frame list |
 | `raw_raise` | 161 | `erlang:raise/3` in a catch clause (OTP 22+) | Class, reason and stacktrace are re-raised unchanged |
 | `is_tagged_tuple` | 159 | Tuple patterns and record tests (OTP 22+) | Checks arity and the first element |
-| `recv_marker_bind` | 173 | A second `receive` in one function (OTP 28+) | Records nothing: this interpreter scans the mailbox from the head |
+| `recv_marker_bind` | 173 | A second `receive` in one function (OTP 28+) | Records nothing: `Process.receivePosition` tracks the scan position |
 | `recv_marker_clear` | 174 | Leaving a marked `receive` | Nothing to clear, for the same reason |
 | `recv_marker_reserve` | 175 | A second `receive` in one function (OTP 28+) | Allocates the marker reference |
 | `recv_marker_use` | 176 | A second `receive` in one function (OTP 28+) | Falls through to the `loop_rec` that follows it |
@@ -80,6 +80,22 @@ encoded when building a list from a literal and a register.
 Instruction arguments also gained the extended tag 5, a typed register
 `{tr,Register,Type}`. The type is only used by the JIT, but it has to be
 decoded to stay in sync with the instruction stream.
+
+OTP 28 also made the heap need of `allocate_heap` (and `test_heap`) a list of
+heap fragments such as `{alloc, [{words, 0}, {floats, 0}, {funs, 1}]}`
+instead of a word count. The JVM manages the heap, so the interpreter reads
+only the stack need and the live-register count and ignores the fragment
+description.
+
+### Receive scan position
+
+`loop_rec_end` used to remove the head of the mailbox. When the first message
+did not match a receive clause, it was therefore lost before a later receive
+could see it. `Process` now keeps `receivePosition` while a receive scans the
+mailbox: `loop_rec_end` advances it, `remove_message` removes the message at
+that position and resets the scan, and a timeout resets it as well. This is
+what lets `spawn_opt(..., [link, monitor])` receive the `DOWN` that follows an
+`EXIT` in the same mailbox.
 
 ## Fun calls
 
@@ -141,13 +157,15 @@ like OTP's default logger handler, with the stacktrace captured at the raise:
 ```text
 =ERROR REPORT==== 2026-10-28::17:00:00.000000 ===
 Error in process <0.33.0> with exit value:
-{{badmatch,2},[{crash_demo,crash_now,1,[{file,"crash_demo.erl"},{line,18}]}]}
+{{badmatch,2},[{crash_demo,crash_now,1,[{file,"crash_demo.erl"},{line,19}]}]}
 ```
 
-An uncaught `throw` is reported as `{nocatch, Value}`; `erlang:throw/1` raises
-the `throw` class that makes that possible. An uncaught `exit/1` is a normal
-way to stop a process, so it prints nothing, and a process killed by an exit
-signal prints nothing either.
+The reason carried to links and monitors is the same value printed here. An
+uncaught error terminates the process with `{Reason, Stacktrace}`, and an
+uncaught `throw` with `{{nocatch, Value}, Stacktrace}`; `erlang:throw/1`
+raises the `throw` class that makes the `nocatch` wrapper possible. `exit/1`
+and a process killed by an exit signal keep their plain reason, and because
+they are normal ways to stop, print nothing.
 
 ## Stack frames
 

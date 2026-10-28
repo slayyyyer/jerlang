@@ -82,6 +82,24 @@ public class LinkMonitorTest {
         assertEquals(Atom.of("ok"), apply("registry"));
     }
 
+    @Test
+    public void testSpawnLinkLinksBeforeTheChildRuns() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("spawn_link_crash"));
+        assertEquals(Atom.of("ok"), apply("spawn_link_fun"));
+    }
+
+    @Test
+    public void testSpawnMonitorReturnsTheMonitorReference() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("spawn_monitor_test"));
+        assertEquals(Atom.of("ok"), apply("spawn_monitor_fun"));
+    }
+
+    @Test
+    public void testSpawnOptSupportsLinkMonitorAndPriority() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("spawn_opt_link_monitor"));
+        assertEquals(Atom.of("ok"), apply("spawn_opt_fun"));
+    }
+
     private Term apply(String function) throws Throwable {
         return Erlang.apply(Atom.of("link_demo"), Atom.of(function), List.nil);
     }

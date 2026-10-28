@@ -59,11 +59,30 @@ public final class Distribution {
      * to the same node is already open, keep it and close the new one.
      */
     static void add(DistConnection connection) {
-        DistConnection existing = CONNECTIONS.putIfAbsent(connection.peer(), connection);
-        if (existing != null && existing.isOpen()) {
-            connection.close();
-        } else {
-            CONNECTIONS.put(connection.peer(), connection);
+        if (install(connection)) {
+            notifyNodeUp(connection.peer());
+        }
+    }
+
+    /**
+     * Install a new connection unless a live one to the same node exists.
+     * Returns true when `connection` became the current connection.
+     */
+    private static boolean install(DistConnection connection) {
+        Atom peer = connection.peer();
+        while (true) {
+            DistConnection existing = CONNECTIONS.putIfAbsent(peer, connection);
+            if (existing == null) {
+                return true;
+            }
+            if (existing.isOpen()) {
+                connection.close();
+                return false;
+            }
+            if (CONNECTIONS.replace(peer, existing, connection)) {
+                return true;
+            }
+            // Another thread replaced the stale connection first.
         }
     }
 
@@ -95,7 +114,9 @@ public final class Distribution {
             }
             try {
                 DistConnection connection = DistConnection.open(node);
-                CONNECTIONS.put(node, connection);
+                if (install(connection)) {
+                    notifyNodeUp(node);
+                }
                 return true;
             } catch (IOException | RuntimeException e) {
                 if (Boolean.getBoolean("jerlang.dist.debug")) {
@@ -461,6 +482,10 @@ public final class Distribution {
         DistConnection connection = CONNECTIONS.remove(node);
         if (connection != null) {
             connection.close();
+            fail(node);
+            if (!isConnected(node)) {
+                notifyNodeDown(node);
+            }
         }
     }
 
@@ -474,8 +499,30 @@ public final class Distribution {
      * Called by a connection when its reader thread terminates.
      */
     static void remove(DistConnection connection) {
-        if (CONNECTIONS.remove(connection.peer(), connection)) {
-            fail(connection.peer());
+        Atom node = connection.peer();
+        if (CONNECTIONS.remove(node, connection)) {
+            fail(node);
+            // A replacement connection keeps the node up; otherwise the
+            // node is down for every monitor_node/monitor_nodes subscriber.
+            if (!isConnected(node)) {
+                notifyNodeDown(node);
+            }
+        }
+    }
+
+    private static void notifyNodeUp(Atom node) {
+        for (ProcessOrPort process : ProcessRegistry.all()) {
+            if (process instanceof Process) {
+                ((Process) process).nodeUp(node);
+            }
+        }
+    }
+
+    private static void notifyNodeDown(Atom node) {
+        for (ProcessOrPort process : ProcessRegistry.all()) {
+            if (process instanceof Process) {
+                ((Process) process).nodeDown(node);
+            }
         }
     }
 

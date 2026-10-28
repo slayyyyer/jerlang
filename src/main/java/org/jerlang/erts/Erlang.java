@@ -28,6 +28,7 @@ import org.jerlang.erts.erlang.ErlangIsBitstr;
 import org.jerlang.erts.erlang.ErlangIsBoolean;
 import org.jerlang.erts.erlang.ErlangIsFunction;
 import org.jerlang.erts.erlang.ErlangIsInteger;
+import org.jerlang.erts.erlang.ErlangIsAlive;
 import org.jerlang.erts.erlang.ErlangIsList;
 import org.jerlang.erts.erlang.ErlangIsMap;
 import org.jerlang.erts.erlang.ErlangIsNumber;
@@ -43,6 +44,7 @@ import org.jerlang.erts.erlang.ErlangListToBitstring;
 import org.jerlang.erts.erlang.ErlangListToInteger;
 import org.jerlang.erts.erlang.ErlangMakeRef;
 import org.jerlang.erts.erlang.ErlangMonitor;
+import org.jerlang.erts.erlang.ErlangMonitorNode;
 import org.jerlang.erts.erlang.ErlangNode;
 import org.jerlang.erts.erlang.ErlangNodes;
 import org.jerlang.erts.erlang.ErlangOpenPort;
@@ -203,6 +205,10 @@ public class Erlang {
         return ErlangIntegerToList.integer_to_list_2(integer, base);
     }
 
+    public static Term is_alive() {
+        return ErlangIsAlive.is_alive_0();
+    }
+
     public static Term is_atom(Term term) {
         return ErlangIsAtom.is_atom_1(term);
     }
@@ -291,6 +297,10 @@ public class Erlang {
         return ErlangNodes.nodes_0();
     }
 
+    public static List nodes(Term type) {
+        return ErlangNodes.nodes_1(type);
+    }
+
     public static PortID open_port(Tuple portName, List portSettings) {
         return ErlangOpenPort.open_port_2(portName, portSettings);
     }
@@ -343,6 +353,14 @@ public class Erlang {
         return ErlangMonitor.monitor_2(type, target);
     }
 
+    public static Term monitor_node(Term node, Term flag) {
+        return ErlangMonitorNode.monitor_node_2(node, flag);
+    }
+
+    public static Term monitor_node(Term node, Term flag, Term options) {
+        return ErlangMonitorNode.monitor_node_3(node, flag, options);
+    }
+
     public static List registered() {
         return ErlangRegistered.registered_0();
     }
@@ -389,6 +407,38 @@ public class Erlang {
 
     public static PID spawn(Atom node, Atom m, Atom f, List a) {
         return ErlangSpawn.spawn_4(node, m, f, a);
+    }
+
+    public static Term spawn_link(Fun fun) {
+        return ErlangSpawn.spawn_link_1(fun);
+    }
+
+    public static Term spawn_link(Atom m, Atom f, List a) {
+        return ErlangSpawn.spawn_link_3(m, f, a);
+    }
+
+    public static Term spawn_link(Atom node, Atom m, Atom f, List a) {
+        return ErlangSpawn.spawn_link_4(node, m, f, a);
+    }
+
+    public static Term spawn_monitor(Fun fun) {
+        return ErlangSpawn.spawn_monitor_1(fun);
+    }
+
+    public static Term spawn_monitor(Atom m, Atom f, List a) {
+        return ErlangSpawn.spawn_monitor_3(m, f, a);
+    }
+
+    public static Term spawn_opt(Fun fun, List options) {
+        return ErlangSpawn.spawn_opt_2(fun, options);
+    }
+
+    public static Term spawn_opt(Atom m, Atom f, List a, List options) {
+        return ErlangSpawn.spawn_opt_4(m, f, a, options);
+    }
+
+    public static Term spawn_opt(Atom node, Atom m, Atom f, List a, List options) {
+        return ErlangSpawn.spawn_opt_5(node, m, f, a, options);
     }
 
     public static Reference spawn_request(Atom node, Atom m, Atom f, List a, List options) {

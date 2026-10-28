@@ -23,6 +23,7 @@ public final class ProcessSignals {
     private static final Atom DOWN = Atom.of("DOWN");
     private static final Atom PROCESS = Atom.of("process");
     private static final Atom THROW = Atom.of("throw");
+    private static final Atom EXIT = Atom.of("exit");
 
     private ProcessSignals() {
     }
@@ -95,16 +96,23 @@ public final class ProcessSignals {
 
     /**
      * The Erlang reason an uncaught exception terminates a process with.
+     *
+     * Erlang/OTP makes the reason of an uncaught error or throw carry the
+     * stacktrace captured at the raise, and every link and monitor sees
+     * that same tuple. An uncaught throw is reported as
+     * {{nocatch, Value}, Stacktrace}; exit/1 and a killed process keep
+     * their plain reason.
      */
     public static Term reason(Throwable failure) {
         if (failure instanceof Error) {
             Error error = (Error) failure;
-            if (THROW.equals(error.exceptionClass())) {
-                // An uncaught throw is reported as {nocatch, Value}, the way
-                // Erlang/OTP reports it.
-                return Tuple.of(Atom.of("nocatch"), error.reason());
+            Term reason = THROW.equals(error.exceptionClass())
+                ? Tuple.of(Atom.of("nocatch"), error.reason())
+                : error.reason();
+            if (EXIT.equals(error.exceptionClass())) {
+                return reason;
             }
-            return error.reason();
+            return Tuple.of(reason, error.stacktrace());
         }
         if (failure instanceof ProcessExit) {
             ProcessExit exit = (ProcessExit) failure;

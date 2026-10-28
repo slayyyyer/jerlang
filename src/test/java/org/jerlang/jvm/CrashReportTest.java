@@ -14,7 +14,11 @@ import java.nio.file.StandardCopyOption;
 
 import org.jerlang.erts.Erlang;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Integer;
 import org.jerlang.type.List;
+import org.jerlang.type.Str;
+import org.jerlang.type.Term;
+import org.jerlang.type.Tuple;
 import org.jerlang.vm.VirtualMachine;
 import org.junit.After;
 import org.junit.Before;
@@ -52,7 +56,7 @@ public class CrashReportTest {
             "(?s)=ERROR REPORT==== \\d{4}-\\d{2}-\\d{2}::\\d{2}:\\d{2}:\\d{2}\\.\\d{6} ===\n"
                 + "Error in process <0\\.\\d+\\.\\d+> with exit value:\n.*"));
         assertTrue(stdout, stdout.contains("{{badmatch,2},"
-            + "[{crash_demo,crash_now,1,[{file,\"crash_demo.erl\"},{line,18}]}]}"));
+            + "[{crash_demo,crash_now,1,[{file,\"crash_demo.erl\"},{line,19}]}]}"));
         assertEquals(1, occurrences(stdout, "=ERROR REPORT===="));
         assertFalse(stderr, stderr.contains("=ERROR REPORT===="));
     }
@@ -62,8 +66,8 @@ public class CrashReportTest {
         run("nested_crash");
 
         assertTrue(stdout, stdout.contains("{inner_boom,["
-            + "{crash_demo,inner,1,[{file,\"crash_demo.erl\"},{line,33}]},"
-            + "{crash_demo,outer,1,[{file,\"crash_demo.erl\"},{line,27}]}]}"));
+            + "{crash_demo,inner,1,[{file,\"crash_demo.erl\"},{line,34}]},"
+            + "{crash_demo,outer,1,[{file,\"crash_demo.erl\"},{line,28}]}]}"));
     }
 
     @Test
@@ -71,7 +75,7 @@ public class CrashReportTest {
         run("throw_crash");
 
         assertTrue(stdout, stdout.contains("{{nocatch,oops},"
-            + "[{crash_demo,throw_now,0,[{file,\"crash_demo.erl\"},{line,42}]}]}"));
+            + "[{crash_demo,throw_now,0,[{file,\"crash_demo.erl\"},{line,43}]}]}"));
     }
 
     @Test
@@ -90,7 +94,48 @@ public class CrashReportTest {
         assertFalse(stdout, stdout.contains("with exit value:"));
     }
 
-    private void run(String function) throws Throwable {
+    @Test
+    public void aMonitorReceivesTheErrorAndItsStacktrace() throws Throwable {
+        Tuple reason = run("down_reason", Atom.of("error")).toTuple();
+
+        assertEquals(Tuple.of(Atom.of("badmatch"), Integer.of(2)), reason.element(1));
+        assertFirstFrame(reason.element(2), Atom.of("crash_now"), 1, 19);
+    }
+
+    @Test
+    public void aMonitorReceivesNocatchAndItsStacktraceForAThrow() throws Throwable {
+        Tuple reason = run("down_reason", Atom.of("throw")).toTuple();
+
+        assertEquals(Tuple.of(Atom.of("nocatch"), Atom.of("oops")), reason.element(1));
+        assertFirstFrame(reason.element(2), Atom.of("throw_now"), 0, 43);
+    }
+
+    @Test
+    public void aMonitorReceivesAPlainReasonForExit() throws Throwable {
+        assertEquals(Atom.of("bye"), run("down_reason", Atom.of("exit")));
+    }
+
+    @Test
+    public void aLinkedProcessReceivesTheErrorAndItsStacktrace() throws Throwable {
+        Tuple reason = run("linked_reason").toTuple();
+
+        assertEquals(Tuple.of(Atom.of("badmatch"), Integer.of(2)), reason.element(1));
+        assertFirstFrame(reason.element(2), Atom.of("crash_now"), 1, 19);
+    }
+
+    private static void assertFirstFrame(Term stacktrace, Atom function, int arity, int line) {
+        List frames = stacktrace.toList();
+        assertFalse("empty stacktrace", frames.length() == 0);
+        Tuple frame = frames.head().toTuple();
+        assertEquals(Atom.of("crash_demo"), frame.element(1));
+        assertEquals(function, frame.element(2));
+        assertEquals(Integer.of(arity), frame.element(3));
+        List location = frame.element(4).toList();
+        assertEquals(Tuple.of(Atom.of("file"), Str.of("crash_demo.erl")), location.head());
+        assertEquals(Tuple.of(Atom.of("line"), Integer.of(line)), location.tail().head());
+    }
+
+    private Term run(String function, Term... args) throws Throwable {
         PrintStream originalOut = System.out;
         PrintStream originalErr = System.err;
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -99,8 +144,9 @@ public class CrashReportTest {
         PrintStream capturedErr = new PrintStream(err, true, "UTF-8");
         System.setOut(capturedOut);
         System.setErr(capturedErr);
+        Term result;
         try {
-            Erlang.apply(Atom.of("crash_demo"), Atom.of(function), List.nil);
+            result = Erlang.apply(Atom.of("crash_demo"), Atom.of(function), List.of(args));
         } finally {
             capturedOut.flush();
             capturedErr.flush();
@@ -111,6 +157,7 @@ public class CrashReportTest {
             stderr = new String(err.toByteArray(), StandardCharsets.UTF_8)
                 .replace("\r\n", "\n");
         }
+        return result;
     }
 
     private static int occurrences(String text, String needle) {

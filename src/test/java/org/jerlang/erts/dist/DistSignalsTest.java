@@ -1,6 +1,7 @@
 package org.jerlang.erts.dist;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -101,6 +102,48 @@ public class DistSignalsTest {
         DistCookie.reset();
         vm.setNode(previousNode, previousCreation);
         Files.deleteIfExists(LOCAL_MODULE);
+    }
+
+    @Test
+    public void monitorNodesReportsANewConnection() throws Throwable {
+        Process ready = sink(Atom.of("node_ready"));
+        Call call = call("monitor_nodes_wait", ready.pid());
+        awaitMailbox(ready.pid());
+
+        Peer peer = connect();
+
+        assertEquals(Tuple.of(Atom.of("nodeup"), PEER), call.await());
+        peer.close();
+    }
+
+    @Test
+    public void monitorNodeReportsEachSubscriptionWhenTheNodeGoesDown() throws Throwable {
+        Peer peer = connect();
+        Process ready = sink(Atom.of("node_ready"));
+        Call call = call("monitor_node_twice_wait", PEER, ready.pid());
+        awaitMailbox(ready.pid());
+
+        peer.close();
+
+        assertEquals(Tuple.of(Atom.of("nodedown"), PEER, PEER), call.await());
+    }
+
+    @Test
+    public void monitorNodeOnAnUnreachableNodeReportsNodedown() throws Throwable {
+        assertEquals(Atom.of("nodedown"), call("monitor_node_missing", NOBODY).await());
+    }
+
+    @Test
+    public void nodesAndIsAliveReportTheDistributionState() throws Throwable {
+        Peer peer = connect();
+
+        Tuple subsets = call("nodes_subset").await().toTuple();
+        assertEquals(List.of(PEER), subsets.element(1));
+        assertEquals(List.of(PEER), subsets.element(2));
+        assertEquals(List.nil, subsets.element(3));
+        assertEquals(Atom.of("true"), call("is_alive").await());
+
+        peer.close();
     }
 
     @Test
@@ -309,6 +352,38 @@ public class DistSignalsTest {
     }
 
     @Test
+    public void incomingMonitorOfAnUncaughtErrorCarriesTheStacktrace() throws Throwable {
+        Peer peer = connect();
+        PID crasher = Erlang.apply(Atom.of("dist_signals_demo"),
+            Atom.of("spawn_crasher"), List.nil).toPID();
+        Reference reference = new Reference(PEER, 11, 0);
+
+        peer.send(Tuple.of(Integer.of(19), REMOTE, crasher, reference));
+        peer.send(Tuple.of(Integer.of(2), List.nil, crasher), Atom.of("ping"));
+        awaitMailbox(crasher);
+
+        Distribution.deliverLocal(crasher, Atom.of("go"));
+
+        Term[] packet = peer.next(3000);
+        assertNotNull("the peer did not receive MONITOR_P_EXIT", packet);
+        Tuple exit = packet[0].toTuple();
+        assertEquals(Integer.of(21), exit.element(1));
+        assertEquals(crasher, exit.element(2));
+        assertEquals(REMOTE, exit.element(3));
+        assertEquals(reference, exit.element(4));
+
+        // OTP reports an uncaught error as {Reason, Stacktrace}.
+        Tuple reason = exit.element(5).toTuple();
+        assertEquals(Atom.of("remote_boom"), reason.element(1));
+        List frames = reason.element(2).toList();
+        assertFalse("empty stacktrace", frames.length() == 0);
+        Tuple frame = frames.head().toTuple();
+        assertEquals(Atom.of("dist_signals_demo"), frame.element(1));
+        assertEquals(Atom.of("crash_after_go"), frame.element(2));
+        peer.close();
+    }
+
+    @Test
     public void linkingToADeadLocalProcessAnswersNoproc() throws Throwable {
         Peer peer = connect();
         PID dead = new PID(LOCAL, 999999, 0, 1);
@@ -333,6 +408,141 @@ public class DistSignalsTest {
         assertNotNull("the peer did not receive MONITOR_P_EXIT", packet);
         assertEquals(Tuple.of(Integer.of(21), dead, REMOTE, reference, Atom.of("noproc")),
             packet[0]);
+        peer.close();
+    }
+
+    @Test
+    public void outgoingRpcCallUsesTheErpcSpawnProtocol() throws Throwable {
+        Peer peer = connect();
+        Call call = call("rpc_call", PEER, Atom.of("erlang"), Atom.of("node"), List.nil);
+
+        Term[] packet = peer.next(3000);
+        assertNotNull("no SPAWN_REQUEST was sent", packet);
+        Tuple request = packet[0].toTuple();
+        assertEquals(Integer.of(29), request.element(1));
+        Reference requestId = request.element(2).toReference();
+        PID local = request.element(3).toPID();
+        assertEquals(LOCAL, local.node());
+        assertEquals(local, request.element(4));
+        Tuple mfa = request.element(5).toTuple();
+        assertEquals(Atom.of("erpc"), mfa.element(1));
+        assertEquals(Atom.of("execute_call"), mfa.element(2));
+        assertEquals(Integer.of(4), mfa.element(3));
+        assertEquals(List.of(Atom.of("monitor")), request.element(6));
+
+        List args = packet[1].toList();
+        assertEquals(4, args.length());
+        Reference resultReference = args.head().toReference();
+        assertEquals(Atom.of("erlang"), args.tail().head());
+        assertEquals(Atom.of("node"), args.tail().tail().head());
+        assertEquals(List.nil, args.tail().tail().tail().head());
+
+        peer.send(Tuple.of(Integer.of(31), requestId, local, Integer.of(2), REMOTE));
+        // The spawn request id is also the monitor reference, while the
+        // result reference lives inside the DOWN reason.
+        peer.send(Tuple.of(Integer.of(21), REMOTE, local, requestId,
+            Tuple.of(resultReference, Atom.of("return"), PEER)));
+
+        assertEquals(PEER, call.await());
+        peer.close();
+    }
+
+    @Test
+    public void outgoingRpcErrorBecomesBadrpc() throws Throwable {
+        Peer peer = connect();
+        Call call = call("rpc_call", PEER, Atom.of("bad"), Atom.of("call"), List.nil);
+
+        Term[] packet = peer.next(3000);
+        assertNotNull("no SPAWN_REQUEST was sent", packet);
+        Tuple request = packet[0].toTuple();
+        Reference requestId = request.element(2).toReference();
+        PID local = request.element(3).toPID();
+        Reference resultReference = packet[1].toList().head().toReference();
+
+        peer.send(Tuple.of(Integer.of(31), requestId, local, Integer.of(2), REMOTE));
+        peer.send(Tuple.of(Integer.of(21), REMOTE, local, requestId,
+            Tuple.of(resultReference, Atom.of("error"), Atom.of("boom"), List.nil)));
+
+        Tuple result = call.await().toTuple();
+        assertEquals(Atom.of("badrpc"), result.element(1));
+        Tuple exit = result.element(2).toTuple();
+        assertEquals(Atom.of("EXIT"), exit.element(1));
+        Tuple reason = exit.element(2).toTuple();
+        assertEquals(Atom.of("boom"), reason.element(1));
+        assertEquals(List.nil, reason.element(2));
+        peer.close();
+    }
+
+    @Test
+    public void outgoingRpcCastUsesExecuteCastWithoutAReply() throws Throwable {
+        Peer peer = connect();
+        assertEquals(Atom.of("true"), call("rpc_cast", PEER, Atom.of("dist_signals_demo"),
+            Atom.of("rpc_target"), List.nil).await());
+
+        Term[] packet = peer.next(3000);
+        assertNotNull("no SPAWN_REQUEST was sent", packet);
+        Tuple request = packet[0].toTuple();
+        assertEquals(Integer.of(29), request.element(1));
+        Tuple mfa = request.element(5).toTuple();
+        assertEquals(Atom.of("dist_signals_demo"), mfa.element(1));
+        assertEquals(Atom.of("rpc_target"), mfa.element(2));
+        assertEquals(Integer.of(0), mfa.element(3));
+        assertEquals(List.of(Tuple.of(Atom.of("reply"), Atom.of("no"))),
+            request.element(6));
+        assertEquals(List.nil, packet[1]);
+
+        assertNull("rpc:cast must not wait for a spawn reply", peer.next(500));
+        peer.close();
+    }
+
+    @Test
+    public void incomingOtpRpcCastRunsLocally() throws Throwable {
+        Process sink = sink(Atom.of("rpc_sink"));
+        Peer peer = connect();
+        Reference requestId = new Reference(PEER, 33, 0);
+        Tuple mfa = Tuple.of(Atom.of("erpc"), Atom.of("execute_cast"), Integer.of(3));
+        List args = List.of(Atom.of("dist_signals_demo"), Atom.of("rpc_cast_target"),
+            List.nil);
+        peer.send(Tuple.of(Integer.of(29), requestId, REMOTE, REMOTE, mfa,
+            List.of(Tuple.of(Atom.of("reply"), Atom.of("no")))), args);
+
+        awaitMailbox(sink.pid());
+        assertEquals(Atom.of("cast_done"), sink.nextMessage());
+        assertNull("reply:no must suppress the spawn reply", peer.next(400));
+        peer.close();
+    }
+
+    @Test
+    public void outgoingRpcCallToAnUnreachableNodeIsNodedown() throws Throwable {
+        assertEquals(Tuple.of(Atom.of("badrpc"), Atom.of("nodedown")),
+            call("rpc_call", NOBODY, Atom.of("erlang"), Atom.of("node"), List.nil).await());
+    }
+
+    @Test
+    public void incomingOtpRpcCallRunsLocallyAndReplies() throws Throwable {
+        Peer peer = connect();
+        Reference requestId = new Reference(PEER, 31, 0);
+        Reference resultReference = new Reference(PEER, 32, 0);
+        Tuple mfa = Tuple.of(Atom.of("erpc"), Atom.of("execute_call"), Integer.of(4));
+        List args = List.of(resultReference, Atom.of("dist_signals_demo"),
+            Atom.of("rpc_target"), List.nil);
+        // OTP's erpc asks for no successful SPAWN_REPLY; the monitor
+        // carries the result.
+        peer.send(Tuple.of(Integer.of(29), requestId, REMOTE, REMOTE, mfa,
+            List.of(Atom.of("monitor"),
+                Tuple.of(Atom.of("reply"), Atom.of("error_only")))), args);
+
+        Term[] down = peer.next(3000);
+        assertNotNull("the OTP rpc result was not reported", down);
+        Tuple signal = down[0].toTuple();
+        assertEquals(Integer.of(21), signal.element(1));
+        PID child = signal.element(2).toPID();
+        assertEquals(LOCAL, child.node());
+        assertEquals(REMOTE, signal.element(3));
+        assertEquals(requestId, signal.element(4));
+        assertEquals(Tuple.of(resultReference, Atom.of("return"), Integer.of(42)),
+            signal.element(5));
+        assertNull("error_only must suppress the successful spawn reply", peer.next(400));
         peer.close();
     }
 
@@ -370,6 +580,26 @@ public class DistSignalsTest {
         assertEquals(Atom.of("ok"), call.await());
     }
 
+    @Test
+    public void aSilentPeerIsDroppedAfterTheTickTimeout() throws Throwable {
+        System.setProperty("jerlang.dist.ticktime", "1");
+        try {
+            Call call = call("noconnection_monitor", REMOTE);
+            Peer peer = peer();
+
+            Term[] packet = peer.next(3000);
+            assertNotNull("no MONITOR_P signal was sent", packet);
+            assertEquals(Integer.of(19), packet[0].toTuple().element(1));
+
+            // The fake peer stays connected but never sends a tick or any
+            // other packet, so only the tick timeout can fail the monitor.
+            assertEquals(Atom.of("ok"), call.await());
+            peer.close();
+        } finally {
+            System.clearProperty("jerlang.dist.ticktime");
+        }
+    }
+
     private Peer connect() throws Exception {
         assertTrue("the node could not connect to the fake peer", Distribution.connect(PEER));
         return peer();
@@ -384,6 +614,18 @@ public class DistSignalsTest {
     private PID spawnWaiter() throws Throwable {
         return Erlang.apply(Atom.of("dist_signals_demo"), Atom.of("spawn_waiter"), List.nil)
             .toPID();
+    }
+
+    /**
+     * A process that only serves as the target of a ready message. It is
+     * registered so a test can wait until the Erlang process has installed
+     * its node subscription.
+     */
+    private Process sink(Atom name) {
+        Process process = new Process(new PID(LOCAL, 900000, 0, 1));
+        ProcessRegistry.register(process);
+        ProcessRegistry.register(name, process.id());
+        return process;
     }
 
     private static void awaitMailbox(PID pid) throws InterruptedException {

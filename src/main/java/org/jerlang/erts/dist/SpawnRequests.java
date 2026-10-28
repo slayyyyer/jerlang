@@ -176,6 +176,11 @@ public final class SpawnRequests {
         if (!peer.equals(from.node())) {
             return;
         }
+        Options parsed = new Options();
+        if (!parsed.parse(options)) {
+            reply(connection, from, requestId, 0, BADOPT);
+            return;
+        }
         Atom module;
         Atom function;
         int arity;
@@ -184,51 +189,28 @@ public final class SpawnRequests {
             function = mfa.element(2).toAtom();
             arity = mfa.element(3).toInteger().toInt();
         } catch (RuntimeException e) {
-            reply(connection, from, requestId, 0, BADARG);
+            replyIf(connection, from, requestId, 0, BADARG, parsed.replyMode);
             return;
         }
         if (!(args instanceof List) || arity < 0 || args.toList().length() != arity) {
-            reply(connection, from, requestId, 0, BADARG);
+            replyIf(connection, from, requestId, 0, BADARG, parsed.replyMode);
             return;
-        }
-        boolean link = false;
-        boolean monitor = false;
-        List rest = options;
-        while (rest.length() > 0) {
-            Term option = rest.head();
-            if (LINK.equals(option)) {
-                link = true;
-            } else if (MONITOR.equals(option)) {
-                monitor = true;
-            } else if (option instanceof Tuple) {
-                Tuple tuple = (Tuple) option;
-                if (tuple.arity() != 2 || !MONITOR.equals(tuple.element(1))
-                    || !tuple.element(2).isList() || tuple.element(2).toList().length() > 0) {
-                    reply(connection, from, requestId, 0, BADOPT);
-                    return;
-                }
-                monitor = true;
-            } else {
-                reply(connection, from, requestId, 0, BADOPT);
-                return;
-            }
-            rest = rest.tail();
         }
         Process child;
         try {
             child = VirtualMachine.instance().prepare(module, function, args.toList());
         } catch (Throwable e) {
-            reply(connection, from, requestId, 0, SYSTEM_LIMIT);
+            replyIf(connection, from, requestId, 0, SYSTEM_LIMIT, parsed.replyMode);
             return;
         }
         int flags = 0;
-        if (link && child.linkReceived(from)) {
+        if (parsed.link && child.linkReceived(from)) {
             flags |= 1;
         }
-        if (monitor && child.addMonitoredBy(requestId, from)) {
+        if (parsed.monitor && child.addMonitoredBy(requestId, from)) {
             flags |= 2;
         }
-        reply(connection, from, requestId, flags, child.pid());
+        replyIf(connection, from, requestId, flags, child.pid(), parsed.replyMode);
         VirtualMachine.instance().schedule(child);
     }
 
@@ -265,6 +247,21 @@ public final class SpawnRequests {
             // The caller learns about the closed connection when the
             // connection is torn down.
         }
+    }
+
+    private static void replyIf(DistConnection connection, PID to, Reference requestId,
+        int flags, Term result, int replyMode) {
+        boolean success = result instanceof PID;
+        if (replyMode == REPLY_NO) {
+            return;
+        }
+        if (success && replyMode == REPLY_ERROR_ONLY) {
+            return;
+        }
+        if (!success && replyMode == REPLY_SUCCESS_ONLY) {
+            return;
+        }
+        reply(connection, to, requestId, flags, result);
     }
 
     private static void fail(Reference requestId, PID from, Atom node,
@@ -366,6 +363,9 @@ public final class SpawnRequests {
 
         List forwarded() {
             List options = List.nil;
+            if (replyMode != REPLY_YES) {
+                options = new List(Tuple.of(REPLY, modeAtom(replyMode)), options);
+            }
             if (monitor) {
                 options = new List(MONITOR, options);
             }
@@ -373,6 +373,19 @@ public final class SpawnRequests {
                 options = new List(LINK, options);
             }
             return options;
+        }
+
+        private static Term modeAtom(int mode) {
+            switch (mode) {
+            case REPLY_NO:
+                return NO;
+            case REPLY_ERROR_ONLY:
+                return ERROR_ONLY;
+            case REPLY_SUCCESS_ONLY:
+                return SUCCESS_ONLY;
+            default:
+                return YES;
+            }
         }
 
     }

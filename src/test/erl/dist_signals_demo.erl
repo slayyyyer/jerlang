@@ -10,7 +10,11 @@
 -export([link_remote/1, unlink_remote/1, monitor_remote/1, demonitor_remote/1,
          demonitor_then_wait/1, monitor_remote_name/1, remote_exit/1, trapped_link/1,
          link_unreachable/1, noconnection_link/1, noconnection_monitor/1,
-         spawn_waiter/0, wait_for_go/0]).
+         spawn_waiter/0, wait_for_go/0, spawn_crasher/0, crash_after_go/0,
+         monitor_nodes_wait/1, monitor_node_wait/2, monitor_node_twice_wait/2,
+         monitor_node_missing/1, nodes_subset/0, is_alive/0, connect_node/1,
+         rpc_call/4, rpc_call/5, rpc_cast/4, rpc_target/0,
+         rpc_cast_target/0]).
 
 %% link/1 sends a LINK signal and stays linked until the peer exits.
 link_remote(Remote) ->
@@ -111,3 +115,86 @@ wait_for_go() ->
     receive
         go -> exit(boom)
     end.
+
+%% A process for a peer to monitor; it waits until the test lets it crash
+%% with an uncaught error, so its exit reason must carry the stacktrace.
+spawn_crasher() ->
+    spawn(dist_signals_demo, crash_after_go, []).
+
+crash_after_go() ->
+    receive
+        go -> erlang:error(remote_boom)
+    end.
+
+%% Node monitoring. The ready message lets a test connect or disconnect
+%% only after the subscription exists.
+monitor_nodes_wait(Ready) ->
+    ok = net_kernel:monitor_nodes(true),
+    Ready ! {ready, self()},
+    receive
+        {nodeup, Node} -> {nodeup, Node};
+        {nodedown, Node} -> {nodedown, Node}
+    after 5000 ->
+        timeout
+    end.
+
+monitor_node_wait(Node, Ready) ->
+    true = monitor_node(Node, true),
+    Ready ! {ready, self()},
+    receive
+        {nodeup, Seen} -> {nodeup, Seen};
+        {nodedown, Seen} -> {nodedown, Seen}
+    after 5000 ->
+        timeout
+    end.
+
+monitor_node_twice_wait(Node, Ready) ->
+    true = monitor_node(Node, true),
+    true = monitor_node(Node, true),
+    Ready ! {ready, self()},
+    receive
+        {nodedown, First} ->
+            receive
+                {nodedown, Second} -> {nodedown, First, Second}
+            after 5000 -> {one_nodedown, First}
+            end
+    after 5000 ->
+        timeout
+    end.
+
+monitor_node_missing(Node) ->
+    true = monitor_node(Node, true),
+    receive
+        {nodedown, Node} -> nodedown
+    after 5000 ->
+        timeout
+    end.
+
+nodes_subset() ->
+    {erlang:nodes(connected), erlang:nodes(visible), erlang:nodes(hidden)}.
+
+is_alive() ->
+    erlang:is_alive().
+
+connect_node(Node) ->
+    net_kernel:connect_node(Node).
+
+%% RPC through the erpc spawn/monitor protocol.
+rpc_call(Node, Module, Function, Args) ->
+    rpc:call(Node, Module, Function, Args).
+
+rpc_call(Node, Module, Function, Args, Timeout) ->
+    rpc:call(Node, Module, Function, Args, Timeout).
+
+rpc_cast(Node, Module, Function, Args) ->
+    rpc:cast(Node, Module, Function, Args).
+
+%% An entry point for an incoming remote call.
+rpc_target() ->
+    42.
+
+%% An entry point for an incoming remote cast. The message proves that
+%% execute_cast really ran on this node.
+rpc_cast_target() ->
+    rpc_sink ! cast_done,
+    ok.
