@@ -2,9 +2,10 @@ package org.jerlang.kernel.inet;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.MulticastSocket;
+import java.net.NetworkInterface;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
 
@@ -37,7 +38,7 @@ public final class UdpSocket implements InetEndpoint {
     private static final int MAX_DATAGRAM = 65535;
 
     private final PortID id;
-    private final DatagramSocket socket;
+    private final MulticastSocket socket;
     private final Object receiveLock = new Object();
 
     private volatile InetOptions options;
@@ -45,7 +46,7 @@ public final class UdpSocket implements InetEndpoint {
     private volatile boolean closed = false;
     private volatile Thread reader;
 
-    UdpSocket(PortID id, DatagramSocket socket, InetOptions options, PID owner) {
+    UdpSocket(PortID id, MulticastSocket socket, InetOptions options, PID owner) {
         this.id = id;
         this.socket = socket;
         this.options = options;
@@ -133,10 +134,44 @@ public final class UdpSocket implements InetEndpoint {
         }
     }
 
+    /**
+     * Apply multicast interface, TTL, loopback and membership settings.
+     */
+    public void applyMulticastOptions(InetOptions settings) throws IOException {
+        if (settings.multicastTtl >= 0) {
+            socket.setTimeToLive(settings.multicastTtl);
+        }
+        if (settings.multicastLoop != null) {
+            socket.setLoopbackMode(!settings.multicastLoop);
+        }
+        if (settings.multicastIf != null) {
+            NetworkInterface network = networkInterface(settings.multicastIf);
+            if (network != null) {
+                socket.setNetworkInterface(network);
+            }
+        }
+        for (InetOptions.Membership membership : settings.memberships) {
+            InetAddress group = InetAddress.getByAddress(membership.group);
+            InetSocketAddress target = new InetSocketAddress(group, 0);
+            NetworkInterface network = networkInterface(membership.interfaceAddress);
+            if (membership.drop) {
+                socket.leaveGroup(target, network);
+            } else {
+                socket.joinGroup(target, network);
+            }
+        }
+    }
+
     @Override
     public Term setopts(List opts) {
         InetOptions updated = options.copy();
         updated.apply(opts);
+        InetOptions delta = InetOptions.parse(opts);
+        try {
+            applyMulticastOptions(delta);
+        } catch (IOException e) {
+            return InetSupport.error(InetSupport.reason(e));
+        }
         options = updated;
         if (updated.active != InetOptions.Active.FALSE) {
             startReader();
@@ -250,6 +285,18 @@ public final class UdpSocket implements InetEndpoint {
                 return;
             }
         }
+    }
+
+    private static NetworkInterface networkInterface(byte[] addressBytes) throws IOException {
+        InetAddress address = InetAddress.getByAddress(addressBytes);
+        if (address.isAnyLocalAddress()) {
+            return null;
+        }
+        NetworkInterface network = NetworkInterface.getByInetAddress(address);
+        if (network == null) {
+            throw new IOException("Unknown multicast interface " + address.getHostAddress());
+        }
+        return network;
     }
 
     private DatagramPacket receivePacket(int length, int timeoutMillis) throws IOException {

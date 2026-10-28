@@ -178,14 +178,19 @@ Sockets support binary and list modes, `{active, false | true | once | N}`,
 `reuseaddr`, `nodelay`, `keepalive` and `backlog`. TCP additionally supports
 `{packet, 1 | 2 | 4 | line}` framing; the packet option is ignored for UDP.
 Active TCP sockets deliver `{tcp, Socket, Data}` and active UDP sockets
-deliver `{udp, Socket, Address, Port, Data}`. UDP multicast,
-`gen_tcp:listen/1` and the less common `inet` options are not implemented.
+deliver `{udp, Socket, Address, Port, Data}`.
+
+UDP supports multicast through `{add_membership, {Group, Interface}}`,
+`{drop_membership, {Group, Interface}}`, `{multicast_if, Address}`,
+`{multicast_ttl, TTL}` and `{multicast_loop, Boolean}`, both at open time and
+through `inet:setopts/2`. `gen_tcp:listen/1` and the less common `inet`
+options are not implemented.
 
 `GenTcpTest` and `GenUdpTest` run
 [`src/test/erl/gen_tcp_demo.erl`](../src/test/erl/gen_tcp_demo.erl) and
 [`src/test/erl/gen_udp_demo.erl`](../src/test/erl/gen_udp_demo.erl). They
-exercise passive, active and list-mode round trips, receive timeouts, option
-changes and address helpers.
+exercise passive, active, list-mode and multicast round trips, receive
+timeouts, option changes and address helpers.
 
 ## Not implemented yet
 

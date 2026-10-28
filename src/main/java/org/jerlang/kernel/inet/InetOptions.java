@@ -24,6 +24,23 @@ public final class InetOptions {
         FALSE, TRUE, ONCE, N
     }
 
+    /**
+     * One add_membership or drop_membership option.
+     */
+    public static final class Membership {
+
+        public final byte[] group;
+        public final byte[] interfaceAddress;
+        public final boolean drop;
+
+        Membership(byte[] group, byte[] interfaceAddress, boolean drop) {
+            this.group = group;
+            this.interfaceAddress = interfaceAddress;
+            this.drop = drop;
+        }
+
+    }
+
     public boolean binary = false;
     public int packet = 0; // -1 means line
     public volatile Active active = Active.TRUE;
@@ -34,6 +51,10 @@ public final class InetOptions {
     public int backlog = 5;
     public byte[] ip = null;
     public boolean inet6 = false;
+    public int multicastTtl = -1;
+    public Boolean multicastLoop = null;
+    public byte[] multicastIf = null;
+    public final java.util.List<Membership> memberships = new java.util.ArrayList<>();
 
     public static InetOptions parse(List options) {
         InetOptions parsed = new InetOptions();
@@ -53,6 +74,9 @@ public final class InetOptions {
         copy.backlog = backlog;
         copy.ip = ip == null ? null : ip.clone();
         copy.inet6 = inet6;
+        copy.multicastTtl = multicastTtl;
+        copy.multicastLoop = multicastLoop;
+        copy.multicastIf = multicastIf == null ? null : multicastIf.clone();
         return copy;
     }
 
@@ -117,6 +141,21 @@ public final class InetOptions {
             case "family":
                 inet6 = "inet6".equals(value.toString());
                 break;
+            case "multicast_ttl":
+                multicastTtl = value.toInteger().toInt();
+                break;
+            case "multicast_loop":
+                multicastLoop = truth(value);
+                break;
+            case "multicast_if":
+                multicastIf = InetSupport.addressBytes(value);
+                break;
+            case "add_membership":
+                memberships.add(membership(value, false));
+                break;
+            case "drop_membership":
+                memberships.add(membership(value, true));
+                break;
             default:
                 // exit_on_close, buffer, recbuf, sndbuf, send_timeout and
                 // friends do not change the Java socket semantics here.
@@ -167,6 +206,17 @@ public final class InetOptions {
 
     private static boolean truth(Term value) {
         return "true".equals(value.toString());
+    }
+
+    private static Membership membership(Term value, boolean drop) {
+        Tuple pair = value.toTuple();
+        if (pair.arity() != 2) {
+            throw Error.badarg;
+        }
+        return new Membership(
+            InetSupport.addressBytes(pair.element(1)),
+            InetSupport.addressBytes(pair.element(2)),
+            drop);
     }
 
     public List toList(List requested) {

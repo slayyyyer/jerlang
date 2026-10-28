@@ -67,6 +67,16 @@ public class GenUdpTest {
         assertEquals(Atom.of("ok"), apply("getopts_test"));
     }
 
+    @Test
+    public void testMulticastRoundtripFromCompiledErlang() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("multicast_roundtrip"));
+    }
+
+    @Test
+    public void testMulticastMembershipSetoptsFromCompiledErlang() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("multicast_setopts"));
+    }
+
     private Term apply(String function) throws Throwable {
         return Erlang.apply(Atom.of("gen_udp_demo"), Atom.of(function), List.nil);
     }

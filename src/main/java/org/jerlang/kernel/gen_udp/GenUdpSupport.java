@@ -1,9 +1,9 @@
 package org.jerlang.kernel.gen_udp;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.MulticastSocket;
 
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.kernel.inet.InetOptions;
@@ -28,17 +28,23 @@ public final class GenUdpSupport {
     public static Term open(Term portTerm, Term optionsTerm) {
         int port = InetSupport.integer(portTerm);
         InetOptions options = InetOptions.parse(optionsTerm.toList());
-        DatagramSocket socket = null;
+        MulticastSocket socket = null;
+        UdpSocket udp = null;
         try {
-            socket = new DatagramSocket((InetSocketAddress) null);
+            socket = new MulticastSocket((InetSocketAddress) null);
             socket.setReuseAddress(options.reuseaddr);
             InetAddress address = InetSupport.bindAddress(options);
             socket.bind(new InetSocketAddress(address, port));
-            UdpSocket udp = UdpSockets.register(socket, options, InetSupport.selfPid());
+            udp = UdpSockets.register(socket, options, InetSupport.selfPid());
+            udp.applyMulticastOptions(options);
             udp.start();
             return InetSupport.ok(udp.id());
         } catch (IOException | RuntimeException e) {
-            closeQuietly(socket);
+            if (udp != null) {
+                udp.close();
+            } else {
+                closeQuietly(socket);
+            }
             return InetSupport.error(InetSupport.reason(e));
         }
     }
@@ -87,7 +93,7 @@ public final class GenUdpSupport {
         return ok;
     }
 
-    private static void closeQuietly(DatagramSocket socket) {
+    private static void closeQuietly(MulticastSocket socket) {
         if (socket != null) {
             socket.close();
         }

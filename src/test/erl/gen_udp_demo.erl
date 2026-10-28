@@ -5,7 +5,8 @@
 -module(gen_udp_demo).
 
 -export([roundtrip/0, active_roundtrip/0, connected_roundtrip/0,
-         list_roundtrip/0, timeout_test/0, getopts_test/0]).
+         list_roundtrip/0, timeout_test/0, getopts_test/0,
+         multicast_roundtrip/0, multicast_setopts/0]).
 
 roundtrip() ->
     {ok, Receiver} = gen_udp:open(0, [binary, {active, false}]),
@@ -66,5 +67,37 @@ getopts_test() ->
     {error, enotconn} = inet:peername(Receiver),
     ok = inet:setopts(Receiver, [{active, true}]),
     {ok, [{active, true}]} = inet:getopts(Receiver, [active]),
+    ok = gen_udp:close(Receiver),
+    ok.
+
+multicast_roundtrip() ->
+    Group = {239, 255, 42, 99},
+    {ok, Receiver} = gen_udp:open(0,
+        [binary, {active, false}, {reuseaddr, true},
+         {multicast_loop, true},
+         {add_membership, {Group, {0, 0, 0, 0}}}]),
+    {ok, {_, Port}} = inet:sockname(Receiver),
+    {ok, Sender} = gen_udp:open(0,
+        [binary, {active, false}, {multicast_ttl, 1},
+         {multicast_loop, true}]),
+    ok = gen_udp:send(Sender, Group, Port, <<"multicast">>),
+    {ok, {_, _, <<"multicast">>}} = gen_udp:recv(Receiver, 9, 3000),
+    ok = gen_udp:close(Sender),
+    ok = gen_udp:close(Receiver),
+    ok.
+
+multicast_setopts() ->
+    Group = {239, 255, 42, 100},
+    {ok, Receiver} = gen_udp:open(0,
+        [binary, {active, false}, {reuseaddr, true},
+         {multicast_loop, true}]),
+    {ok, {_, Port}} = inet:sockname(Receiver),
+    ok = inet:setopts(Receiver, [{add_membership, {Group, {0, 0, 0, 0}}}]),
+    {ok, Sender} = gen_udp:open(0,
+        [binary, {active, false}, {multicast_loop, true}]),
+    ok = gen_udp:send(Sender, Group, Port, <<"setopts">>),
+    {ok, {_, _, <<"setopts">>}} = gen_udp:recv(Receiver, 7, 3000),
+    ok = inet:setopts(Receiver, [{drop_membership, {Group, {0, 0, 0, 0}}}]),
+    ok = gen_udp:close(Sender),
     ok = gen_udp:close(Receiver),
     ok.

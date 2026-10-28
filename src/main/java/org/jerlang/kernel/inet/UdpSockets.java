@@ -1,6 +1,6 @@
 package org.jerlang.kernel.inet;
 
-import java.net.DatagramSocket;
+import java.net.MulticastSocket;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,7 +20,7 @@ public final class UdpSockets {
     private UdpSockets() {
     }
 
-    public static UdpSocket register(DatagramSocket socket, InetOptions options, PID owner) {
+    public static UdpSocket register(MulticastSocket socket, InetOptions options, PID owner) {
         PortID id = InetPortIds.next();
         UdpSocket result = new UdpSocket(id, socket, options, owner);
         SOCKETS.put(id, result);
