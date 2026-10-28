@@ -7,6 +7,7 @@ import org.jerlang.type.Fun;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
+import org.jerlang.type.stack.StackFrame;
 
 /**
  * Call a fun of arity Arity. Arguments are in X0 to X(Arity-1) and the fun
@@ -37,6 +38,8 @@ public class CallFun2 {
             proc.setX(registerIndex + index, fun.savedRegisters()[index]);
         }
 
+        proc.pushFrame(new StackFrame(fun.signature().module(), fun.signature().function(),
+            fun.signature().fun_arity().toInt()));
         // In this interpreter the continuation pointer is the index of the
         // call instruction itself; the loop advances past it.
         proc.setCP(i.index());

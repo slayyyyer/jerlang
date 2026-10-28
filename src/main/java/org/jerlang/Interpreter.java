@@ -3,12 +3,14 @@ package org.jerlang;
 import java.util.Map;
 
 import org.jerlang.erts.emulator.Instruction;
+import org.jerlang.erts.emulator.op.Line;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.stdlib.beam_lib.BeamData;
 import org.jerlang.stdlib.beam_lib.CodeChunk;
 import org.jerlang.type.Atom;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
+import org.jerlang.type.stack.ExceptionHandler;
 
 /**
  * Executes opcodes
@@ -72,6 +74,7 @@ public class Interpreter {
             // System.out.println(i);
 
             if (LINE.equals(i.element(1))) {
+                Line.execute(process, m, i, params.toList());
                 continue;
             }
 
@@ -98,14 +101,18 @@ public class Interpreter {
                     break;
                 }
             } catch (Error error) {
+                // Capture the stack at the raise, before the handler unwinds it.
+                error.captureStacktrace(process);
                 if (process.exceptionHandler() != null) {
                     // System.err.println(process.exceptionHandler());
-                    int new_index = process.exceptionHandler().index();
+                    ExceptionHandler handler = process.exceptionHandler();
+                    int new_index = handler.index();
                     if (new_index >= 0) {
                         index = new_index;
                     }
-                    process.exceptionHandler().handle(process, error);
-                    process.setExceptionHandler(null);
+                    // handle() puts class, reason and stacktrace in X0..X2
+                    // and restores the enclosing handler.
+                    handler.handle(process, error);
                 } else {
                     System.err.println("Raise catched");
                     error.printStackTrace();

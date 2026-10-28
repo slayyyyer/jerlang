@@ -16,6 +16,8 @@ public class CallExtOnly {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) throws ThrowException {
         CallExt.execute(proc, m, i, params);
+        // The callee ran to completion; this function is the tail call.
+        proc.popFrame();
         if (proc.applyDepth() > 0) {
             // Applied synchronously from Java: this invocation has no
             // instruction stream of its own to return into.

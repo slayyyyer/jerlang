@@ -18,6 +18,8 @@ public class CallExtLast {
 
     public static Term execute(Process process, Module m, Instruction i, List params) throws ThrowException {
         CallExt.execute(process, m, i, params);
+        // The callee ran to completion; this function is the tail call.
+        process.popFrame();
         if (process.applyDepth() > 0) {
             // Applied synchronously from Java: this invocation has no
             // instruction stream of its own to return into.

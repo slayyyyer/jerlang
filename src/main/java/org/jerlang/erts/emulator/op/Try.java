@@ -28,7 +28,8 @@ public class Try {
             Term label = i.arg(1);
             int index = labels.get(label.toRegisterIndex().toInt());
 
-            ExceptionHandler eh = new ExceptionHandler(label, index);
+            ExceptionHandler eh = new ExceptionHandler(label, index, proc.exceptionHandler(),
+                proc.stackDepth(), proc.callsDepth(), proc.framesDepth());
             proc.setY(destination.toRegisterIndex(), eh);
             proc.setExceptionHandler(eh);
             return null;

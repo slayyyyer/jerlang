@@ -40,6 +40,8 @@ public class ApplyLast {
 
         Term result = module.apply(fs, args);
         proc.setX(0, result);
+        // apply_last tears down its own frame.
+        proc.popFrame();
         return null;
     }
 

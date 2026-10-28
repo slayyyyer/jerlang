@@ -1,11 +1,13 @@
 package org.jerlang.erts.emulator.op;
 
+import org.jerlang.FunctionSignature;
 import org.jerlang.Module;
 import org.jerlang.Process;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
+import org.jerlang.type.stack.StackFrame;
 
 /**
  * Deallocate and do a tail recursive call to the function at Label.
@@ -24,6 +26,13 @@ public class CallLast {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
         Integer deallocate = i.arg(2).toInteger();
+        // A tail call replaces the current activation.
+        proc.popFrame();
+        FunctionSignature callee = m.functionAtLabel(i.arg(1).toRegisterIndex().toInt());
+        if (callee != null) {
+            proc.pushFrame(new StackFrame(callee.module(), callee.function(),
+                callee.fun_arity().toInt()));
+        }
         proc.deallocate(deallocate.toInt());
         return i.arg(1);
     }

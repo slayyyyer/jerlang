@@ -539,6 +539,12 @@ public enum Opcode {
     // ------------------------------------------------------------------------
     // OTP 22
 
+    /** Implemented in org.jerlang.erts.emulator.op.BuildStacktrace */
+    build_stacktrace(160, 0),
+
+    /** Implemented in org.jerlang.erts.emulator.op.RawRaise */
+    raw_raise(161, 0),
+
     /** Implemented in org.jerlang.erts.emulator.op.PutTuple2 */
     put_tuple2(164, 2),
 

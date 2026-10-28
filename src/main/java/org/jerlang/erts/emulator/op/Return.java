@@ -13,6 +13,8 @@ import org.jerlang.type.Term;
 public class Return {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
+        // The function this frame belongs to returns to its caller.
+        proc.popFrame();
         Integer cp = Integer.of(proc.getCP());
         proc.setCP(0); // reset
         return cp;

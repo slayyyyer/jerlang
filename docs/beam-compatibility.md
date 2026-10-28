@@ -66,6 +66,8 @@ rejects the module before decoding.
 | `make_fun3` | 171 | Anonymous functions (OTP 24+) | 3 operands in the file; the disassembler expands them |
 | `init_yregs` | 172 | Frame initialization (OTP 22+) | Sets Y registers to `nil` |
 | `call_fun2` | 178 | Calling anonymous functions (OTP 24+) | Tag and type operands are ignored |
+| `build_stacktrace` | 160 | `try ... catch Class:Reason:Stack` (OTP 22+) | Normalises the recorded frame list |
+| `raw_raise` | 161 | `erlang:raise/3` in a catch clause (OTP 22+) | Class, reason and stacktrace are re-raised unchanged |
 
 `put_list` also had to accept a literal tail, which is how an empty list is
 encoded when building a list from a literal and a register.
@@ -103,6 +105,49 @@ belong to is what broke `apply:test/1`.
 `apply_last` still ends the invocation: it tears down its own frame, and
 returning to the continuation pointer double-deallocates.
 
+## Exceptions
+
+An OTP 29 `try` is compiled into `try` (install a handler), `try_end` (leave the
+block normally), `try_case` (enter the catch clauses) and, when the class does
+not match, `raise`, which re-raises the class left in X0, taking the stacktrace
+and then the reason as operands. `catch Class:Reason:Stack` additionally emits
+`build_stacktrace` (turn the raw stacktrace in X0 into a list) and `raw_raise`
+(re-raise X0/X1/X2 unchanged).
+
+JErlang's `Error` now carries the exception class (`error`, `throw` or `exit`),
+the reason and the stacktrace, and handlers put them in X0, X1 and X2, which is
+what `try_case` reads. Handlers form a chain, so a nested `try` restores the
+enclosing one when it is entered or left.
+
+An exception raised in a called function unwinds to the handler that installed
+the `try`: the interpreter drops the callee's stack frame and restores the
+continuation pointer saved at the `try`, so the catch clause returns to the
+right caller. A `catch` expression has no handler code of its own and continues
+after the caught call, so it leaves the frame alone.
+
+## Stack frames
+
+`Process` keeps one activation per Erlang function call. A frame is recorded
+when a function is entered through the export table (`Module.apply`) or through
+a local, fun or dynamic call, and is dropped by `return`, by a tail call that
+replaces the activation, or by an exception that unwinds to a handler. The
+stacktrace at a raise is therefore a real list, youngest call first, with each
+frame shaped like the ones the BEAM emulator produces:
+
+```
+{try_demo,caught,1,[{file,"try_demo.erl"},{line,14}]}
+{try_demo,run,0,[{file,"try_demo.erl"},{line,67}]}
+```
+
+The location comes from the module's line table. Line references are 1-based
+and `0` means "no source location"; when the line table has no filename table,
+the base name of the compile info chunk's `source` entry is used. BIFs do not
+get a frame, matching the BEAM, and `raw_raise` re-raises the frames captured at
+the original raise.
+
+[`try_demo.erl`](../src/test/erl/try_demo.erl) covers all of this, and
+[`TryCatchTest`](../src/test/java/org/jerlang/jvm/TryCatchTest.java) runs it.
+
 ## What still blocks other programs
 
 These opcodes are not implemented. They are listed with the constructs that
@@ -111,8 +156,6 @@ emit them, because that is what decides which programs can run.
 | Number | Opcode | Needed for |
 |-------:|--------|------------|
 | 159 | `is_tagged_tuple` | Record tests and record patterns |
-| 160 | `build_stacktrace` | `try`/`catch` in current compilers |
-| 161 | `raw_raise` | Raising exceptions in `try` |
 | 162, 163 | `get_hd`, `get_tl` | OTP 26 `hd`/`tl` optimizations |
 | 165 | `bs_get_tail` | Binary matching |
 | 166, 170 | `bs_start_match3`, `bs_start_match4` | Binary matching (OTP 23+) |
@@ -125,10 +168,10 @@ emit them, because that is what decides which programs can run.
 | 185 | `bif3` | Three-argument BIF calls |
 | 186-191 | native record opcodes | Native records (Erlang/OTP 28+) |
 
-For Elixir this list is the short version of why it cannot run yet: `try`/`rescue`,
-binaries and records appear in nearly every Elixir module, and those need
-`build_stacktrace`, `raw_raise`, `bs_create_bin` and the `bs_start_match*`
-family. Anonymous functions are no longer on that list. The second barrier is
+For Elixir this list is the short version of why it cannot run yet: binaries and
+records appear in nearly every Elixir module, and those need `bs_create_bin` and
+the `bs_start_match*` family. Anonymous functions and `try`/`rescue` are no
+longer on that list. The second barrier is
 the standard library: Elixir's `Kernel`, `Enum` and the OTP behaviours are
 themselves compiled modules that JErlang's kernel and stdlib only partially
 replace.

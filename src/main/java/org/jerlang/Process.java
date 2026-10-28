@@ -1,6 +1,9 @@
 package org.jerlang;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Deque;
+import java.util.Iterator;
 import java.util.Stack;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -14,6 +17,7 @@ import org.jerlang.type.PID;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 import org.jerlang.type.stack.ExceptionHandler;
+import org.jerlang.type.stack.StackFrame;
 
 /**
  * Erlang is designed for massive concurrency.
@@ -57,6 +61,9 @@ public class Process extends ProcessOrPort {
     // Exception handling
     private ExceptionHandler exceptionHandler = null;
 
+    // Erlang function activations, youngest first
+    private final Deque<StackFrame> frames = new ArrayDeque<>();
+
     // Set when an uncaught Throwable terminated this process
     private volatile Throwable failure = null;
 
@@ -82,6 +89,7 @@ public class Process extends ProcessOrPort {
 
         FunctionSignature s = new FunctionSignature(module, fun, Integer.of(args.length()));
         signatures.push(s);
+        pushFrame(new StackFrame(module, fun, args.length()));
 
         int index = 0;
         while (args.length() > 0) {
@@ -243,8 +251,68 @@ public class Process extends ProcessOrPort {
         cpStack.push(cp);
     }
 
+    public int stackDepth() {
+        return sp;
+    }
+
+    public int callsDepth() {
+        return cpStack.size();
+    }
+
+    /**
+     * Drop the stack frames above the given depths, so that an exception
+     * handler runs in the frame that installed it and a following
+     * `deallocate` returns to the right continuation pointer.
+     */
+    public void unwindTo(int stackDepth, int cpDepth) {
+        while (cpStack.size() > cpDepth) {
+            cpStack.pop();
+        }
+        cp = cpStack.isEmpty() ? 0 : cpStack.peek();
+        if (sp > stackDepth) {
+            sp = stackDepth;
+        }
+    }
+
     public ExceptionHandler exceptionHandler() {
         return exceptionHandler;
+    }
+
+    public void pushFrame(StackFrame frame) {
+        frames.push(frame);
+    }
+
+    public void popFrame() {
+        if (!frames.isEmpty()) {
+            frames.pop();
+        }
+    }
+
+    public StackFrame currentFrame() {
+        return frames.peek();
+    }
+
+    public int framesDepth() {
+        return frames.size();
+    }
+
+    public void unwindFramesTo(int depth) {
+        while (frames.size() > depth) {
+            frames.pop();
+        }
+    }
+
+    /**
+     * The stacktrace at this point, youngest call first. Each frame is
+     * {Module, Function, Arity, Location}.
+     */
+    public List stacktrace() {
+        List trace = List.nil;
+        Iterator<StackFrame> iterator = frames.descendingIterator();
+        while (iterator.hasNext()) {
+            trace = new List(iterator.next().toTerm(), trace);
+        }
+        return trace;
     }
 
     public Throwable failure() {

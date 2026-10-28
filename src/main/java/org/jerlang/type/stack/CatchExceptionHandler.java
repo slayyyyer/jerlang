@@ -9,11 +9,28 @@ import org.jerlang.type.Tuple;
 public class CatchExceptionHandler extends ExceptionHandler {
 
     public CatchExceptionHandler(Term label) {
-        super(label, -1);
+        this(label, null, -1, -1, -1);
     }
 
+    public CatchExceptionHandler(Term label, ExceptionHandler previous) {
+        this(label, previous, -1, -1, -1);
+    }
+
+    public CatchExceptionHandler(Term label, ExceptionHandler previous,
+        int stackDepth, int cpDepth, int frameDepth) {
+        super(label, -1, previous, stackDepth, cpDepth, frameDepth);
+    }
+
+    /**
+     * A `catch` expression has no handler code of its own: execution
+     * continues after the caught call, so the current frame and the
+     * continuation pointer must be left alone.
+     */
     @Override
     public void handle(Process process, Error error) {
+        error.captureStacktrace(process);
+        unwindFrames(process);
+        process.setExceptionHandler(previous());
         process.setX(0, Tuple.of(Atom.of("EXIT"), error.reason()));
     }
 

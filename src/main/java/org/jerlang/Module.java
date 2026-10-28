@@ -9,12 +9,15 @@ import java.util.Map;
 
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.stdlib.beam_lib.BeamData;
+import org.jerlang.stdlib.beam_lib.LambdaInfo;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Fun;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
+import org.jerlang.type.Tuple;
+import org.jerlang.type.stack.StackFrame;
 import org.jerlang.util.StringUtil;
 import org.jerlang.vm.VirtualMachine;
 
@@ -48,6 +51,7 @@ public class Module {
     private final Class<?> moduleClass;
     private final Atom name;
     private final Map<FunctionSignature, Fun> exported_functions;
+    private Map<java.lang.Integer, FunctionSignature> functionsByLabel;
     private final Map<FunctionSignature, Integer> labels;
 
     public Module(BeamData beamData, Atom name) {
@@ -97,6 +101,10 @@ public class Module {
             return process.getX(0);
         } else {
             process.pushSignature(signature);
+            if (!isInternal()) {
+                process.pushFrame(new StackFrame(signature.module(), signature.function(),
+                    signature.fun_arity().toInt()));
+            }
             Fun fun = exported_functions.get(signature);
             process.enterApply();
             try {
@@ -110,6 +118,62 @@ public class Module {
 
     public BeamData beamData() {
         return beamData;
+    }
+
+    /**
+     * The base name of the source file this module was compiled from, as
+     * recorded in the compile info chunk, or null if the module has none.
+     */
+    public Str sourceName() {
+        if (beamData == null || beamData.compileInfoChunk() == null) {
+            return null;
+        }
+        List info = beamData.compileInfoChunk().compile_info();
+        while (info.length() > 0) {
+            Term entry = info.head();
+            if (entry instanceof Tuple && ((Tuple) entry).arity() == 2
+                && ((Tuple) entry).element(1).equals(Atom.of("source"))) {
+                String path = ((Tuple) entry).element(2).toStr().string();
+                int separator = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+                return Str.of(separator >= 0 ? path.substring(separator + 1) : path);
+            }
+            info = info.tail();
+        }
+        return null;
+    }
+
+    /**
+     * The function whose body starts at the given label, or null if no
+     * function starts there.
+     */
+    public FunctionSignature functionAtLabel(int label) {
+        if (beamData == null) {
+            return null;
+        }
+        if (functionsByLabel == null) {
+            functionsByLabel = new HashMap<>();
+            for (FunctionSignature s : beamData.exportTableChunk().exports()) {
+                functionsByLabel.put(s.label().toInt(), s);
+            }
+            if (beamData.localFunctionTableChunk() != null) {
+                List locals = beamData.localFunctionTableChunk().locals();
+                while (locals.length() > 0) {
+                    Term head = locals.head();
+                    if (head instanceof FunctionSignature) {
+                        FunctionSignature s = (FunctionSignature) head;
+                        functionsByLabel.putIfAbsent(s.label().toInt(), s);
+                    }
+                    locals = locals.tail();
+                }
+            }
+            if (beamData.functionTableChunk() != null) {
+                for (LambdaInfo lambda : beamData.functionTableChunk().lambdas()) {
+                    functionsByLabel.putIfAbsent(lambda.label().toInt(),
+                        lambda.toFunctionSignature(name));
+                }
+            }
+        }
+        return functionsByLabel.get(label);
     }
 
     public void export() {
