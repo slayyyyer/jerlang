@@ -55,6 +55,19 @@ The reverse direction is `org.jerlang.api.Bridge`:
 Term result = Bridge.call("lists", "reverse", List.of(Integer.of(1), Integer.of(2)));
 ```
 
+## Compiled Erlang
+
+JErlang does not compile Erlang source. Compile it with `erlc` and load the
+resulting `.beam` from the working directory:
+
+```
+erlc -o src/test/resources src/test/erl/bridge_demo.erl
+```
+
+Modules built by current OTP releases need the loader support described in
+[docs/beam-compatibility.md](docs/beam-compatibility.md), which also lists the
+opcodes that are still missing.
+
 ## Build
 
 JErlang builds with Maven and needs a JDK 17 or newer; the tests run on the
