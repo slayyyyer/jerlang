@@ -41,6 +41,10 @@ public class ProcessRegistry {
         instance.id2process.put(process.id(), process);
     }
 
+    public static void registerPort(ProcessOrPort port) {
+        instance.id2process.put(port.id(), port);
+    }
+
     public static ProcessOrPort resolve(PidOrPortId id) {
         return instance.id2process.get(id);
     }

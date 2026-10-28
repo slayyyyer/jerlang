@@ -18,6 +18,12 @@ public abstract class Port extends ProcessOrPort {
         return null;
     }
 
+    /**
+     * Release the resource behind this port, if it has one.
+     */
+    public void close() {
+    }
+
     @Override
     public Port toPort() {
         return this;

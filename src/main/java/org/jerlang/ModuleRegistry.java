@@ -10,6 +10,8 @@ import org.jerlang.erts.Init;
 import org.jerlang.erts.OtpRing0;
 import org.jerlang.erts.PrimInet;
 import org.jerlang.kernel.File;
+import org.jerlang.kernel.GenTcp;
+import org.jerlang.kernel.Inet;
 import org.jerlang.kernel.NetAdm;
 import org.jerlang.kernel.OS;
 import org.jerlang.stdlib.Base64;
@@ -41,6 +43,8 @@ public class ModuleRegistry {
         init(Erlang.class).export();
         init(ErlInternal.class).export();
         init(File.class).export();
+        init(GenTcp.class).export();
+        init(Inet.class).export();
         init(Init.class).export();
         init(IO.class).export();
         init(Java.class).export();

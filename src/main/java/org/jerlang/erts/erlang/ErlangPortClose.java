@@ -35,6 +35,10 @@ public class ErlangPortClose {
     public static Atom port_close_1(Term port) {
         if (port instanceof PortID) {
             Port p = (Port) ProcessRegistry.resolve(port.toPortID());
+            if (p == null) {
+                throw Error.badarg;
+            }
+            p.close();
             p.setState(ProcessState.EXITING);
             return am_true;
         } else {

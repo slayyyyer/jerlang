@@ -3,9 +3,9 @@
 Milestone 0.4 (Network) has two parts: the distribution protocol, which is
 what connects Erlang nodes, and the socket API (`kernel/inet`,
 `kernel/gen_tcp`), which is what Erlang programs use to open their own
-connections. This document covers the distribution part. It works in both
-directions: JErlang can connect to an Erlang/OTP node, and an Erlang/OTP
-node can find, connect to and send messages to JErlang.
+connections. This document covers both, starting with distribution, which
+works in both directions: JErlang can connect to an Erlang/OTP node, and an
+Erlang/OTP node can find, connect to and send messages to JErlang.
 
 ## Node identity
 
@@ -159,11 +159,26 @@ mvn test -Dtest=OtpInteropTest -Djerlang.dist.otp=true
 `pong`, and a message to `{sink, 'jerlang@<host>'}` must arrive at the
 JErlang process registered as `sink`.
 
+## Sockets
+
+`kernel/gen_tcp` and `kernel/inet` are implemented natively on
+`java.net.Socket` and `java.net.ServerSocket`, so compiled Erlang can open,
+send on, receive from and accept TCP connections without a separate Erlang
+runtime. The supported calls are `gen_tcp:listen/2`, `accept/1,2`,
+`connect/3,4`, `send/2`, `recv/2,3`, `close/1`, `shutdown/2` and
+`controlling_process/2`, plus `inet:setopts/2`, `getopts/2`, `sockname/1`,
+`peername/1`, `port/1`, `ntoa/1`, `parse_address/1` and `close/1`.
+
+Sockets support binary and list modes, `{active, false | true | once | N}`,
+`{packet, 1 | 2 | 4 | line}`, `reuseaddr`, `nodelay`, `keepalive` and
+`backlog`. UDP, `gen_tcp:listen/1` and the less common `inet` options are
+not implemented. `GenTcpTest` runs
+[`src/test/erl/gen_tcp_demo.erl`](../src/test/erl/gen_tcp_demo.erl), which
+exercises passive, active and list-mode round trips, receive timeouts, option
+changes and address helpers.
+
 ## Not implemented yet
 
-* `kernel/inet` and `kernel/gen_tcp` (the two open issues of milestone
-  0.4): Erlang code can talk to other nodes, but can not open its own
-  sockets with `gen_tcp`.
 * Links, monitors and `EXIT` signals. Unknown signals are ignored, so a
   crashing peer does not propagate an exit.
 * Remote process spawn (`rex`), registered-name monitoring and the
