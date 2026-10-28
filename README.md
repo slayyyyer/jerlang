@@ -21,6 +21,51 @@
 |[0.9](https://github.com/jerlang/jerlang/milestones/0.9%20(Performance))    |Performance     |Performance is comparable to native Erlang/OTP    ||
 |[1.0](https://github.com/jerlang/jerlang/milestones/1.0%20(Stability))    |Stability       |JErlang is production ready                       ||
 
+## Java interoperability
+
+Erlang code runs on the JVM itself, so calling Java is a direct reflective
+call: no external term format, no sockets, no separate node.
+
+```erlang
+Builder = java:new("java.lang.StringBuilder", []),
+java:call(Builder, "append", ["hello"]),
+"hello" = java:call(Builder, "toString", []),
+java:release(Builder).
+```
+
+| Function | Purpose |
+|----------|---------|
+| `java:new(Class, Args)` | Call a constructor, returns an object handle |
+| `java:call(Object, Method, Args)` | Call an instance method |
+| `java:call_static(Class, Method, Args)` | Call a static method |
+| `java:get(Object, Field)` / `java:set(Object, Field, Value)` | Instance fields |
+| `java:get_static(Class, Field)` / `java:set_static(Class, Field, Value)` | Static fields |
+| `java:release(Object)` | Drop the handle, allowing the JVM to collect the object |
+
+Values are converted on the way in and out: integers to `int`/`long`/`short`/
+`byte`/`double`/`float`/`BigInteger`/`BigDecimal`, floats to `double`/`float`,
+strings and atoms to `String`, binaries to `byte[]`, lists to collections or
+arrays, tuples to `Object[]`, `true`/`false` to `boolean`, and `null` back to
+the atom `undefined`. Java exceptions surface as
+`error({java_exception, ClassName, Message})`.
+
+The reverse direction is `org.jerlang.api.Bridge`:
+
+```java
+Term result = Bridge.call("lists", "reverse", List.of(Integer.of(1), Integer.of(2)));
+```
+
+## Build
+
+JErlang builds with Maven and needs a JDK 17 or newer; the tests run on the
+JVM alone and need no installed Erlang.
+
+```
+mvn test
+mvn package
+java -jar target/jerlang-0.3.0.jar
+```
+
 ## Contribute
 
 JErlang uses the [C4.1 (Collective Code Construction Contract) process](http://rfc.zeromq.org/spec:22) for contributions.

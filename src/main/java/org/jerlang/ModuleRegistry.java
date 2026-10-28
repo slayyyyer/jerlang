@@ -17,6 +17,7 @@ import org.jerlang.stdlib.BeamLib;
 import org.jerlang.stdlib.Binary;
 import org.jerlang.stdlib.ErlInternal;
 import org.jerlang.stdlib.IO;
+import org.jerlang.stdlib.Java;
 import org.jerlang.stdlib.Lists;
 import org.jerlang.stdlib.Maps;
 import org.jerlang.stdlib.Math;
@@ -42,6 +43,7 @@ public class ModuleRegistry {
         init(File.class).export();
         init(Init.class).export();
         init(IO.class).export();
+        init(Java.class).export();
         init(Lists.class).export();
         init(Maps.class).export();
         init(Math.class).export();
