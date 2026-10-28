@@ -7,9 +7,7 @@ import org.jerlang.type.List;
 import org.jerlang.type.Term;
 
 /**
- * Get the head and tail (or car and cdr) parts of a list
- * (a cons cell) from Source and put them into the registers
- * Head and Tail.
+ * Create a list cell from Head and Tail and store it in Destination.
  *
  * Arguments:
  * 1. Head
@@ -19,28 +17,35 @@ import org.jerlang.type.Term;
 public class PutList {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
-        Term arg1 = i.arg(0);
-        Term arg2 = i.arg(1);
-        Term arg3 = i.arg(2);
+        Term headArg = i.arg(0);
+        Term tailArg = i.arg(1);
+        Term destination = i.arg(2);
 
-        if (arg1.isYRegister() && arg2.isXRegister() && arg3.isXRegister()) {
-            Term head = proc.getY(arg1.toRegisterIndex());
-            Term tail = proc.getX(arg2.toRegisterIndex());
-            List list = new List(head, tail.toList());
-            proc.setX(arg3.toRegisterIndex(), list);
-        } else if (arg1.isXRegister() && arg2.isXRegister() && arg3.isXRegister()) {
-            Term head = proc.getX(arg1.toRegisterIndex());
-            Term tail = proc.getX(arg2.toRegisterIndex());
-            List list = new List(head, tail.toList());
-            proc.setX(arg3.toRegisterIndex(), list);
-        } else if (arg1.isXRegister() && arg2.isList() && arg3.isXRegister()) {
-            Term head = proc.getX(arg1.toRegisterIndex());
-            List tail = arg2.toList();
-            List list = new List(head, tail);
-            proc.setX(arg3.toRegisterIndex(), list);
+        if (!destination.isXRegister()) {
+            throw new Error("Unsupported: " + i);
+        }
+
+        Term head;
+        if (headArg.isXRegister()) {
+            head = proc.getX(headArg.toRegisterIndex());
+        } else if (headArg.isYRegister()) {
+            head = proc.getY(headArg.toRegisterIndex());
         } else {
             throw new Error("Unsupported: " + i);
         }
+
+        List tail;
+        if (tailArg.isXRegister()) {
+            tail = proc.getX(tailArg.toRegisterIndex()).toList();
+        } else if (tailArg.isYRegister()) {
+            tail = proc.getY(tailArg.toRegisterIndex()).toList();
+        } else if (tailArg.isList()) {
+            tail = tailArg.toList();
+        } else {
+            throw new Error("Unsupported: " + i);
+        }
+
+        proc.setX(destination.toRegisterIndex(), new List(head, tail));
         return null;
     }
 

@@ -14,10 +14,14 @@ public class OpcodeTest {
     @Test
     public void testDecode() {
         assertEquals(Opcode.label, Opcode.decode(1));
-        for (int index = 1; index < Opcode.values().length; index++) {
-            assertEquals(index, Opcode.decode(index).encode());
-            assertEquals(Opcode.values()[index - 1], Opcode.decode(index));
+        for (Opcode opcode : Opcode.values()) {
+            assertEquals(opcode, Opcode.decode(opcode.encode()));
         }
+    }
+
+    @Test(expected = Error.class)
+    public void testDecodeUnsupportedOpcode() {
+        Opcode.decode(Opcode.max() + 1);
     }
 
     @Test

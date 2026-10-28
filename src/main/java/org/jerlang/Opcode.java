@@ -534,7 +534,16 @@ public enum Opcode {
     has_map_fields(157, 3),
 
     /** Implemented in org.jerlang.erts.emulator.op.GetMapElements */
-    get_map_elements(158, 3);
+    get_map_elements(158, 3),
+
+    // ------------------------------------------------------------------------
+    // OTP 22
+
+    /** Implemented in org.jerlang.erts.emulator.op.PutTuple2 */
+    put_tuple2(164, 2),
+
+    /** Implemented in org.jerlang.erts.emulator.op.InitYregs */
+    init_yregs(172, 1);
 
     // ========================================================================
 
@@ -595,12 +604,26 @@ public enum Opcode {
         }
     }
 
+    /**
+     * Opcode numbers are assigned by lib/compiler/src/genop.tab and new
+     * opcodes are inserted between existing ones, so the enum position is
+     * not the opcode number. Look the opcode up by its declared code.
+     */
     public static Opcode decode(int value) {
-        return values()[value - 1];
+        for (Opcode opcode : values()) {
+            if (opcode.code == value) {
+                return opcode;
+            }
+        }
+        throw new Error("Unsupported opcode: " + value);
     }
 
     public static int max() {
-        return values().length;
+        int max = 0;
+        for (Opcode opcode : values()) {
+            max = Math.max(max, opcode.code);
+        }
+        return max;
     }
 
     public static void main(String[] args) {
