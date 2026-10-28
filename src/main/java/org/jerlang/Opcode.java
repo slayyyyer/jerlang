@@ -542,6 +542,15 @@ public enum Opcode {
     /** Implemented in org.jerlang.erts.emulator.op.PutTuple2 */
     put_tuple2(164, 2),
 
+    /** Implemented in org.jerlang.erts.emulator.op.Swap */
+    swap(169, 2),
+
+    /** Implemented in org.jerlang.erts.emulator.op.MakeFun3 */
+    make_fun3(171, 3),
+
+    /** Implemented in org.jerlang.erts.emulator.op.CallFun2 */
+    call_fun2(178, 3),
+
     /** Implemented in org.jerlang.erts.emulator.op.InitYregs */
     init_yregs(172, 1);
 

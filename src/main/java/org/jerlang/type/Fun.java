@@ -17,6 +17,7 @@ public class Fun extends Term {
 
     private Module module;
     private LambdaInfo lambdaInfo;
+    private int explicitLabel = -1;
     private Term[] saved_registers = {};
 
     public Fun(org.jerlang.Process proc, Module module, LambdaInfo lambdaInfo) {
@@ -29,6 +30,13 @@ public class Fun extends Term {
             saved_registers = new Term[numFree];
             System.arraycopy(proc.registers(), 0, saved_registers, 0, numFree);
         }
+    }
+
+    public Fun(Module module, FunctionSignature signature, int label, Term[] savedRegisters) {
+        this(signature, null);
+        this.module = module;
+        this.explicitLabel = label;
+        this.saved_registers = savedRegisters;
     }
 
     public Fun(FunctionSignature signature, MethodHandle handle) {
@@ -69,7 +77,8 @@ public class Fun extends Term {
     }
 
     public Term label() {
-        return Tuple.of(Atom.of("label"), lambdaInfo.label());
+        int label = explicitLabel >= 0 ? explicitLabel : lambdaInfo.label().toInt();
+        return Tuple.of(Atom.of("label"), Integer.of(label));
     }
 
 }

@@ -29,7 +29,9 @@ public class CallFun {
         for (int index = 0; index < fun.savedRegisters().length; index++) {
             proc.setX(regIndex + index, fun.savedRegisters()[index]);
         }
-        proc.setCP(i.index() + 1);
+        // In this interpreter the continuation pointer is the index of the
+        // call instruction itself; the loop advances past it.
+        proc.setCP(i.index());
         return fun.label();
     }
 

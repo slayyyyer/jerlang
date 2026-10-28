@@ -80,6 +80,13 @@ public class AbstractReader {
             case 4:
                 Term litIndex = decodeArg(atomChunk, literalTableChunk);
                 return literalTableChunk.literals().get(litIndex.toInteger().toInt());
+            case 5:
+                // A typed register {tr,Register,Type}. The type is only used
+                // by the JIT, so decode it to stay in sync and return the
+                // register.
+                Term typedRegister = decodeArg(atomChunk, literalTableChunk);
+                decodeArg(atomChunk, literalTableChunk);
+                return typedRegister;
             default:
                 throw new Error("unsupported z value: " + (b >> 4));
             }

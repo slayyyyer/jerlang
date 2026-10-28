@@ -62,10 +62,33 @@ rejects the module before decoding.
 | Opcode | Number | Emitted for | Notes |
 |--------|:------:|-------------|-------|
 | `put_tuple2` | 164 | Tuple construction (OTP 22+) | Replaces `put_tuple`/`put` pairs |
+| `swap` | 169 | Register swaps (OTP 22+) | |
+| `make_fun3` | 171 | Anonymous functions (OTP 24+) | 3 operands in the file; the disassembler expands them |
 | `init_yregs` | 172 | Frame initialization (OTP 22+) | Sets Y registers to `nil` |
+| `call_fun2` | 178 | Calling anonymous functions (OTP 24+) | Tag and type operands are ignored |
 
 `put_list` also had to accept a literal tail, which is how an empty list is
 encoded when building a list from a literal and a register.
+
+Instruction arguments also gained the extended tag 5, a typed register
+`{tr,Register,Type}`. The type is only used by the JIT, but it has to be
+decoded to stay in sync with the instruction stream.
+
+## Fun calls
+
+`make_fun3` carries a lambda index, a destination and an explicit list of free
+variables, rather than reading the free variables from X0 to X(NumFree-1) the
+way `make_fun2` does. The lambda table entry still starts with the function's
+atom, arity, label, index, free-variable count and unique value, so the label
+and the free-variable count come from the same table the older instruction uses;
+only the instruction encoding changed. The disassembler prints five operands
+because it resolves the atom and the unique value into the instruction.
+
+`call_fun` and `call_fun2` were also setting the continuation pointer to
+`index + 1`, while `call` sets it to the index of the call instruction and the
+interpreter loop advances past it. Every call through a fun therefore skipped
+the instruction after the call: in `funs_demo`, `run/0` skipped the `swap` that
+moved the fun into the argument register and passed a number instead.
 
 ## Tail calls
 
@@ -94,24 +117,21 @@ emit them, because that is what decides which programs can run.
 | 165 | `bs_get_tail` | Binary matching |
 | 166, 170 | `bs_start_match3`, `bs_start_match4` | Binary matching (OTP 23+) |
 | 167, 168 | `bs_get_position`, `bs_set_position` | Binary matching |
-| 169 | `swap` | Register swaps |
-| 171 | `make_fun3` | Anonymous functions (OTP 24+) |
 | 173-176 | `recv_marker_*` | `receive` in current compilers |
 | 177 | `bs_create_bin` | Binary construction (OTP 26+) |
-| 178 | `call_fun2` | Calling anonymous functions (OTP 24+) |
 | 180, 181 | `badrecord`, `update_record` | Record updates |
 | 182 | `bs_match` | Binary matching |
 | 183, 184 | `executable_line`, `debug_line` | Coverage and debug line information |
 | 185 | `bif3` | Three-argument BIF calls |
 | 186-191 | native record opcodes | Native records (Erlang/OTP 28+) |
 
-For Elixir this list is the short version of why it cannot run yet: anonymous
-functions, `try`/`rescue`, binaries and records appear in nearly every Elixir
-module, and those need `make_fun3`, `call_fun2`, `build_stacktrace`,
-`raw_raise`, `bs_create_bin` and the `bs_start_match*` family. The second
-barrier is the standard library: Elixir's `Kernel`, `Enum` and the OTP
-behaviours are themselves compiled modules that JErlang's kernel and stdlib
-only partially replace.
+For Elixir this list is the short version of why it cannot run yet: `try`/`rescue`,
+binaries and records appear in nearly every Elixir module, and those need
+`build_stacktrace`, `raw_raise`, `bs_create_bin` and the `bs_start_match*`
+family. Anonymous functions are no longer on that list. The second barrier is
+the standard library: Elixir's `Kernel`, `Enum` and the OTP behaviours are
+themselves compiled modules that JErlang's kernel and stdlib only partially
+replace.
 
 ## Not changed
 
