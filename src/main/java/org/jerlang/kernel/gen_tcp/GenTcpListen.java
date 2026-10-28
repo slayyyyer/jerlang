@@ -7,10 +7,14 @@ import org.jerlang.type.Term;
 public class GenTcpListen {
 
     public static Term dispatch(List params) {
-        if (params.length() != 2) {
+        switch (params.length()) {
+        case 1:
+            return GenTcpSupport.listen(params.head(), List.nil);
+        case 2:
+            return GenTcpSupport.listen(params.head(), params.tail().head());
+        default:
             throw Error.badarg;
         }
-        return GenTcpSupport.listen(params.head(), params.tail().head());
     }
 
 }

@@ -49,6 +49,7 @@ public final class InetSocket implements InetEndpoint {
     private volatile InetOptions options;
     private volatile PID owner;
     private volatile boolean closed = false;
+    private volatile boolean inputClosed = false;
     private volatile Thread reader;
 
     InetSocket(PortID id, ServerSocket server, Socket socket, InetOptions options, PID owner)
@@ -61,9 +62,13 @@ public final class InetSocket implements InetEndpoint {
         if (socket != null) {
             in = socket.getInputStream();
             out = socket.getOutputStream();
+            options.captureSizes(socket);
         } else {
             in = null;
             out = null;
+            if (server != null) {
+                options.captureSizes(server);
+            }
         }
     }
 
@@ -107,10 +112,15 @@ public final class InetSocket implements InetEndpoint {
         } finally {
             server.setSoTimeout(0);
         }
-        accepted.setTcpNoDelay(options.nodelay);
-        accepted.setKeepAlive(options.keepalive);
-        InetSocket result = InetSockets.register(accepted, null,
-            options.copy(), owner == null ? this.owner : owner);
+        InetOptions inherited = options.copy();
+        try {
+            inherited.applyToSocket(accepted);
+        } catch (IOException e) {
+            accepted.close();
+            throw e;
+        }
+        InetSocket result = InetSockets.register(accepted, null, inherited,
+            owner == null ? this.owner : owner);
         result.startReader();
         return result;
     }
@@ -154,6 +164,15 @@ public final class InetSocket implements InetEndpoint {
     public Term setopts(List opts) {
         InetOptions updated = options.copy();
         updated.apply(opts);
+        try {
+            if (socket != null) {
+                updated.applyToSocket(socket);
+            } else if (server != null) {
+                updated.applyReceiveBuffer(server);
+            }
+        } catch (IOException e) {
+            return InetSupport.error(einval);
+        }
         options = updated;
         if (updated.active != InetOptions.Active.FALSE) {
             startReader();
@@ -258,7 +277,7 @@ public final class InetSocket implements InetEndpoint {
     }
 
     private void startReader() {
-        if (socket == null || options.active == InetOptions.Active.FALSE || closed) {
+        if (socket == null || inputClosed || options.active == InetOptions.Active.FALSE || closed) {
             return;
         }
         Thread running = reader;
@@ -297,8 +316,15 @@ public final class InetSocket implements InetEndpoint {
             } catch (SocketTimeoutException e) {
                 // Poll again so that setopts({active,false}) can stop us.
             } catch (EOFException e) {
+                inputClosed = true;
                 if (!closed) {
                     deliver(Tuple.of(tcpClosed, id));
+                    if (!options.exitOnClose) {
+                        // The peer only half-closed. Keep the socket open so
+                        // a send still reaches it, as OTP does when
+                        // exit_on_close is false.
+                        return;
+                    }
                 }
                 close();
                 return;

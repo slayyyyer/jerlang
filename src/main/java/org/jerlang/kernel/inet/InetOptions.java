@@ -1,6 +1,10 @@
 package org.jerlang.kernel.inet;
 
+import java.io.IOException;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.UnknownHostException;
 
 import org.jerlang.erts.erlang.Error;
@@ -51,6 +55,14 @@ public final class InetOptions {
     public boolean nodelay = false;
     public boolean keepalive = false;
     public int backlog = 5;
+    public boolean linger = false;
+    public int lingerSeconds = 0;
+    public int sndbuf = -1;
+    public int recbuf = -1;
+    public int buffer = -1;
+    public int tos = 0;
+    public boolean exitOnClose = true;
+    public boolean delaySend = false;
     public byte[] ip = null;
     public boolean inet6 = false;
     public int multicastTtl = -1;
@@ -75,6 +87,14 @@ public final class InetOptions {
         copy.nodelay = nodelay;
         copy.keepalive = keepalive;
         copy.backlog = backlog;
+        copy.linger = linger;
+        copy.lingerSeconds = lingerSeconds;
+        copy.sndbuf = sndbuf;
+        copy.recbuf = recbuf;
+        copy.buffer = buffer;
+        copy.tos = tos;
+        copy.exitOnClose = exitOnClose;
+        copy.delaySend = delaySend;
         copy.ip = ip == null ? null : ip.clone();
         copy.inet6 = inet6;
         copy.multicastTtl = multicastTtl;
@@ -137,6 +157,27 @@ public final class InetOptions {
                 break;
             case "backlog":
                 backlog = value.toInteger().toInt();
+                break;
+            case "linger":
+                linger(value);
+                break;
+            case "sndbuf":
+                sndbuf = value.toInteger().toInt();
+                break;
+            case "recbuf":
+                recbuf = value.toInteger().toInt();
+                break;
+            case "buffer":
+                buffer = value.toInteger().toInt();
+                break;
+            case "tos":
+                tos = value.toInteger().toInt();
+                break;
+            case "exit_on_close":
+                exitOnClose = truth(value);
+                break;
+            case "delay_send":
+                delaySend = truth(value);
                 break;
             case "ip":
                 ip = InetSupport.addressBytes(value);
@@ -236,6 +277,23 @@ public final class InetOptions {
             drop);
     }
 
+    /**
+     * Set {linger, {Boolean, Seconds}}. A plain boolean disables lingering.
+     */
+    private void linger(Term value) {
+        if (value instanceof Tuple) {
+            Tuple pair = (Tuple) value;
+            if (pair.arity() != 2) {
+                throw Error.badarg;
+            }
+            linger = truth(pair.element(1));
+            lingerSeconds = linger ? pair.element(2).toInteger().toInt() : 0;
+        } else {
+            linger = truth(value);
+            lingerSeconds = 0;
+        }
+    }
+
     public List toList(List requested) {
         List result = List.nil;
         java.util.List<Term> values = new java.util.ArrayList<>();
@@ -243,34 +301,20 @@ public final class InetOptions {
             Term option = requested.head();
             requested = requested.tail();
             if (option instanceof Atom) {
-                switch (option.toString()) {
-                case "binary":
+                String name = option.toString();
+                if ("binary".equals(name)) {
                     values.add(option);
-                    break;
-                case "list":
+                    continue;
+                }
+                if ("list".equals(name)) {
                     if (!binary) {
                         values.add(option);
                     }
-                    break;
-                case "active":
-                    values.add(Tuple.of(option, activeTerm()));
-                    break;
-                case "packet":
-                    values.add(Tuple.of(option, packetTerm()));
-                    break;
-                case "mode":
-                    values.add(Tuple.of(option, Atom.of(binary ? "binary" : "list")));
-                    break;
-                case "reuseaddr":
-                case "nodelay":
-                case "keepalive": {
-                    boolean enabled = "reuseaddr".equals(option.toString()) ? reuseaddr
-                        : "nodelay".equals(option.toString()) ? nodelay : keepalive;
-                    values.add(Tuple.of(option, Atom.of(enabled ? "true" : "false")));
-                    break;
+                    continue;
                 }
-                default:
-                    break;
+                Term value = optionValue(name);
+                if (value != null) {
+                    values.add(Tuple.of(option, value));
                 }
                 continue;
             }
@@ -278,30 +322,159 @@ public final class InetOptions {
                 continue;
             }
             Atom key = ((Tuple) option).element(1).toAtom();
-            switch (key.toString()) {
-            case "active":
-                values.add(Tuple.of(key, activeTerm()));
-                break;
-            case "packet":
-                values.add(Tuple.of(key, packetTerm()));
-                break;
-            case "mode":
-                values.add(Tuple.of(key, Atom.of(binary ? "binary" : "list")));
-                break;
-            case "reuseaddr":
-                values.add(Tuple.of(key, Atom.of(reuseaddr ? "true" : "false")));
-                break;
-            case "nodelay":
-                values.add(Tuple.of(key, Atom.of(nodelay ? "true" : "false")));
-                break;
-            default:
-                break;
+            Term value = optionValue(key.toString());
+            if (value != null) {
+                values.add(Tuple.of(key, value));
             }
         }
         for (int index = values.size() - 1; index >= 0; index--) {
             result = new List(values.get(index), result);
         }
         return result;
+    }
+
+    private Term optionValue(String name) {
+        switch (name) {
+        case "active":
+            return activeTerm();
+        case "packet":
+            return packetTerm();
+        case "mode":
+            return Atom.of(binary ? "binary" : "list");
+        case "reuseaddr":
+            return truth(reuseaddr);
+        case "nodelay":
+            return truth(nodelay);
+        case "keepalive":
+            return truth(keepalive);
+        case "exit_on_close":
+            return truth(exitOnClose);
+        case "delay_send":
+            return truth(delaySend);
+        case "linger":
+            return linger
+                ? Tuple.of(Atom.of("true"), Integer.of(lingerSeconds))
+                : Atom.of("false");
+        case "sndbuf":
+            return sndbuf < 0 ? null : Integer.of(sndbuf);
+        case "recbuf":
+            return recbuf < 0 ? null : Integer.of(recbuf);
+        case "buffer":
+            return buffer < 0 ? null : Integer.of(buffer);
+        case "tos":
+            return Integer.of(tos);
+        case "backlog":
+            return Integer.of(backlog);
+        case "ip":
+            return ip == null ? null : address(ip);
+        default:
+            return null;
+        }
+    }
+
+    private static Term truth(boolean value) {
+        return Atom.of(value ? "true" : "false");
+    }
+
+    private static Term address(byte[] bytes) {
+        try {
+            return InetSupport.address(InetAddress.getByAddress(bytes));
+        } catch (UnknownHostException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Apply the options that can change on an open TCP socket. Buffer sizes
+     * are read back so getopts reports what the OS actually uses.
+     */
+    public void applyToSocket(Socket socket) throws IOException {
+        socket.setTcpNoDelay(nodelay);
+        socket.setKeepAlive(keepalive);
+        socket.setSoLinger(linger, linger ? lingerSeconds : -1);
+        if (sndbuf >= 0) {
+            socket.setSendBufferSize(sndbuf);
+            sndbuf = socket.getSendBufferSize();
+        }
+        if (recbuf >= 0) {
+            socket.setReceiveBufferSize(recbuf);
+            recbuf = socket.getReceiveBufferSize();
+        }
+        if (tos > 0) {
+            socket.setTrafficClass(tos);
+        }
+    }
+
+    /**
+     * Apply the listener options that have to be set before bind. Accepted
+     * sockets inherit them.
+     */
+    public void applyToListener(ServerSocket server) throws IOException {
+        server.setReuseAddress(reuseaddr);
+        applyReceiveBuffer(server);
+    }
+
+    /**
+     * Change the receive buffer of an already bound listener. Connections
+     * accepted afterwards inherit the new size.
+     */
+    public void applyReceiveBuffer(ServerSocket server) throws IOException {
+        if (recbuf >= 0) {
+            server.setReceiveBufferSize(recbuf);
+            recbuf = server.getReceiveBufferSize();
+        }
+    }
+
+    public void applyToSocket(DatagramSocket socket) throws IOException {
+        if (sndbuf >= 0) {
+            socket.setSendBufferSize(sndbuf);
+            sndbuf = socket.getSendBufferSize();
+        }
+        if (recbuf >= 0) {
+            socket.setReceiveBufferSize(recbuf);
+            recbuf = socket.getReceiveBufferSize();
+        }
+    }
+
+    /**
+     * Record the buffer sizes a socket was created with, so getopts can
+     * answer even when the option was never set explicitly.
+     */
+    public void captureSizes(Socket socket) {
+        try {
+            if (sndbuf < 0) {
+                sndbuf = socket.getSendBufferSize();
+            }
+            if (recbuf < 0) {
+                recbuf = socket.getReceiveBufferSize();
+            }
+        } catch (IOException ignored) {
+            // Option reporting is best effort.
+        }
+    }
+
+    public void captureSizes(ServerSocket server) {
+        if (recbuf >= 0) {
+            return;
+        }
+        try {
+            recbuf = server.getReceiveBufferSize();
+        } catch (IOException ignored) {
+            // Option reporting is best effort.
+        }
+    }
+
+    public void captureSizes(DatagramSocket socket) {
+        try {
+            if (sndbuf < 0) {
+                sndbuf = socket.getSendBufferSize();
+            }
+            if (recbuf < 0) {
+                recbuf = socket.getReceiveBufferSize();
+            }
+        } catch (IOException ignored) {
+            // Option reporting is best effort.
+        }
     }
 
     public Term activeTerm() {

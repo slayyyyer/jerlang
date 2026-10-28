@@ -67,6 +67,21 @@ public class GenTcpTest {
         assertEquals(Atom.of("ok"), apply("address_helpers"));
     }
 
+    @Test
+    public void testListenDefaultsFromCompiledErlang() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("listen_default"));
+    }
+
+    @Test
+    public void testCommonSocketOptionsFromCompiledErlang() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("socket_options"));
+    }
+
+    @Test
+    public void testHalfCloseWithExitOnCloseDisabledFromCompiledErlang() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("half_close"));
+    }
+
     private Term apply(String function) throws Throwable {
         return Erlang.apply(Atom.of("gen_tcp_demo"), Atom.of(function), List.nil);
     }

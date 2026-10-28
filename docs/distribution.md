@@ -167,7 +167,7 @@ natively on `java.net.Socket`, `java.net.ServerSocket` and
 `java.net.DatagramSocket`, so compiled Erlang can open, send on, receive
 from and accept connections without a separate Erlang runtime.
 
-The TCP calls are `gen_tcp:listen/2`, `accept/1,2`, `connect/3,4`, `send/2`,
+The TCP calls are `gen_tcp:listen/1,2`, `accept/1,2`, `connect/3,4`, `send/2`,
 `recv/2,3`, `close/1`, `shutdown/2` and `controlling_process/2`. The UDP
 calls are `gen_udp:open/1,2`, `close/1`, `send/2,4`, `recv/2,3`, `connect/3`
 and `controlling_process/2`. Both socket types share `inet:setopts/2`,
@@ -175,25 +175,39 @@ and `controlling_process/2`. Both socket types share `inet:setopts/2`,
 `parse_address/1` and `close/1`.
 
 Sockets support binary and list modes, `{active, false | true | once | N}`,
-`reuseaddr`, `nodelay`, `keepalive` and `backlog`. TCP additionally supports
-`{packet, 1 | 2 | 4 | line}` framing; the packet option is ignored for UDP.
-Active TCP sockets deliver `{tcp, Socket, Data}` and active UDP sockets
-deliver `{udp, Socket, Address, Port, Data}`.
+`reuseaddr`, `nodelay`, `keepalive`, `backlog`,
+`{linger, {Boolean, Seconds}}`, `{sndbuf, Bytes}`, `{recbuf, Bytes}`,
+`{buffer, Bytes}`, `{tos, N}` and `{exit_on_close, Boolean}`. TCP
+additionally supports `{packet, 1 | 2 | 4 | line}` framing; the packet
+option is ignored for UDP. Active TCP sockets deliver
+`{tcp, Socket, Data}` and active UDP sockets deliver
+`{udp, Socket, Address, Port, Data}`.
+
+Buffer sizes are read back from the socket, so `getopts` reports the size
+the OS actually uses, which can be larger than the requested value.
+`{exit_on_close, false}` keeps a TCP socket writable after the peer
+half-closes, with `{tcp_closed, Socket}` still delivered; the default closes
+the socket then. `{delay_send, Boolean}` and `{buffer, Bytes}` are recorded
+and returned by `getopts` but are hints this implementation does not act on,
+and unknown options are ignored.
 
 UDP supports IPv4 and IPv6 multicast through
 `{add_membership, {Group, Interface}}`,
 `{drop_membership, {Group, Interface}}`, `{multicast_if, Interface}`,
 `{multicast_ttl, TTL}` and `{multicast_loop, Boolean}`, both at open time and
 through `inet:setopts/2`. For IPv4 an interface is an address tuple; for
-IPv6 it is the interface index. `gen_tcp:listen/1` and the less common
-`inet` options are not implemented.
+IPv6 it is the interface index. `{send_timeout, ...}`, `{ipv6_v6only, ...}`,
+`{dontroute, ...}`, `{ttl, ...}`, `{priority, ...}` and raw socket options
+are not implemented.
 
 `GenTcpTest` and `GenUdpTest` run
 [`src/test/erl/gen_tcp_demo.erl`](../src/test/erl/gen_tcp_demo.erl) and
 [`src/test/erl/gen_udp_demo.erl`](../src/test/erl/gen_udp_demo.erl). They
 exercise passive, active, list-mode and IPv4/IPv6 multicast round trips,
-receive timeouts, option changes and address helpers. The IPv6 test selects
-an up, multicast-capable interface by index and is skipped when none exists.
+receive timeouts, default and explicit listen options, half-close with
+`exit_on_close` disabled, option changes and address helpers. The IPv6 test
+selects an up, multicast-capable interface by index and is skipped when none
+exists.
 
 ## Not implemented yet
 

@@ -51,6 +51,7 @@ public final class UdpSocket implements InetEndpoint {
         this.socket = socket;
         this.options = options;
         this.owner = owner;
+        options.captureSizes(socket);
     }
 
     @Override
@@ -172,6 +173,7 @@ public final class UdpSocket implements InetEndpoint {
         updated.apply(opts);
         InetOptions delta = InetOptions.parse(opts);
         try {
+            updated.applyToSocket(socket);
             applyMulticastOptions(delta);
         } catch (IOException e) {
             return InetSupport.error(InetSupport.reason(e));

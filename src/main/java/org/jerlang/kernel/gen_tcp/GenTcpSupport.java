@@ -36,7 +36,7 @@ public final class GenTcpSupport {
         ServerSocket server = null;
         try {
             server = new ServerSocket();
-            server.setReuseAddress(options.reuseaddr);
+            options.applyToListener(server);
             InetAddress address = InetSupport.bindAddress(options);
             server.bind(new InetSocketAddress(address, port), options.backlog);
             PortID id = InetSockets.register(server, port, options, null);
@@ -70,9 +70,8 @@ public final class GenTcpSupport {
         Socket socket = new Socket();
         try {
             socket.setReuseAddress(options.reuseaddr);
-            socket.setTcpNoDelay(options.nodelay);
-            socket.setKeepAlive(options.keepalive);
             socket.connect(new InetSocketAddress(address, port), timeout);
+            options.applyToSocket(socket);
             InetSocket connected = InetSockets.register(socket, port, options,
                 InetSupport.selfPid());
             connected.start();

@@ -1,6 +1,7 @@
 package org.jerlang.kernel;
 
 import org.jerlang.kernel.gen_tcp.GenTcpSupport;
+import org.jerlang.type.List;
 import org.jerlang.type.Term;
 
 /**
@@ -38,6 +39,10 @@ public class GenTcp {
 
     public static Term controlling_process(Term socket, Term pid) {
         return GenTcpSupport.controllingProcess(socket, pid);
+    }
+
+    public static Term listen(Term port) {
+        return GenTcpSupport.listen(port, List.nil);
     }
 
     public static Term listen(Term port, Term options) {
