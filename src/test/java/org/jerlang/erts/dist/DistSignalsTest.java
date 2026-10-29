@@ -622,8 +622,9 @@ public class DistSignalsTest {
         assertEquals(Atom.of("dist_signals_demo"), mfa.element(1));
         assertEquals(Atom.of("rpc_target"), mfa.element(2));
         assertEquals(Integer.of(0), mfa.element(3));
-        assertEquals(List.of(Tuple.of(Atom.of("reply"), Atom.of("no"))),
-            request.element(6));
+        // OTP rejects a reply option on the wire with badopt, so the cast
+        // sends no options and filters the SPAWN_REPLY it gets back.
+        assertEquals(List.nil, request.element(6));
         assertEquals(List.nil, packet[1]);
 
         assertNull("rpc:cast must not wait for a spawn reply", peer.next(500));

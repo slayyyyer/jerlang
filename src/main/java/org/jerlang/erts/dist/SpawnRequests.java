@@ -378,11 +378,14 @@ public final class SpawnRequests {
             return true;
         }
 
+        /**
+         * The options that travel with the SPAWN_REQUEST. The reply mode is
+         * local bookkeeping: OTP rejects a reply option on the wire with
+         * badopt, and always sends a SPAWN_REPLY that the requester filters
+         * with its own reply mode. reply_tag never travels either.
+         */
         List forwarded() {
             List options = List.nil;
-            if (replyMode != REPLY_YES) {
-                options = new List(Tuple.of(REPLY, modeAtom(replyMode)), options);
-            }
             if (monitor) {
                 options = new List(MONITOR, options);
             }
