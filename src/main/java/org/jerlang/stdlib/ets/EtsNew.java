@@ -2,12 +2,15 @@ package org.jerlang.stdlib.ets;
 
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
+import org.jerlang.type.Tuple;
 
 public class EtsNew {
 
     private static final Atom compressed = Atom.of("compressed");
+    private static final Atom keypos = Atom.of("keypos");
     private static final Atom named_table = Atom.of("named_table");
 
     private EtsNew() {
@@ -46,13 +49,17 @@ public class EtsNew {
         Access access = Access.PROTECTED;
         boolean is_compressed = false;
         boolean is_named_table = false;
+        int key_position = 1;
 
         // Parse options ------------------------------------------------------
 
         while (options.length() > 0) {
             Term option = options.head();
 
-            if (Type.SET.toAtom().equals(option)) {
+            if (option instanceof Tuple && ((Tuple) option).arity() == 2
+                && keypos.equals(((Tuple) option).element(1))) {
+                key_position = keypos(((Tuple) option).element(2));
+            } else if (Type.SET.toAtom().equals(option)) {
                 type = Type.SET;
             } else if (Type.ORDERED_SET.toAtom().equals(option)) {
                 type = Type.ORDERED_SET;
@@ -74,12 +81,28 @@ public class EtsNew {
             options = options.tail();
         }
 
+        // A name can only belong to one table at a time. OTP rejects the
+        // second ets:new with badarg instead of replacing the first table.
+        if (is_named_table && TableRegistry.lookup(name) != null) {
+            throw Error.badarg;
+        }
+
         switch (type) {
         case SET:
-            return new Set(access, name, is_named_table, is_compressed).id();
+            Set table = new Set(access, name, is_named_table, is_compressed, key_position);
+            // A named table is addressed by its name, so that is what OTP
+            // returns. An unnamed one returns its identifier.
+            return is_named_table ? name : table.id();
         default:
             throw new Error("not implemented yet");
         }
+    }
+
+    private static int keypos(Term option) {
+        if (!(option instanceof Integer) || ((Integer) option).toInt() < 1) {
+            throw Error.badarg;
+        }
+        return ((Integer) option).toInt();
     }
 
 }

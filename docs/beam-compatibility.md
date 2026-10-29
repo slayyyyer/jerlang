@@ -19,6 +19,44 @@ Erlang/OTP 29.1.2, and
 [`ErlangSourceBridgeTest`](../src/test/java/org/jerlang/jvm/ErlangSourceBridgeTest.java)
 runs it.
 
+## Conformance pass rate
+
+The metric is the fraction of real BEAM files the runtime can load and, of
+those, the fraction whose every instruction has a handler. Both are needed
+before a module's code can run, so a module counts as a pass only if it
+satisfies both. Opcode counts are not the metric.
+
+[`ConformanceReport`](../src/test/java/org/jerlang/conformance/ConformanceReport.java)
+loads every `.beam` below a directory and classifies each file:
+
+* **load failure** — the loader rejected the file: an unknown opcode number, a
+  chunk it can not read, a missing code chunk, or a file that is not BEAM.
+* **opcode gap** — the file loaded, but at least one instruction has no
+  handler. The gap is named per opcode. This is the allowed failure form for a
+  language-level gap; a module should not stop with "Unsupported opcode".
+* **pass** — loaded, and every instruction has a handler.
+
+Loading is read-only. Nothing is registered, so a run over an OTP tree does
+not install it, and execution is not part of the metric: calling arbitrary
+exported functions needs the standard library, which is `0.6`.
+
+Against the modules that ship with **Erlang/OTP 29.1.2**, in the `conformance`
+CI job:
+
+| Corpus | Modules | Loaded | Passed | Opcode gaps | Load failures |
+|--------|---------|--------|--------|-------------|---------------|
+| OTP 29.1.2 `lib` | 1366 | 100% | 100% | 0 | 0 |
+
+The number is reproducible with an OTP installation and any JDK:
+
+```
+mvn -Dtest=PassRateTest -Djerlang.conformance.dir="$OTP/lib" test
+```
+
+The directory may be a path list and is searched recursively. The run prints
+the rate; add `-Djerlang.conformance.min=0.99` to also assert a floor. The
+checked-in corpus is gated at 100% by the `test` job.
+
 ## What a modern BEAM file contains that the loader did not expect
 
 ### Atoms are UTF-8 and may use compact lengths
@@ -79,9 +117,30 @@ rejects the module before decoding.
 | `bs_get_position` | 167 | Saving a match position (OTP 22+) | The position is the bit offset |
 | `bs_set_position` | 168 | Restoring a match position (OTP 22+) | |
 | `bs_get_tail` | 165 | Capturing the rest of a match (OTP 22+) | A binary when byte aligned, otherwise a bitstring |
+| `get_hd` | 162 | List patterns and `hd` optimizations (OTP 22+) | Raises `badarg` for a non-list or empty list |
+| `get_tl` | 163 | List patterns and `tl` optimizations (OTP 22+) | Raises `badarg` for a non-list or empty list |
+| `bs_create_bin` | 177 | Binary construction (OTP 25+) | Reads the flat segment list, including the string table offsets |
+| `nif_start` | 179 | Start of a `-nifs()` function | No-op: this runtime has no NIFs |
+| `badrecord` | 180 | A record pattern that does not match | Raises `error:{badrecord,Value}` |
+| `update_record` | 181 | `Record#name{field = Value}` (OTP 26+) | Applies the flat `[Index, Value]` update list |
+| `executable_line` | 183 | Line information for coverage (OTP 27+) | Sets the current frame's location |
+| `debug_line` | 184 | Breakpoint locations (OTP 28+) | Sets the current frame's location |
+| `bif3` | 185 | Three-argument BIF calls that can fail (OTP 29+) | Arguments and destination, like `bif2` |
+| `is_any_native_record` | 186 | Native-record tests (OTP 29) | Always fails: no native record values exist in this runtime |
+| `is_native_record` | 187 | Native-record tests (OTP 29) | Always fails |
+| `get_record_elements` | 188 | Native-record field access (OTP 29) | Always fails |
+| `put_record` | 189 | Native-record construction (OTP 29) | Raises a named `native records are not supported` error |
+| `is_record_accessible` | 190 | Native-record access checks (OTP 29) | Always fails |
+| `get_record_field` | 191 | Native-record field access (OTP 29) | Jumps to the fail label, or raises `badarg` when the label is 0 |
 
 `put_list` also had to accept a literal tail, which is how an empty list is
 encoded when building a list from a literal and a register.
+
+A literal tuple is an operand too. `move` used to treat any two element tuple
+source as a register, so a function returning `{ok, Value}` or `{[], []}`
+failed with "Cannot convert to integer". Operands now go through `toArg`,
+which treats only `{x,N}`, `{y,N}` and `{fr,N}` as registers and returns any
+other tuple unchanged.
 
 Instruction arguments also gained the extended tag 5, a typed register
 `{tr,Register,Type}`. The type is only used by the JIT, but it has to be
@@ -113,6 +172,41 @@ treated as little endian, and UTF fields still go through their own
 `bs_get_utf*`/`bs_skip_utf*` instructions rather than through `bs_match`
 commands.
 
+### Binary construction
+
+`bs_create_bin` carries a destination and a flat list of six-word segments:
+`[Type, Seg, Unit, Flags, Value, Size]`. Type is `integer`, `float`, `binary`,
+`append`, `string`, `utf8`, `utf16` or `utf32`; flags are `little`, `signed`
+and `unsigned` where they apply. The interpreter writes each segment into a
+`BitStringOutputStream`, so an unaligned bitstring segment stays unaligned.
+
+A `string` segment is not inline data: `beam_asm` encodes it as an offset into
+the module's `StrT` chunk, and `Size` is the byte count. The interpreter reads
+that chunk, which is why binary construction needed the string table that
+`bs_match_string` already used.
+
+### Function clauses
+
+A clause that fails its pattern does not jump to a normal label: it jumps back
+to the label in front of the function's `func_info`. The interpreter used to
+re-enter the function and loop forever. It now recognises those entry labels
+and raises `error:function_clause`, so a single-clause function called with the
+wrong argument terminates the process instead of hanging a scheduler.
+
+### Comparisons
+
+A comparison in a function body compiles to a `bif` instruction that calls
+`erlang:'<'/2` and friends, while the same test in a guard compiles to
+`is_lt`, `is_ge`, `is_eq`, `is_ne`, `is_eq_exact` or `is_ne_exact`. The
+operands may be literals, X registers or Y registers, on either side: `X < 12`,
+`12 < X` and `A < B` all appear in compiled code.
+
+Both paths share `TermOrder`, which implements the Erlang term order
+(number < atom < reference < fun < port < pid < tuple < map < nil < list <
+bitstring). `==` and `/=` compare numbers by value, so `1 == 1.0` is true,
+while `=:=` and `=/=` stay exact. The guard instructions used to handle only
+one literal/register shape and raised `Can not compare` for every other order.
+
 ### Receive scan position
 
 `loop_rec_end` used to remove the head of the mailbox. When the first message
@@ -122,6 +216,26 @@ mailbox: `loop_rec_end` advances it, `remove_message` removes the message at
 that position and resets the scan, and a timeout resets it as well. This is
 what lets `spawn_opt(..., [link, monitor])` receive the `DOWN` that follows an
 `EXIT` in the same mailbox.
+
+## Built-in modules
+
+JErlang ships a few modules in Java so that programs run without an OTP
+installation. For `lists`, a `lists.beam` in the working directory now wins:
+the module is loaded from disk, and the built-in implementation is only used
+for functions the BEAM file declares but does not implement.
+
+OTP ships its BIFs and NIFs that way. `lists:reverse/2` and `lists:member/2`,
+for example, are exported by `lists.beam`, but their body only calls
+`erlang:nif_error/1`; the runtime has to provide them. The loader recognises
+that placeholder and adopts the built-in function, so the real Erlang code in
+`lists.beam` (sort, usort, sum, last and the rest) runs while the primitives
+stay native. `lists:reverse/2` and `lists:member/2` were added to the built-in
+module for this. A function adopted that way has no instruction stream, so a
+call from Java is dispatched straight to it instead of spawning a process.
+
+Other built-in modules still take precedence over a same-named BEAM file,
+because some of them (for example `erlang`) only declare BIFs in their BEAM
+form and would remove the runtime's implementations of them.
 
 ## Fun calls
 
@@ -232,25 +346,26 @@ the original raise.
 
 ## What still blocks other programs
 
-These opcodes are not implemented. They are listed with the constructs that
-emit them, because that is what decides which programs can run.
+Every opcode a current `erlc` emits has a handler: 191 opcodes are known, 30
+of them are the old deprecated arithmetic and bit-syntax instructions, and the
+remaining 161 all execute. There is no "unsupported opcode" list for OTP 29
+programs any more; the conformance corpus in
+[`src/test/erl/corpus`](../src/test/erl/corpus) runs in CI and is the exit test
+for this.
 
-| Number | Opcode | Needed for |
-|-------:|--------|------------|
-| 162, 163 | `get_hd`, `get_tl` | OTP 26 `hd`/`tl` optimizations |
-| 177 | `bs_create_bin` | Binary construction (OTP 26+) |
-| 180, 181 | `badrecord`, `update_record` | Record updates |
-| 183, 184 | `executable_line`, `debug_line` | Coverage and debug line information |
-| 185 | `bif3` | Three-argument BIF calls |
-| 186-191 | native record opcodes | Native records (Erlang/OTP 28+) |
+The one language feature still missing is **native records**, the experimental
+OTP 29 data type declared as `-record #name{...}`. A native record is a
+distinct runtime type that captures its field definition; implementing it needs
+a new term type, not another opcode. The type-test opcodes therefore always
+fail, field extraction jumps to its fail label, and construction raises
+`error:"native records are not supported by this runtime"`. Modules that do not
+use native records are unaffected.
 
-For Elixir this list is the short version of why it cannot run yet: binary
-construction and record updates appear in nearly every Elixir module, and those
-need `bs_create_bin` and `update_record`; binary matching itself now works.
-Anonymous functions and `try`/`rescue` are no longer on that list. The second
-barrier is the standard library: Elixir's `Kernel`, `Enum` and the OTP
-behaviours are themselves compiled modules that JErlang's kernel and stdlib
-only partially replace.
+For Elixir, binary construction, record updates and binary matching now work,
+and anonymous functions and `try`/`rescue` already did. The remaining barrier
+is the standard library: Elixir's `Kernel`, `Enum` and the OTP behaviours are
+themselves compiled modules that JErlang's kernel and stdlib only partially
+replace.
 
 ## Not changed
 

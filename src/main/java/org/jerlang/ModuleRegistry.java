@@ -2,8 +2,11 @@ package org.jerlang;
 
 import static org.jerlang.util.StringUtil.camelToSnakeCase;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.jerlang.erts.Erlang;
 import org.jerlang.erts.Erpc;
@@ -22,6 +25,7 @@ import org.jerlang.stdlib.Base64;
 import org.jerlang.stdlib.BeamLib;
 import org.jerlang.stdlib.Binary;
 import org.jerlang.stdlib.ErlInternal;
+import org.jerlang.stdlib.Ets;
 import org.jerlang.stdlib.IO;
 import org.jerlang.stdlib.Java;
 import org.jerlang.stdlib.Lists;
@@ -36,6 +40,16 @@ import org.jerlang.type.Atom;
 public class ModuleRegistry {
 
     private static final ModuleRegistry instance = new ModuleRegistry();
+
+    /**
+     * Modules whose built-in implementation is only a stopgap, so a BEAM file
+     * in the working directory wins. Other built-ins stay in charge: an OTP
+     * erlang.beam, for example, only declares BIFs and would remove the
+     * runtime's implementations of them.
+     */
+    private static final Set<Atom> BEAM_PREFERRED = new HashSet<>(
+        Arrays.asList(Atom.of("lists")));
+
     private final Map<Atom, Module> modules;
 
     public ModuleRegistry() {
@@ -47,6 +61,7 @@ public class ModuleRegistry {
         init(Erlang.class).export();
         init(Erpc.class).export();
         init(ErlInternal.class).export();
+        init(Ets.class).export();
         init(File.class).export();
         init(GenTcp.class).export();
         init(GenUdp.class).export();
@@ -67,11 +82,24 @@ public class ModuleRegistry {
     }
 
     public static Module get(Atom module) {
-        if (!instance.modules.containsKey(module)) {
-            // Maybe the module is not loaded yet
-            ModuleLoader.load(module);
+        Module current = instance.modules.get(module);
+        if (current != null && !current.isInternal()) {
+            // Already loaded from a BEAM file; real code is never replaced.
+            return current;
         }
-        return instance.modules.get(module);
+        if (current == null || BEAM_PREFERRED.contains(module)) {
+            Module loaded = ModuleLoader.load(module);
+            if (loaded != null) {
+                if (current != null) {
+                    // Keep the built-in primitives the BEAM file declares but
+                    // does not implement, such as the lists BIFs and NIFs.
+                    loaded.adoptBuiltins(current);
+                }
+                instance.modules.put(module, loaded);
+                return loaded;
+            }
+        }
+        return current;
     }
 
     public static ModuleRegistry instance() {

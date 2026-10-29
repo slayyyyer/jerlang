@@ -5,6 +5,7 @@ import org.jerlang.stdlib.lists.ListsConcat;
 import org.jerlang.stdlib.lists.ListsDelete;
 import org.jerlang.stdlib.lists.ListsDuplicate;
 import org.jerlang.stdlib.lists.ListsFlatten;
+import org.jerlang.stdlib.lists.ListsMember;
 import org.jerlang.stdlib.lists.ListsReverse;
 import org.jerlang.stdlib.lists.ListsSeq;
 import org.jerlang.type.Integer;
@@ -46,6 +47,14 @@ public class Lists {
 
     public static List reverse(List list) {
         return ListsReverse.reverse_1(list);
+    }
+
+    public static List reverse(List list, List tail) {
+        return ListsReverse.reverse_2(list, tail);
+    }
+
+    public static Term member(Term element, List list) {
+        return ListsMember.member_2(element, list);
     }
 
     public static List seq(Integer from, Integer to) {

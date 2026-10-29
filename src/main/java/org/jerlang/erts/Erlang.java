@@ -2,8 +2,16 @@ package org.jerlang.erts;
 
 import org.jerlang.erts.erlang.ErlangAbs;
 import org.jerlang.erts.erlang.ErlangApply;
+import org.jerlang.erts.erlang.ErlangAtomEq;
+import org.jerlang.erts.erlang.ErlangAtomEqExact;
+import org.jerlang.erts.erlang.ErlangAtomGe;
+import org.jerlang.erts.erlang.ErlangAtomGt;
+import org.jerlang.erts.erlang.ErlangAtomLe;
+import org.jerlang.erts.erlang.ErlangAtomLt;
 import org.jerlang.erts.erlang.ErlangAtomMinus;
 import org.jerlang.erts.erlang.ErlangAtomMultiply;
+import org.jerlang.erts.erlang.ErlangAtomNe;
+import org.jerlang.erts.erlang.ErlangAtomNeExact;
 import org.jerlang.erts.erlang.ErlangAtomPlus;
 import org.jerlang.erts.erlang.ErlangAtomPlusPlus;
 import org.jerlang.erts.erlang.ErlangBinaryPart;
@@ -105,6 +113,38 @@ public class Erlang {
 
     public static List atom_plus_plus(List a, List b) {
         return ErlangAtomPlusPlus.atom_plus_plus_2(a, b);
+    }
+
+    public static Atom atom_eq(Term a, Term b) {
+        return ErlangAtomEq.atom_eq_2(a, b);
+    }
+
+    public static Atom atom_eq_exact(Term a, Term b) {
+        return ErlangAtomEqExact.atom_eq_exact_2(a, b);
+    }
+
+    public static Atom atom_ge(Term a, Term b) {
+        return ErlangAtomGe.atom_ge_2(a, b);
+    }
+
+    public static Atom atom_gt(Term a, Term b) {
+        return ErlangAtomGt.atom_gt_2(a, b);
+    }
+
+    public static Atom atom_le(Term a, Term b) {
+        return ErlangAtomLe.atom_le_2(a, b);
+    }
+
+    public static Atom atom_lt(Term a, Term b) {
+        return ErlangAtomLt.atom_lt_2(a, b);
+    }
+
+    public static Atom atom_ne(Term a, Term b) {
+        return ErlangAtomNe.atom_ne_2(a, b);
+    }
+
+    public static Atom atom_ne_exact(Term a, Term b) {
+        return ErlangAtomNeExact.atom_ne_exact_2(a, b);
     }
 
     // --------------------------------------------------------------

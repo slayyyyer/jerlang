@@ -234,8 +234,24 @@ public class Process extends ProcessOrPort {
         return dictionary;
     }
 
+    /**
+     * Whether the running receive still has a message to look at.
+     *
+     * This is a scan position, not a mailbox check: a message the current
+     * receive already looked at and rejected stays in the mailbox for the next
+     * receive, but is behind {@code receivePosition} and so is not reported
+     * here. Use {@link #mailboxSize()} to ask whether anything arrived.
+     */
     public boolean hasMessage() {
         return receivePosition < mailbox.size();
+    }
+
+    /**
+     * Number of messages in the mailbox, including the ones the current
+     * receive has already scanned past.
+     */
+    public int mailboxSize() {
+        return mailbox.size();
     }
 
     public int getCP() {
@@ -376,6 +392,16 @@ public class Process extends ProcessOrPort {
                 waitTimer = WAIT_TIMERS.schedule(() -> timeout(generation),
                     timeoutMillis, TimeUnit.MILLISECONDS);
             }
+        }
+        // A message or an exit signal can land between the receive scanning
+        // the mailbox and this park. The sender sees a RUNNABLE process and so
+        // does not enqueue it, and without this the process would sleep with
+        // the message, or the exit, unread until something else arrived.
+        // Putting it back closes that window: execute() resumes a WAITING
+        // process that has a message from the receive label, and terminates
+        // one that has a pending exit before it runs.
+        if ((hasMessage() || hasPendingExit()) && scheduler() != null) {
+            scheduler().add(this);
         }
     }
 

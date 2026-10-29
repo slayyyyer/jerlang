@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.stdlib.beam_lib.BeamData;
 import org.jerlang.stdlib.beam_lib.BeamLibMD5;
@@ -53,6 +54,7 @@ public class Module {
     private final Class<?> moduleClass;
     private final Atom name;
     private final Map<FunctionSignature, Fun> exported_functions;
+    private final java.util.Set<FunctionSignature> native_functions;
     private Map<java.lang.Integer, FunctionSignature> functionsByLabel;
     private final Map<FunctionSignature, Integer> labels;
     private byte[] md5;
@@ -60,6 +62,7 @@ public class Module {
     public Module(BeamData beamData, Atom name) {
         this.beamData = beamData;
         this.exported_functions = new HashMap<>();
+        this.native_functions = new java.util.HashSet<>();
         this.labels = new HashMap<>();
         this.moduleClass = null;
         this.name = name;
@@ -68,6 +71,7 @@ public class Module {
     public Module(Class<?> moduleClass, Atom name) {
         this.beamData = null;
         this.exported_functions = new HashMap<>();
+        this.native_functions = new java.util.HashSet<>();
         this.labels = new HashMap<>();
         this.moduleClass = moduleClass;
         this.name = name;
@@ -79,6 +83,11 @@ public class Module {
         }
         Process process = VirtualMachine.self();
         if (process == null) {
+            if (native_functions.contains(signature)) {
+                // A built-in implementation adopted by a BEAM module has no
+                // instruction stream to start, so call it directly.
+                return exported_functions.get(signature).apply(params);
+            }
             // We have been probably invoked from plain Java code,
             // So we need to spawn a process and execute the function
             // within that process. The calling thread must not keep the
@@ -88,12 +97,11 @@ public class Module {
             process = VirtualMachine.instance().spawn(signature.module(), signature.function(), params.toList());
             ProcessRegistry.self(process);
             try {
+                // The scheduler thread finishes the process and counts the
+                // latch down. Polling every 10 ms instead put a floor of one
+                // scheduler wakeup under every call made from Java.
                 while (process.state() != ProcessState.EXITING) {
-                    try {
-                        Thread.sleep(10);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    process.awaitExit(1000);
                 }
                 Throwable failure = process.failure();
                 if (failure != null) {
@@ -242,6 +250,77 @@ public class Module {
                 }
             }
         }
+    }
+
+    /**
+     * Use the built-in implementation of a function when the BEAM module has
+     * no code for it. OTP ships BIFs and NIFs that way: the module exports the
+     * function, but its body only calls erlang:nif_error/1.
+     *
+     * This lets a real module load from disk while the runtime still supplies
+     * the primitives, instead of the built-in module shadowing the BEAM file.
+     */
+    public void adoptBuiltins(Module builtin) {
+        for (Map.Entry<FunctionSignature, Fun> entry : builtin.exported_functions.entrySet()) {
+            FunctionSignature signature = entry.getKey();
+            if (!exported_functions.containsKey(signature) || isNativeStub(signature)) {
+                exported_functions.put(signature, entry.getValue());
+                native_functions.add(signature);
+            }
+        }
+    }
+
+    /**
+     * True if the function's BEAM body is only the placeholder the compiler
+     * emits for a BIF or NIF: move undef and call erlang:nif_error/1.
+     */
+    private boolean isNativeStub(FunctionSignature signature) {
+        if (beamData == null || beamData.codeChunk() == null) {
+            return false;
+        }
+        org.jerlang.type.Integer label = labels.get(signature);
+        if (label == null) {
+            return false;
+        }
+        java.lang.Integer start = beamData.codeChunk().labels().get(label.toInt());
+        if (start == null) {
+            return false;
+        }
+        java.util.List<Instruction> code = beamData.codeChunk().instructions();
+        for (int index = start; index < code.size(); index++) {
+            Instruction instruction = code.get(index);
+            switch (instruction.opcode()) {
+            case label:
+            case line:
+            case func_info:
+            case executable_line:
+            case debug_line:
+            case move:
+                continue;
+            case call_ext:
+            case call_ext_only:
+            case call_ext_last:
+                return callsNifError(instruction);
+            default:
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private boolean callsNifError(Instruction instruction) {
+        Term operand = instruction.arg(1);
+        if (!(operand instanceof Integer)) {
+            return false;
+        }
+        int index = operand.toInteger().toInt();
+        java.util.List<FunctionSignature> imports = beamData.importTableChunk().imports();
+        if (index < 0 || index >= imports.size()) {
+            return false;
+        }
+        FunctionSignature target = imports.get(index);
+        return target.module().equals(Atom.of("erlang"))
+            && target.function().equals(Atom.of("nif_error"));
     }
 
     public Module export(String name, int arity) {

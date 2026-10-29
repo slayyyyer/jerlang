@@ -18,7 +18,9 @@ import org.jerlang.type.Tuple;
  */
 public class Error extends RuntimeException {
 
-    public static final Error badarg = new Error("badarg");
+    // badarg is an atom in Erlang, not a string: catch error:badarg has to
+    // match it.
+    public static final Error badarg = new Error(Atom.of("badarg"));
 
     private final Atom exceptionClass;
     private final Term reason;

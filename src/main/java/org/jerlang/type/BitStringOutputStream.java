@@ -42,7 +42,10 @@ public class BitStringOutputStream extends OutputStream {
         }
     }
 
-    private void writeBitString(BitString bitString) throws IOException {
+    public void writeBitString(BitString bitString) throws IOException {
+        if (bitString.bits() == 0) {
+            return;
+        }
         if (bitString.bits() < 8) {
             writeBits(bitString.bytes()[0], bitString.bits());
         } else {
@@ -60,7 +63,7 @@ public class BitStringOutputStream extends OutputStream {
         }
     }
 
-    private void writeBit(int bit) throws IOException {
+    public void writeBit(int bit) throws IOException {
         if (bit != 0) {
             currentByte |= 0b1000_0000 >> bitOffset;
         }
@@ -72,7 +75,7 @@ public class BitStringOutputStream extends OutputStream {
         }
     }
 
-    private void writeBits(int b, int bits) throws IOException {
+    public void writeBits(int b, int bits) throws IOException {
         // System.out.println("write bits: " + b + ", " + bits);
         int value = b >> (8 - bits);
         while (bits > 0) {
