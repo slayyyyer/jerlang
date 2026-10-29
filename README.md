@@ -48,7 +48,7 @@ What works today:
 * `gen_tcp`, `gen_udp` and `inet`, including IPv6 and multicast.
 * A reflective Java bridge (`java:new`, `java:call`, fields, release) and an
   embedding entry point for Java calling Erlang.
-* A 360-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
+* A 390-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
   over an OTP installation, and the benchmarks. GitHub Actions runs the rest on
   every push and pull request.
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP
@@ -60,8 +60,10 @@ What does not work yet:
 * Native records, the experimental OTP 29 data type declared as
   `-record #name{...}`. Type tests always fail and construction raises a named
   error; ordinary tuple records are fully supported.
-* ETS is a facade: `new`, `lookup` and `all` exist, but `insert` is a stub, so a
-  table can never hold an object.
+* ETS is limited to `set` tables. `new`, `insert`, `lookup`, `delete`,
+  `tab2list`, `update_counter` and `all` work, with named tables,
+  `{keypos, N}`, and exact key equality, so `1` and `1.0` are different keys,
+  but there is no `match`, `select`, `ordered_set`, `bag` or `duplicate_bag`.
 * The OTP behaviours and most of the standard library: there is no `gen_server`,
   `supervisor`, `application`, `logger` or `code` module.
 * Fair scheduling. There are no reductions, so a CPU-bound loop can hold a
