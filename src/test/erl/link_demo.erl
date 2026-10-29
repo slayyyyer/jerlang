@@ -50,8 +50,10 @@ trapped_crash() ->
     after 2000 ->
         error(no_exit_message)
     end,
-    Normal = spawn(link_demo, normal_return, []),
-    link(Normal),
+    %% spawn_link, not spawn then link: normal_return/0 finishes at once,
+    %% so a separate link/1 races against the child's exit and can report
+    %% noproc instead of the normal exit this clause is here to observe.
+    Normal = spawn_link(link_demo, normal_return, []),
     receive
         {'EXIT', Normal, normal} -> ok
     after 2000 ->

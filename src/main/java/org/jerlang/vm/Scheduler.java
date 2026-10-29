@@ -24,6 +24,11 @@ public class Scheduler extends Thread {
     private final RunQueue<ProcessOrPort> runQueueNormal;
     private final RunQueue<ProcessOrPort> runQueueLow;
 
+    /** Guards {@link #workPending}, which carries a wakeup across the gap
+     * between finding the queues empty and starting to wait. */
+    private final Object workLock = new Object();
+    private boolean workPending = false;
+
     public Scheduler() {
         ids = new HashSet<>();
         runQueueMax = new RunQueue<>();
@@ -53,6 +58,9 @@ public class Scheduler extends Thread {
             runQueueLow.push(p);
             break;
         }
+        // Signal only after the process is on a queue, so a woken scheduler
+        // can not poll an empty queue and park again while work sits unseen.
+        wakeup();
         return p;
     }
 
@@ -147,6 +155,13 @@ public class Scheduler extends Thread {
                 }
                 ProcessSignals.terminate(process, reason);
             }
+            if (p.state() == ProcessState.EXITING) {
+                // Nothing more will run for this process, so a caller waiting
+                // on it can read the result now. This has to be here rather
+                // than on the state change: EXITING is also reached inside a
+                // nested call, before the outer activation has finished.
+                p.markTerminated();
+            }
             switch (p.state()) {
             case RUNNABLE:
                 runQueue.push(p);
@@ -164,11 +179,37 @@ public class Scheduler extends Thread {
         return false;
     }
 
+    /**
+     * Wake a scheduler that is waiting for work. Called for every enqueue, so
+     * a newly runnable process does not wait for the next poll.
+     */
+    private void wakeup() {
+        synchronized (workLock) {
+            workPending = true;
+            workLock.notify();
+        }
+    }
+
+    /**
+     * Park until {@link #add} signals work.
+     *
+     * This used to sleep for 100 ms, which put a floor under every call made
+     * from outside the VM: the spawned process waited for the next poll of an
+     * idle scheduler. Waiting on the signal costs nothing when work arrives
+     * promptly and still parks the thread when it does not.
+     */
     private void sleep() {
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            interrupt();
+        synchronized (workLock) {
+            if (workPending) {
+                workPending = false;
+                return;
+            }
+            try {
+                workLock.wait();
+            } catch (InterruptedException e) {
+                interrupt();
+            }
+            workPending = false;
         }
     }
 

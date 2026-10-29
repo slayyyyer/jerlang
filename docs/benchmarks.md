@@ -62,27 +62,59 @@ Sub-microsecond numbers carry a caveat: at this scale the measurement includes
 two `System.nanoTime` calls amortised over the batch and the list construction
 done once outside it, so treat them as order of magnitude.
 
+## After removing the scheduler poll
+
+The first baseline found a 108 ms floor under every call from Java. It was not
+Erlang: an idle scheduler slept for 100 ms, and the caller polled the spawned
+process every 10 ms on top of that. Both were replaced:
+
+* `Scheduler` parks on a condition and `add()` signals it, so a process on the
+  run queue is picked up immediately instead of at the next poll.
+* `Module.apply` waits on a latch the scheduler counts down when the process is
+  done, instead of sleeping and re-checking the state.
+
+Same machine, same harness, after the change:
+
+| Workload | Before | After | Change |
+|---|---:|---:|---:|
+| Java to Erlang call | 108.0 ms | 0.09-0.16 ms | ~700-1,200x faster |
+| Java to Erlang round trip | 525.0 ms | 0.46-0.65 ms | ~800-1,100x faster |
+
+The cross-boundary rows are dominated by OS scheduling and vary more between
+runs than the others, hence the range.
+
+Interpreted workloads are unchanged within noise (call 520-680 ns, guard
+315-460 ns, list head 270-340 ns, binary construct 630-820 ns, record update
+330-410 ns, float segment 970-1,120 ns, big integer 230-270 ns, closures
+2.6-3.9 us, `lists:reverse/1` 540-680 ns).
+
+What is left in the 0.1-0.2 ms is OS scheduling: the process runs on a
+scheduler thread and the caller waits for it, so two thread hand-offs are paid.
+That is inherent to the current design, which runs every process on a
+scheduler, and not a polling artefact. Further work would be a different
+architecture (running a call on the calling thread), not a smaller sleep.
+
+`CrossBoundaryCallTest` fails if a cross-boundary call takes more than 25 ms,
+which leaves two orders of magnitude of headroom over the measured 0.1 ms while
+still catching a reintroduced poll. It was checked against the old behaviour
+(75 ms median, failed).
+
 ## What the numbers say
 
-Two things, one expected and one not:
-
-* Interpreted operations cost hundreds of nanoseconds. A call is about 700 ns, a
-  guard about 400 ns, binary construction about 840 ns. The built-in
-  `lists:reverse/1` over 100 elements is 680 ns, which is the same order as a
+* Interpreted operations cost hundreds of nanoseconds. A call is about 520 ns, a
+  guard about 320 ns, binary construction about 680 ns. The built-in
+  `lists:reverse/1` over 100 elements is about 540 ns, the same order as a
   single interpreted call: the Java implementations are not the bottleneck.
-* A call **across** the boundary costs about **108 ms**, and a spawn plus two
-  message exchanges about **525 ms**. That is five orders of magnitude above the
-  interpreted call, and it is not the Erlang code: `Scheduler.sleep()` parks an
-  idle scheduler for 100 ms, and `Module.apply` polls a spawned process from the
-  calling thread every 10 ms. A trivial call therefore waits out at least one
-  scheduler sleep.
+* Loading a module is about 260 us: chunk parsing and instruction decode, paid
+  once per module.
+* A call across the Java/Erlang boundary costs about 0.1-0.2 ms, of which most
+  is the two thread hand-offs. That is usable for control-plane work and still
+  too slow for a per-item inner loop, which is what the roadmap's embedding
+  target assumes.
 
-The second point matters more than any microbenchmark here. "Embed Erlang in a
-JVM service" is the beachhead use case for this project, and a 108 ms floor per
-cross-boundary call makes that use case unusable for anything interactive. The
-fix is mechanical (wake a scheduler on enqueue instead of sleeping, and wait on
-the process instead of polling), but it changes scheduling, so it belongs with
-the 0.7 runtime work rather than a benchmark commit.
+No comparison against BEAM is included. Nothing here was measured against a real
+OTP node on the same machine, so no statement about being faster or slower than
+BEAM is supported yet.
 
 No comparison against BEAM is included. Nothing here was measured against a real
 OTP node on the same machine, so no statement about being faster or slower than

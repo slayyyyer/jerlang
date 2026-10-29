@@ -1,6 +1,8 @@
 package org.jerlang;
 
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.PID;
@@ -15,8 +17,14 @@ public abstract class ProcessOrPort {
 
     private PidOrPortId id;
     private ProcessPriority priority = ProcessPriority.NORMAL;
-    private ProcessState state = ProcessState.RUNNABLE;
+    private volatile ProcessState state = ProcessState.RUNNABLE;
     private Scheduler scheduler = null;
+
+    /**
+     * Counted down when the scheduler finishes the process, so a caller on
+     * another thread can wait for the result instead of polling for it.
+     */
+    private final CountDownLatch terminated = new CountDownLatch(1);
 
     public ProcessOrPort(PidOrPortId id) {
         this.id = id;
@@ -50,6 +58,37 @@ public abstract class ProcessOrPort {
 
     public void setState(ProcessState state) {
         this.state = state;
+    }
+
+    /**
+     * Announce that this process is finished and its result is final.
+     *
+     * This is deliberately not done from {@link #setState}: a call that runs
+     * on the same process (apply, call_ext) reaches a return while the caller
+     * still has instructions to run, and sets EXITING long before the result
+     * is in X0. Only the scheduler knows when the process is really done, so
+     * it is the one that calls this.
+     */
+    public void markTerminated() {
+        terminated.countDown();
+    }
+
+    /**
+     * Block until the scheduler has finished the process, or the timeout
+     * expires.
+     *
+     * Returns immediately when the process finished before the call. A caller
+     * waiting for another thread to finish a process is not a cancellation
+     * point, so an interrupt does not abandon the wait.
+     *
+     * @return true if the process has terminated
+     */
+    public boolean awaitExit(long timeoutMillis) {
+        try {
+            return terminated.await(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            return state == ProcessState.EXITING;
+        }
     }
 
     protected Scheduler scheduler() {

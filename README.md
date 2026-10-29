@@ -48,7 +48,7 @@ What works today:
 * `gen_tcp`, `gen_udp` and `inet`, including IPv6 and multicast.
 * A reflective Java bridge (`java:new`, `java:call`, fields, release) and an
   embedding entry point for Java calling Erlang.
-* A 359-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
+* A 360-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
   over an OTP installation, and the benchmarks. GitHub Actions runs the rest on
   every push and pull request.
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP

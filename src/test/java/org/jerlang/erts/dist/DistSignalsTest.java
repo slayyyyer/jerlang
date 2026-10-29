@@ -764,15 +764,25 @@ public class DistSignalsTest {
         return process;
     }
 
+    /**
+     * Wait until a message has been delivered to the process, as an ordering
+     * barrier: a message sent after a signal proves the signal was handled.
+     *
+     * This asks for the mailbox size, not {@link Process#hasMessage()}. The
+     * waiter is a live receive loop, so it can run, look at the barrier
+     * message, not match it, and scan past it before the test gets here. That
+     * does not mean the message was lost: it stays in the mailbox for the next
+     * receive, which is what the tests then exercise.
+     */
     private static void awaitMailbox(PID pid) throws InterruptedException {
         ProcessOrPort process = ProcessRegistry.resolve(pid);
         assertTrue("the waiter is gone", process instanceof Process);
         Process waiter = (Process) process;
         long deadline = System.currentTimeMillis() + 3000;
-        while (!waiter.hasMessage() && System.currentTimeMillis() < deadline) {
+        while (waiter.mailboxSize() == 0 && System.currentTimeMillis() < deadline) {
             Thread.sleep(5);
         }
-        assertTrue("the peer's message never arrived", waiter.hasMessage());
+        assertTrue("the peer's message never arrived", waiter.mailboxSize() > 0);
     }
 
     private Call call(String function, Term... args) {

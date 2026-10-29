@@ -15,10 +15,10 @@ what the code does today, not against the original intent.
 | ETS | `new`, `lookup`, `all`. `insert` is a stub and the file contains 63 `return null` stubs in total, so a created table can never hold an object. |
 | OTP behaviours | None. There is no `gen_server`, `supervisor`, `application`, `proc_lib`, `logger`, `code`, or `gen_statem`. |
 | Scheduler | One scheduler thread per processor with no balancing. There are no reductions: a function activation runs to `return` or `wait`, and an intra-module tail call jumps labels without yielding, so a CPU-bound loop can hold a scheduler indefinitely. Cross-module tail calls nest JVM frames. |
-| Tests | 359 unit/integration tests; 15 opt-in tests that need an external system or measure the machine (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Tests | 360 unit/integration tests; 15 opt-in tests that need an external system or measure the machine (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
 | CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, plus a `conformance` job that installs OTP and records the pass rate. |
-| Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond; a call across the Java/Erlang boundary costs about 108 ms, which is the scheduler's idle sleep, not Erlang. Nothing is measured against BEAM, so no speed claim is made. |
+| Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
 
 The 0.4 claim — "multi-node applications can be interpreted" — is true for
 programs written to the implemented subset, and is proven by `acceptance_demo`
@@ -191,9 +191,11 @@ These are not milestones. They start now and continue through 1.0.
   0.6, and the metric has to grow a run column once it exists.
 * **Benchmarks from 0.5.** A number recorded at every milestone makes the 1.0
   performance discussion factual. The 0.5 baseline is in `docs/benchmarks.md`:
-  sub-microsecond interpreted operations, and a 108 ms floor on every call
-  across the Java/Erlang boundary because an idle scheduler sleeps for 100 ms.
-  Closing that gap is the first item that has a measured reason to exist.
+  sub-microsecond interpreted operations, and a cross-boundary call at about
+  0.1 ms. The first measurement was 108 ms, the scheduler's idle sleep plus a
+  10 ms caller poll; both are gone, and the regression is guarded by a test.
+  The remaining 0.1 ms is two thread hand-offs, so the next step there would be
+  architectural rather than another constant to tune.
 * **CI.** Unit and corpus tests on every push; the live OTP suite and a short
   soak nightly.
 * **Documentation per feature.** No documentation milestone at the end; every

@@ -97,12 +97,11 @@ public class Module {
             process = VirtualMachine.instance().spawn(signature.module(), signature.function(), params.toList());
             ProcessRegistry.self(process);
             try {
+                // The scheduler thread finishes the process and counts the
+                // latch down. Polling every 10 ms instead put a floor of one
+                // scheduler wakeup under every call made from Java.
                 while (process.state() != ProcessState.EXITING) {
-                    try {
-                        Thread.sleep(10);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    process.awaitExit(1000);
                 }
                 Throwable failure = process.failure();
                 if (failure != null) {
