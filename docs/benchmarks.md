@@ -115,7 +115,3 @@ still catching a reintroduced poll. It was checked against the old behaviour
 No comparison against BEAM is included. Nothing here was measured against a real
 OTP node on the same machine, so no statement about being faster or slower than
 BEAM is supported yet.
-
-No comparison against BEAM is included. Nothing here was measured against a real
-OTP node on the same machine, so no statement about being faster or slower than
-BEAM is supported yet.
