@@ -1,16 +1,23 @@
 package org.jerlang.erts.etf;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.util.zip.InflaterInputStream;
 
+import org.jerlang.FunctionSignature;
+import org.jerlang.Module;
+import org.jerlang.ModuleRegistry;
 import org.jerlang.erts.erlang.Error;
+import org.jerlang.stdlib.beam_lib.LambdaInfo;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Binary;
 import org.jerlang.type.BitString;
 import org.jerlang.type.Float;
+import org.jerlang.type.Fun;
 import org.jerlang.type.ImproperList;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
@@ -48,6 +55,14 @@ public class ExternalTermReader {
 
     private Term readTerm(int tag) throws Throwable {
         switch (tag) {
+        case 80: // COMPRESSED
+            return readCompressed();
+        case 112: // NEW_FUN_EXT
+            return readNewFun();
+        case 113: // EXPORT_EXT
+            return readExportFun();
+        case 117: // FUN_EXT
+            return readFun();
         case 70: // NEW_FLOAT_EXT
             return readNewFloat();
         case 77: // BIT_BINARY_EXT
@@ -110,6 +125,106 @@ public class ExternalTermReader {
 
     private Term readNewFloat() throws IOException {
         return new Float(Double.longBitsToDouble(read8Bytes()));
+    }
+
+    /**
+     * A compressed term carries its uncompressed size and then a zlib
+     * stream. term_to_binary/2 can compress the term that follows the
+     * distribution header, so the rest of the current stream belongs to it.
+     */
+    private Term readCompressed() throws Throwable {
+        int uncompressedSize = read4Bytes();
+        byte[] compressed = inputStream.readAllBytes();
+        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(0, uncompressedSize));
+        try (InflaterInputStream inflater = new InflaterInputStream(
+            new ByteArrayInputStream(compressed))) {
+            byte[] buffer = new byte[4096];
+            int read;
+            while ((read = inflater.read(buffer)) >= 0) {
+                out.write(buffer, 0, read);
+            }
+        }
+        return new ExternalTermReader(out.toByteArray()).read();
+    }
+
+    private Term readNewFun() throws Throwable {
+        read4Bytes(); // Size, including the size field itself.
+        int arity = read1Byte();
+        byte[] uniq = new byte[16];
+        readBytes(uniq);
+        int index = read4Bytes();
+        int numFree = read4Bytes();
+        Atom module = readNode();
+        read4Bytes(); // OldIndex
+        read4Bytes(); // OldUniq
+        PID owner = readPIDTerm();
+        Term[] free = readFreeVariables(numFree);
+        return internalFun(module, index, arity, owner, free);
+    }
+
+    private Term readFun() throws Throwable {
+        int numFree = read4Bytes();
+        PID owner = readPIDTerm();
+        Atom module = readNode();
+        int index = read4Bytes();
+        read4Bytes(); // Uniq
+        Term[] free = readFreeVariables(numFree);
+        return internalFun(module, index, -1, owner, free);
+    }
+
+    private Term readExportFun() throws Throwable {
+        Atom module = readNode();
+        Term function = read();
+        if (!(function instanceof Atom)) {
+            throw new Error("EXPORT_EXT function is not an atom: " + function);
+        }
+        Term arity = read();
+        if (!(arity instanceof Integer)) {
+            throw new Error("EXPORT_EXT arity is not an integer: " + arity);
+        }
+        return new Fun(new FunctionSignature(module, (Atom) function, (Integer) arity), null);
+    }
+
+    private PID readPIDTerm() throws Throwable {
+        Term term = read();
+        if (!(term instanceof PID)) {
+            throw new Error("Expected a fun owner pid, got " + term);
+        }
+        return (PID) term;
+    }
+
+    private Term[] readFreeVariables(int numFree) throws Throwable {
+        if (numFree < 0 || numFree > 1_000_000) {
+            throw new Error("Invalid number of fun free variables: " + numFree);
+        }
+        Term[] free = new Term[numFree];
+        for (int index = 0; index < numFree; index++) {
+            free[index] = read();
+        }
+        return free;
+    }
+
+    private Fun internalFun(Atom moduleName, int index, int arity, PID owner, Term[] free)
+        throws Throwable {
+        Module module = ModuleRegistry.get(moduleName);
+        if (module == null || module.beamData() == null
+            || module.beamData().functionTableChunk() == null) {
+            throw new Error("Fun module is not loaded: " + moduleName);
+        }
+        LambdaInfo lambda = module.beamData().functionTableChunk().lambdas().get(index);
+        if (lambda == null) {
+            throw new Error("No lambda " + index + " in module " + moduleName);
+        }
+        int expectedArity = lambda.toFunctionSignature(moduleName).fun_arity().toInt()
+            - lambda.numFree();
+        if (arity >= 0 && expectedArity != arity) {
+            throw new Error("Fun arity does not match lambda " + index + " in " + moduleName);
+        }
+        if (free.length != lambda.numFree()) {
+            throw new Error("Fun free-variable count does not match lambda " + index
+                + " in " + moduleName);
+        }
+        return new Fun(module, lambda, owner, free);
     }
 
     private Term readBitBinary() throws IOException {

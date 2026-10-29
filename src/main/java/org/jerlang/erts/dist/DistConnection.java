@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jerlang.erts.etf.ExternalTermReader;
 import org.jerlang.erts.etf.ExternalTermWriter;
@@ -52,6 +53,11 @@ public final class DistConnection {
     private static final int CONNECT_TIMEOUT = 5000;
     private static final int DEFAULT_TICK_TIME_SECONDS = 60;
 
+    // OTP's connection identifiers are 32 bit integers. They only need to
+    // be unique among the connections that a monitor_nodes subscriber can
+    // observe, so a process-wide counter is enough.
+    private static final AtomicInteger NEXT_CONNECTION_ID = new AtomicInteger(1);
+
     // Control message tags, see the distribution protocol.
     private static final int LINK = 1;
     private static final int SEND = 2;
@@ -69,6 +75,8 @@ public final class DistConnection {
 
     private final Atom peer;
     private final long peerFlags;
+    private final boolean hidden;
+    private final int connectionId;
     private final Socket socket;
     private final DataInputStream in;
     private final DataOutputStream out;
@@ -76,11 +84,17 @@ public final class DistConnection {
     private final Thread ticker;
     private volatile boolean open = true;
     private volatile long lastReceived = System.currentTimeMillis();
+    private volatile Term closeReason = Atom.of("connection_closed");
 
     private DistConnection(Atom peer, long peerFlags, Socket socket, DataInputStream in,
         DataOutputStream out) {
         this.peer = peer;
         this.peerFlags = peerFlags;
+        // A hidden node does not set DFLAG_PUBLISHED, and a hidden local
+        // node makes every connection hidden, as OTP's net_kernel does.
+        this.hidden = VirtualMachine.instance().isHidden()
+            || (peerFlags & DistFlags.PUBLISHED) == 0;
+        this.connectionId = NEXT_CONNECTION_ID.getAndIncrement();
         this.socket = socket;
         this.in = in;
         this.out = out;
@@ -206,7 +220,7 @@ public final class DistConnection {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         DataOutputStream packet = new DataOutputStream(buffer);
         packet.writeByte('N');
-        packet.writeLong(DistFlags.OURS);
+        packet.writeLong(DistFlags.ours(VirtualMachine.instance().isHidden()));
         packet.writeInt(creation);
         writeShortString(packet, local.toString());
         return buffer.toByteArray();
@@ -260,6 +274,21 @@ public final class DistConnection {
 
     public boolean isOpen() {
         return open;
+    }
+
+    /** Whether this is a hidden connection (not in erlang:nodes/0). */
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    /** The identifier net_kernel:monitor_nodes/2 reports. */
+    public int connectionId() {
+        return connectionId;
+    }
+
+    /** Why the connection closed, for a nodedown_reason. */
+    public Term closeReason() {
+        return closeReason;
     }
 
     /**
@@ -587,7 +616,7 @@ public final class DistConnection {
                 }
                 if (System.currentTimeMillis() - lastReceived > timeout) {
                     debug("no traffic from " + peer + " for " + timeout + " ms");
-                    close();
+                    close(Atom.of("net_tick_timeout"));
                     return;
                 }
                 synchronized (out) {
@@ -620,9 +649,14 @@ public final class DistConnection {
     }
 
     public void close() {
+        close(Atom.of("connection_closed"));
+    }
+
+    public void close(Term reason) {
         if (!open) {
             return;
         }
+        closeReason = reason;
         open = false;
         try {
             socket.close();
@@ -630,7 +664,7 @@ public final class DistConnection {
             // Closing is best effort.
         }
         Distribution.remove(this);
-        debug("closed connection to " + peer);
+        debug("closed connection to " + peer + ": " + reason);
     }
 
     private static String hex(byte[] bytes, int count) {

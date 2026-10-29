@@ -36,8 +36,10 @@ import org.jerlang.erts.Erlang;
 import org.jerlang.erts.etf.ExternalTermReader;
 import org.jerlang.erts.etf.ExternalTermWriter;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Fun;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
+import org.jerlang.type.Map;
 import org.jerlang.type.PID;
 import org.jerlang.type.Reference;
 import org.jerlang.type.Term;
@@ -73,6 +75,7 @@ public class DistSignalsTest {
 
     private final BlockingQueue<Peer> peers = new LinkedBlockingQueue<>();
     private volatile Throwable peerFailure;
+    private volatile long nextPeerFlags = DistFlags.OURS;
 
     @Before
     public void setUp() throws Exception {
@@ -100,6 +103,7 @@ public class DistSignalsTest {
         peerSocket.close();
         System.clearProperty("jerlang.epmd.port");
         DistCookie.reset();
+        nextPeerFlags = DistFlags.OURS;
         vm.setNode(previousNode, previousCreation);
         Files.deleteIfExists(LOCAL_MODULE);
     }
@@ -114,6 +118,90 @@ public class DistSignalsTest {
 
         assertEquals(Tuple.of(Atom.of("nodeup"), PEER), call.await());
         peer.close();
+    }
+
+    @Test
+    public void monitorNodesMapReportsConnectionInfoAndReason() throws Throwable {
+        Process ready = sink(Atom.of("node_ready"));
+        Call call = call("monitor_nodes_map", ready.pid());
+        awaitMailbox(ready.pid());
+
+        Peer peer = connect();
+        peer.close();
+
+        Tuple pair = call.await().toTuple();
+        Tuple up = pair.element(1).toTuple();
+        Tuple down = pair.element(2).toTuple();
+        assertEquals(Atom.of("nodeup"), up.element(1));
+        assertEquals(PEER, up.element(2));
+        assertEquals(Atom.of("nodedown"), down.element(1));
+        assertEquals(PEER, down.element(2));
+
+        Map upInfo = up.element(3).toMap();
+        int connectionId = upInfo.get(Atom.of("connection_id")).toInteger().toInt();
+        assertTrue("the connection id must be positive", connectionId > 0);
+        assertEquals(Atom.of("visible"), upInfo.get(Atom.of("node_type")));
+        assertNull(upInfo.get(Atom.of("nodedown_reason")));
+
+        Map downInfo = down.element(3).toMap();
+        assertEquals(Integer.of(connectionId), downInfo.get(Atom.of("connection_id")));
+        assertEquals(Atom.of("visible"), downInfo.get(Atom.of("node_type")));
+        assertEquals(Atom.of("connection_closed"), downInfo.get(Atom.of("nodedown_reason")));
+    }
+
+    @Test
+    public void monitorNodesListKeepsTheInfoInListForm() throws Throwable {
+        Process ready = sink(Atom.of("node_ready"));
+        Call call = call("monitor_nodes_list", ready.pid());
+        awaitMailbox(ready.pid());
+
+        Peer peer = connect();
+        Tuple up = call.await().toTuple();
+        peer.close();
+
+        List info = up.element(3).toList();
+        assertEquals(2, info.length());
+        Tuple connection = info.head().toTuple();
+        assertEquals(Atom.of("connection_id"), connection.element(1));
+        assertTrue(connection.element(2).toInteger().toInt() > 0);
+        Tuple type = info.tail().head().toTuple();
+        assertEquals(Atom.of("node_type"), type.element(1));
+        assertEquals(Atom.of("visible"), type.element(2));
+    }
+
+    @Test
+    public void monitorNodesHiddenOnlySeesHiddenConnections() throws Throwable {
+        Process ready = sink(Atom.of("node_ready"));
+        Call call = call("monitor_nodes_hidden", ready.pid());
+        awaitMailbox(ready.pid());
+
+        nextPeerFlags = DistFlags.OURS & ~DistFlags.PUBLISHED;
+        Peer peer = connect();
+
+        Tuple up = call.await().toTuple();
+        assertEquals(Atom.of("nodeup"), up.element(1));
+        assertEquals(PEER, up.element(2));
+        assertEquals(Atom.of("hidden"), up.element(3).toMap().get(Atom.of("node_type")));
+
+        Tuple subsets = call("nodes_subset").await().toTuple();
+        assertEquals(List.of(PEER), subsets.element(1));
+        assertEquals(List.nil, subsets.element(2));
+        assertEquals(List.of(PEER), subsets.element(3));
+        peer.close();
+    }
+
+    @Test
+    public void monitorNodesRejectsUnknownOptions() throws Throwable {
+        Tuple error = call("monitor_nodes_invalid").await().toTuple();
+        assertEquals(Atom.of("error"), error.element(1));
+        Tuple detail = error.element(2).toTuple();
+        assertEquals(Atom.of("invalid_options"), detail.element(1));
+        assertTrue(detail.element(2).toMap().get(Atom.of("bogus")) != null);
+    }
+
+    @Test
+    public void monitorNodesCanUnsubscribeWithTheSameOptions() throws Throwable {
+        assertEquals(Atom.of("ok"), call("monitor_nodes_unsubscribe").await());
     }
 
     @Test
@@ -408,6 +496,53 @@ public class DistSignalsTest {
         assertNotNull("the peer did not receive MONITOR_P_EXIT", packet);
         assertEquals(Tuple.of(Integer.of(21), dead, REMOTE, reference, Atom.of("noproc")),
             packet[0]);
+        peer.close();
+    }
+
+    @Test
+    public void remoteFunSpawnSendsASerializedLambda() throws Throwable {
+        Call call = call("remote_fun_spawn", PEER, Integer.of(1));
+        Peer peer = peer();
+
+        Term[] packet = peer.next(3000);
+        assertNotNull("no SPAWN_REQUEST was sent", packet);
+        Tuple request = packet[0].toTuple();
+        assertEquals(Integer.of(29), request.element(1));
+        Reference requestId = request.element(2).toReference();
+        PID local = request.element(3).toPID();
+        Tuple mfa = request.element(5).toTuple();
+        assertEquals(Atom.of("erlang"), mfa.element(1));
+        assertEquals(Atom.of("apply"), mfa.element(2));
+        assertEquals(Integer.of(2), mfa.element(3));
+        assertEquals(List.of(Atom.of("link")), request.element(6));
+
+        List args = packet[1].toList();
+        assertEquals(2, args.length());
+        assertTrue("the fun was not encoded", args.head() instanceof Fun);
+        Fun fun = args.head().toFun();
+        assertEquals(1, fun.arity());
+        assertEquals(1, fun.savedRegisters().length);
+        assertEquals(Integer.of(1), fun.savedRegisters()[0]);
+        assertEquals(List.nil, args.tail().head());
+
+        peer.send(Tuple.of(Integer.of(31), requestId, local, Integer.of(1), REMOTE));
+        assertEquals(REMOTE, call.await());
+        peer.close();
+    }
+
+    @Test
+    public void incomingRemoteFunSpawnRunsTheDecodedLambda() throws Throwable {
+        Process sink = sink(Atom.of("fun_sink"));
+        Fun fun = Erlang.apply(Atom.of("dist_signals_demo"), Atom.of("make_notify_fun"),
+            List.of(Atom.of("fun_sink"))).toFun();
+        Peer peer = connect();
+        Reference requestId = new Reference(PEER, 45, 0);
+        Tuple mfa = Tuple.of(Atom.of("erlang"), Atom.of("apply"), Integer.of(2));
+        peer.send(Tuple.of(Integer.of(29), requestId, REMOTE, REMOTE, mfa, List.nil),
+            List.of(fun, List.nil));
+
+        awaitMailbox(sink.pid());
+        assertEquals(Atom.of("fun_ran"), sink.nextMessage());
         peer.close();
     }
 
@@ -715,7 +850,7 @@ public class DistSignalsTest {
         try {
             while (!peerSocket.isClosed()) {
                 Peer peer = new Peer(peerSocket.accept());
-                peer.handshake(COOKIE);
+                peer.handshake(COOKIE, nextPeerFlags);
                 peers.add(peer);
             }
         } catch (IOException e) {
@@ -748,7 +883,7 @@ public class DistSignalsTest {
             this.out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
         }
 
-        void handshake(String cookie) throws IOException {
+        void handshake(String cookie, long flags) throws IOException {
             byte[] namePacket = readPacket2(in);
             DataInputStream name = new DataInputStream(new ByteArrayInputStream(namePacket));
             assertEquals(78, name.readUnsignedByte()); // 'N'
@@ -762,7 +897,7 @@ public class DistSignalsTest {
             ByteArrayOutputStream challengeBuffer = new ByteArrayOutputStream();
             DataOutputStream challengePacket = new DataOutputStream(challengeBuffer);
             challengePacket.writeByte('N');
-            challengePacket.writeLong(DistFlags.OURS);
+            challengePacket.writeLong(flags);
             challengePacket.writeInt(challenge);
             challengePacket.writeInt(0);
             writeShortString(challengePacket, PEER.toString());

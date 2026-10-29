@@ -9,6 +9,7 @@ import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Fun;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
 import org.jerlang.type.Reference;
@@ -43,6 +44,8 @@ public final class SpawnRequests {
     /** Only send a spawn reply message when the operation succeeds. */
     public static final int REPLY_SUCCESS_ONLY = 3;
 
+    private static final Atom ERLANG = Atom.of("erlang");
+    private static final Atom APPLY = Atom.of("apply");
     private static final Atom LINK = Atom.of("link");
     private static final Atom MONITOR = Atom.of("monitor");
     private static final Atom REPLY = Atom.of("reply");
@@ -198,7 +201,7 @@ public final class SpawnRequests {
         }
         Process child;
         try {
-            child = VirtualMachine.instance().prepare(module, function, args.toList());
+            child = prepareChild(module, function, args.toList());
         } catch (Throwable e) {
             replyIf(connection, from, requestId, 0, SYSTEM_LIMIT, parsed.replyMode);
             return;
@@ -219,7 +222,7 @@ public final class SpawnRequests {
         Process caller = resolve(from);
         Process child;
         try {
-            child = VirtualMachine.instance().prepare(module, function, args);
+            child = prepareChild(module, function, args);
         } catch (Throwable e) {
             sendReply(from, options.replyTag, options.replyMode, requestId, SYSTEM_LIMIT);
             return;
@@ -237,6 +240,20 @@ public final class SpawnRequests {
         }
         sendReply(from, options.replyTag, options.replyMode, requestId, child.pid());
         VirtualMachine.instance().schedule(child);
+    }
+
+    /**
+     * A remote fun spawn is encoded as erlang:apply(Fun, []). The peer can
+     * not look a lambda up in the export table, so it starts the process
+     * directly from the decoded Fun instead.
+     */
+    private static Process prepareChild(Atom module, Atom function, List args) {
+        if (ERLANG.equals(module) && APPLY.equals(function) && args.length() == 2
+            && args.head() instanceof Fun && args.tail().head() instanceof List
+            && args.tail().head().toList().length() == 0) {
+            return VirtualMachine.instance().prepare((Fun) args.head());
+        }
+        return VirtualMachine.instance().prepare(module, function, args);
     }
 
     private static void reply(DistConnection connection, PID to, Reference requestId,

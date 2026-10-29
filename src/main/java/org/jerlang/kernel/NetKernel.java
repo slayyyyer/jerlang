@@ -2,8 +2,9 @@ package org.jerlang.kernel;
 
 import org.jerlang.ProcessSignals;
 import org.jerlang.erts.dist.DistNodeName;
-import org.jerlang.erts.erlang.Error;
 import org.jerlang.erts.dist.Distribution;
+import org.jerlang.erts.dist.NodeMonitorOptions;
+import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Boolean;
 import org.jerlang.type.List;
@@ -23,6 +24,7 @@ public class NetKernel {
     private static final Atom ERROR = Atom.of("error");
     private static final Atom NOTALIVE = Atom.of("notalive");
     private static final Atom IGNORED = Atom.of("ignored");
+    private static final Atom INVALID_OPTIONS = Atom.of("invalid_options");
     private static final Atom TRUE = Atom.of("true");
 
     private NetKernel() {
@@ -36,25 +38,25 @@ public class NetKernel {
     }
 
     /**
-     * The supported option container is an empty list or an empty map.
-     * JErlang has no hidden nodes and no nodedown reason details yet.
+     * Subscribe the caller to nodeup/nodedown messages. The options are
+     * parsed by NodeMonitorOptions; an invalid option list is reported as
+     * {error, {invalid_options, Options}}, as net_kernel does.
      */
     public static Term monitor_nodes(Term flag, Term options) {
-        if (!(flag instanceof Atom) || !(Boolean.am_true.equals(flag) || Boolean.am_false.equals(flag))) {
-            throw Error.badarg;
+        if (!(flag instanceof Atom)
+            || !(Boolean.am_true.equals(flag) || Boolean.am_false.equals(flag))) {
+            return ERROR;
         }
-        if (options instanceof List && options.toList().length() == 0) {
-            // No options.
-        } else if (options instanceof org.jerlang.type.Map
-            && ((org.jerlang.type.Map) options).keys().length() == 0) {
-            // Empty options map.
-        } else {
-            throw Error.badarg;
+        NodeMonitorOptions parsed;
+        try {
+            parsed = NodeMonitorOptions.parse(options);
+        } catch (IllegalArgumentException e) {
+            return Tuple.of(ERROR, Tuple.of(INVALID_OPTIONS, options));
         }
         if (!DistNodeName.isValid(VirtualMachine.instance().node())) {
             return Tuple.of(ERROR, NOTALIVE);
         }
-        ProcessSignals.self().monitorNodeEvents(Boolean.am_true.equals(flag));
+        ProcessSignals.self().monitorNodeEvents(parsed, Boolean.am_true.equals(flag));
         return OK;
     }
 

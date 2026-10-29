@@ -9,8 +9,10 @@ import java.util.Map;
 
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.stdlib.beam_lib.BeamData;
+import org.jerlang.stdlib.beam_lib.BeamLibMD5;
 import org.jerlang.stdlib.beam_lib.LambdaInfo;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Binary;
 import org.jerlang.type.Fun;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
@@ -53,6 +55,7 @@ public class Module {
     private final Map<FunctionSignature, Fun> exported_functions;
     private Map<java.lang.Integer, FunctionSignature> functionsByLabel;
     private final Map<FunctionSignature, Integer> labels;
+    private byte[] md5;
 
     public Module(BeamData beamData, Atom name) {
         this.beamData = beamData;
@@ -125,6 +128,35 @@ public class Module {
 
     public BeamData beamData() {
         return beamData;
+    }
+
+    /**
+     * The 16 byte BeamLibMD5 value that NEW_FUN_EXT uses to identify the
+     * module version. A module compiled from an in-memory or Java class
+     * has no BEAM file, so its funs use a zero digest.
+     */
+    public synchronized byte[] md5() {
+        if (md5 != null) {
+            return md5;
+        }
+        md5 = new byte[16];
+        if (beamData == null) {
+            return md5;
+        }
+        try {
+            Term result = BeamLibMD5.md5_1(Str.of(name.toString() + ".beam"));
+            if (result instanceof Tuple && ((Tuple) result).arity() == 2
+                && Atom.of("ok").equals(((Tuple) result).element(1))) {
+                Tuple info = ((Tuple) result).element(2).toTuple();
+                if (info.arity() == 2 && info.element(2) instanceof Binary) {
+                    md5 = ((Binary) info.element(2)).toByteArray();
+                }
+            }
+        } catch (Throwable e) {
+            // A missing or unreadable file leaves the zero digest. Funs
+            // still work locally and between JErlang nodes.
+        }
+        return md5;
     }
 
     /**

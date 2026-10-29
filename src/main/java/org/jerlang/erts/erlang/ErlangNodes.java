@@ -35,8 +35,8 @@ public class ErlangNodes {
     }
 
     /**
-     * Return a subset of the connected nodes. JErlang does not implement
-     * hidden nodes, so `connected` and `visible` are the same list.
+     * Return the subset of connected nodes selected by `connected`,
+     * `visible` or `hidden`.
      *
      * http://www.erlang.org/doc/man/erlang.html#nodes-1
      */
@@ -45,11 +45,8 @@ public class ErlangNodes {
             throw Error.badarg;
         }
         Atom atom = (Atom) type;
-        if (CONNECTED.equals(atom) || VISIBLE.equals(atom)) {
-            return Distribution.nodes();
-        }
-        if (HIDDEN.equals(atom)) {
-            return List.nil;
+        if (CONNECTED.equals(atom) || VISIBLE.equals(atom) || HIDDEN.equals(atom)) {
+            return Distribution.nodes(atom);
         }
         throw Error.badarg;
     }

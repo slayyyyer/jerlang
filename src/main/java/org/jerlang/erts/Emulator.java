@@ -86,6 +86,9 @@ public class Emulator {
         case SETCOOKIE:
             DistCookie.setCookie(args[++index]);
             return index;
+        case HIDDEN:
+            VirtualMachine.instance().setHidden(true);
+            return index;
         default:
             throw new Error("Unsupported init flag: " + flag);
         }

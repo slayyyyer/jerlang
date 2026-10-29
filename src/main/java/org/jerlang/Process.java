@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.jerlang.erts.dist.Distribution;
+import org.jerlang.erts.dist.NodeMonitorOptions;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
 import org.jerlang.type.BitString;
@@ -135,7 +136,12 @@ public class Process extends ProcessOrPort {
     // the subscription, as Erlang/OTP does, so a later reconnection does
     // not produce another nodedown for the same call.
     private final Map<Atom, java.lang.Integer> monitoredNodes = new ConcurrentHashMap<>();
-    private volatile boolean monitorNodeEvents = false;
+
+    // One count per net_kernel:monitor_nodes(Flag, Options) subscription.
+    // The options are part of the key, as in OTP, so unsubscribing with
+    // the same options removes every subscription made with them.
+    private final Map<NodeMonitorOptions, java.lang.Integer> nodeMonitorSubscriptions =
+        new ConcurrentHashMap<>();
 
     private volatile boolean trapExit = false;
     private volatile Term pendingExit = null;
@@ -678,7 +684,8 @@ public class Process extends ProcessOrPort {
                 // The connection went away between connect/1 and the
                 // subscription. Clear the subscription and report it as
                 // down instead of keeping a monitor on a dead node.
-                nodeDown(node);
+                decrementNodeSubscription(node);
+                send(Tuple.of(Atom.of("nodedown"), node));
             }
             return;
         }
@@ -687,13 +694,30 @@ public class Process extends ProcessOrPort {
 
     /**
      * Subscribe to the node events that net_kernel:monitor_nodes/1
-     * delivers. Unlike monitor_node/2 this subscription survives a
-     * disconnect and reports nodeup when the node comes back.
+     * delivers. This is the legacy form with only visible nodes and
+     * two-element messages.
      */
     public boolean monitorNodeEvents(boolean flag) {
-        boolean previous = monitorNodeEvents;
-        monitorNodeEvents = flag;
-        return previous;
+        return monitorNodeEvents(NodeMonitorOptions.legacy(), flag) > 0;
+    }
+
+    /**
+     * Add or remove one subscription for a set of monitor_nodes options.
+     * Returns the number of subscriptions that existed before the call.
+     */
+    public int monitorNodeEvents(NodeMonitorOptions options, boolean flag) {
+        synchronized (nodeMonitorSubscriptions) {
+            java.lang.Integer previous = nodeMonitorSubscriptions.get(options);
+            int count = previous == null ? 0 : previous;
+            if (flag) {
+                nodeMonitorSubscriptions.put(options, count + 1);
+            } else if (count <= 1) {
+                nodeMonitorSubscriptions.remove(options);
+            } else {
+                nodeMonitorSubscriptions.put(options, count - 1);
+            }
+            return count;
+        }
     }
 
     private synchronized int decrementNodeSubscription(Atom node) {
@@ -710,35 +734,50 @@ public class Process extends ProcessOrPort {
     }
 
     /**
-     * A distribution connection to `node` was established.
+     * A distribution connection to `node` was established. Every
+     * monitor_node subscription gets its two-element message, and every
+     * monitor_nodes subscription whose node_type includes this connection
+     * gets the message shape it asked for.
      */
-    public void nodeUp(Atom node) {
+    public void nodeUp(Atom node, boolean hidden, int connectionId) {
         java.lang.Integer count = monitoredNodes.get(node);
         if (count != null) {
             for (int index = 0; index < count; index++) {
                 send(Tuple.of(Atom.of("nodeup"), node));
             }
         }
-        if (monitorNodeEvents) {
-            send(Tuple.of(Atom.of("nodeup"), node));
+        for (Map.Entry<NodeMonitorOptions, java.lang.Integer> entry
+            : nodeMonitorSubscriptions.entrySet()) {
+            if (entry.getKey().includes(hidden)) {
+                for (int index = 0; index < entry.getValue(); index++) {
+                    send(entry.getKey().message(Atom.of("nodeup"), node, hidden,
+                        connectionId, null));
+                }
+            }
         }
     }
 
     /**
      * A distribution connection to `node` is gone. Every outstanding
-     * monitor_node subscription gets one nodedown, and a monitor_nodes
-     * subscriber gets one as well. monitor_node subscriptions are
-     * one-shot and are cleared here.
+     * monitor_node subscription gets one nodedown, and monitor_nodes
+     * subscribers get the message shape their options asked for.
+     * monitor_node subscriptions are one-shot and are cleared here.
      */
-    public void nodeDown(Atom node) {
+    public void nodeDown(Atom node, boolean hidden, int connectionId, Term reason) {
         java.lang.Integer count = monitoredNodes.remove(node);
         if (count != null) {
             for (int index = 0; index < count; index++) {
                 send(Tuple.of(Atom.of("nodedown"), node));
             }
         }
-        if (monitorNodeEvents) {
-            send(Tuple.of(Atom.of("nodedown"), node));
+        for (Map.Entry<NodeMonitorOptions, java.lang.Integer> entry
+            : nodeMonitorSubscriptions.entrySet()) {
+            if (entry.getKey().includes(hidden)) {
+                for (int index = 0; index < entry.getValue(); index++) {
+                    send(entry.getKey().message(Atom.of("nodedown"), node, hidden,
+                        connectionId, reason));
+                }
+            }
         }
     }
 

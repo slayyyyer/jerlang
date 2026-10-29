@@ -3,7 +3,10 @@ package org.jerlang.erts.etf;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.math.BigInteger;
+import java.util.zip.DeflaterOutputStream;
 
 import org.jerlang.type.Atom;
 import org.jerlang.type.Binary;
@@ -167,8 +170,27 @@ public class ExternalTermFormatTest {
         assertEquals(Str.of("héllo"), roundtrip(Str.of("héllo")));
     }
 
+    @Test
+    public void decodesCompressedTerms() throws Exception {
+        Tuple tuple = Tuple.of(Atom.of("compressed"), Integer.of(42));
+        byte[] encoded = ExternalTermWriter.encode(tuple).toByteArray();
+        ByteArrayOutputStream compressed = new ByteArrayOutputStream();
+        DeflaterOutputStream deflater = new DeflaterOutputStream(compressed);
+        deflater.write(encoded);
+        deflater.close();
+
+        ByteArrayOutputStream packet = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(packet);
+        out.writeByte(80);
+        out.writeInt(encoded.length);
+        out.write(compressed.toByteArray());
+        out.flush();
+
+        assertEquals(tuple, decode(new Binary(packet.toByteArray())));
+    }
+
     @Test(expected = org.jerlang.erts.erlang.Error.class)
-    public void refusesTermsWithoutAnExternalRepresentation() {
+    public void refusesPortsWithoutAnExternalRepresentation() {
         ExternalTermWriter.encode(new org.jerlang.type.PortID(1));
     }
 

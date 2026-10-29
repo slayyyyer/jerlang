@@ -409,8 +409,16 @@ public class Erlang {
         return ErlangSpawn.spawn_4(node, m, f, a);
     }
 
+    public static PID spawn(Atom node, Fun fun) {
+        return ErlangSpawn.spawn_2(node, fun);
+    }
+
     public static Term spawn_link(Fun fun) {
         return ErlangSpawn.spawn_link_1(fun);
+    }
+
+    public static Term spawn_link(Atom node, Fun fun) {
+        return ErlangSpawn.spawn_link_2(node, fun);
     }
 
     public static Term spawn_link(Atom m, Atom f, List a) {
@@ -427,6 +435,14 @@ public class Erlang {
 
     public static Term spawn_monitor(Atom m, Atom f, List a) {
         return ErlangSpawn.spawn_monitor_3(m, f, a);
+    }
+
+    public static Term spawn_monitor(Atom node, Fun fun) {
+        return ErlangSpawn.spawn_monitor_2(node, fun);
+    }
+
+    public static Term spawn_opt(Atom node, Fun fun, List options) {
+        return ErlangSpawn.spawn_opt_3(node, fun, options);
     }
 
     public static Term spawn_opt(Fun fun, List options) {

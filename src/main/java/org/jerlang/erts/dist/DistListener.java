@@ -157,7 +157,7 @@ public final class DistListener {
         ByteArrayOutputStream challengeBuffer = new ByteArrayOutputStream();
         DataOutputStream challenge = new DataOutputStream(challengeBuffer);
         challenge.writeByte('N');
-        challenge.writeLong(DistFlags.OURS);
+        challenge.writeLong(DistFlags.ours(VirtualMachine.instance().isHidden()));
         challenge.writeInt(ourChallenge);
         challenge.writeInt(VirtualMachine.instance().nodeCreation());
         writeShortString(challenge, node.toString());

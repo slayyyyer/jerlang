@@ -32,6 +32,7 @@ public class VirtualMachine {
     // Erlang node that was not started with -name or -sname.
     private volatile Atom node = Atom.of("nonode@nohost");
     private volatile int nodeCreation = 0;
+    private volatile boolean hidden = false;
 
     private static final VirtualMachine VIRTUAL_MACHINE = new VirtualMachine();
 
@@ -110,6 +111,18 @@ public class VirtualMachine {
     public void setNode(Atom node, int creation) {
         this.node = node;
         this.nodeCreation = creation;
+    }
+
+    /**
+     * Whether this node is hidden, as -hidden and net_kernel:start/2
+     * declare it. A hidden node does not announce itself as published.
+     */
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    public void setHidden(boolean hidden) {
+        this.hidden = hidden;
     }
 
     public Process resolve(PID pid) {

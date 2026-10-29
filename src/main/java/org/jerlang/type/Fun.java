@@ -17,18 +17,33 @@ public class Fun extends Term {
 
     private Module module;
     private LambdaInfo lambdaInfo;
+    private PID owner;
     private int explicitLabel = -1;
     private Term[] saved_registers = {};
 
     public Fun(org.jerlang.Process proc, Module module, LambdaInfo lambdaInfo) {
+        this(proc, module, lambdaInfo, null);
+    }
+
+    /**
+     * A fun created by make_fun2 or make_fun3. The owning process and the
+     * lambda table entry are kept so the fun can be encoded in NEW_FUN_EXT.
+     */
+    public Fun(org.jerlang.Process proc, Module module, LambdaInfo lambdaInfo,
+        Term[] savedRegisters) {
         this(lambdaInfo.toFunctionSignature(module.name()), null);
         this.module = module;
         this.lambdaInfo = lambdaInfo;
-
-        int numFree = lambdaInfo.numFree();
-        if (numFree > 0) {
-            saved_registers = new Term[numFree];
-            System.arraycopy(proc.registers(), 0, saved_registers, 0, numFree);
+        this.owner = proc == null ? null : proc.pid();
+        this.explicitLabel = lambdaInfo.label().toInt();
+        if (savedRegisters != null) {
+            this.saved_registers = savedRegisters;
+        } else {
+            int numFree = lambdaInfo.numFree();
+            if (numFree > 0) {
+                saved_registers = new Term[numFree];
+                System.arraycopy(proc.registers(), 0, saved_registers, 0, numFree);
+            }
         }
     }
 
@@ -37,6 +52,19 @@ public class Fun extends Term {
         this.module = module;
         this.explicitLabel = label;
         this.saved_registers = savedRegisters;
+    }
+
+    /**
+     * Rebuild an internal fun from NEW_FUN_EXT/FUN_EXT. The lambda table
+     * entry supplies the label and free-variable count.
+     */
+    public Fun(Module module, LambdaInfo lambdaInfo, PID owner, Term[] savedRegisters) {
+        this(lambdaInfo.toFunctionSignature(module.name()), null);
+        this.module = module;
+        this.lambdaInfo = lambdaInfo;
+        this.owner = owner;
+        this.explicitLabel = lambdaInfo.label().toInt();
+        this.saved_registers = savedRegisters == null ? new Term[0] : savedRegisters;
     }
 
     public Fun(FunctionSignature signature, MethodHandle handle) {
@@ -65,6 +93,28 @@ public class Fun extends Term {
 
     public FunctionSignature signature() {
         return signature;
+    }
+
+    public Module module() {
+        return module;
+    }
+
+    public LambdaInfo lambdaInfo() {
+        return lambdaInfo;
+    }
+
+    /** The arity callers see, excluding the captured free variables. */
+    public int arity() {
+        return signature.fun_arity().toInt() - saved_registers.length;
+    }
+
+    public PID owner() {
+        return owner;
+    }
+
+    /** Whether this is an internal lambda with a lambda table entry. */
+    public boolean isInternal() {
+        return lambdaInfo != null;
     }
 
     public Fun toFun() {

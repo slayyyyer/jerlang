@@ -4,11 +4,15 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 
+import org.jerlang.FunctionSignature;
+import org.jerlang.Module;
 import org.jerlang.erts.erlang.Error;
+import org.jerlang.stdlib.beam_lib.LambdaInfo;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Binary;
 import org.jerlang.type.BitString;
 import org.jerlang.type.Float;
+import org.jerlang.type.Fun;
 import org.jerlang.type.ImproperList;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
@@ -49,6 +53,8 @@ public class ExternalTermWriter {
     private static final int SMALL_BIG_EXT = 110;
     private static final int LARGE_BIG_EXT = 111;
     private static final int MAP_EXT = 116;
+    private static final int NEW_FUN_EXT = 112;
+    private static final int EXPORT_EXT = 113;
     private static final int ATOM_UTF8_EXT = 118;
     private static final int SMALL_ATOM_UTF8_EXT = 119;
 
@@ -97,6 +103,8 @@ public class ExternalTermWriter {
             writePID((PID) term);
         } else if (term instanceof Reference) {
             writeReference((Reference) term);
+        } else if (term instanceof Fun) {
+            writeFun((Fun) term);
         } else {
             throw new Error("term_to_binary/1 can not encode " + term);
         }
@@ -304,8 +312,59 @@ public class ExternalTermWriter {
         }
     }
 
+    /**
+     * Internal funs use NEW_FUN_EXT, which carries the lambda table index,
+     * the module digest, the creator pid and the free variables. External
+     * funs (fun M:F/A) use EXPORT_EXT.
+     */
+    private void writeFun(Fun fun) {
+        if (fun.isInternal()) {
+            writeNewFun(fun);
+        } else {
+            writeExportFun(fun);
+        }
+    }
+
+    private void writeNewFun(Fun fun) {
+        Module module = fun.module();
+        LambdaInfo lambda = fun.lambdaInfo();
+        if (module == null || lambda == null) {
+            throw new Error("term_to_binary/1 can not encode an incomplete fun");
+        }
+        Term[] free = fun.savedRegisters();
+        ExternalTermWriter body = new ExternalTermWriter();
+        body.writeByte(fun.arity());
+        body.writeBytes(module.md5());
+        body.writeInt(lambda.index());
+        body.writeInt(free.length);
+        body.writeTerm(module.name());
+        body.writeInt(lambda.oldIndex());
+        body.writeInt(lambda.oldUnique());
+        body.writeTerm(fun.owner() == null ? new PID(0) : fun.owner());
+        for (Term term : free) {
+            body.writeTerm(term);
+        }
+        byte[] bytes = body.toByteArray();
+        writeByte(NEW_FUN_EXT);
+        // Size includes the four-byte size field itself.
+        writeInt(4 + bytes.length);
+        buffer.write(bytes, 0, bytes.length);
+    }
+
+    private void writeExportFun(Fun fun) {
+        FunctionSignature signature = fun.signature();
+        writeByte(EXPORT_EXT);
+        writeTerm(signature.module());
+        writeTerm(signature.function());
+        writeTerm(signature.fun_arity());
+    }
+
     private void writeByte(int value) {
         buffer.write(value & 0xFF);
+    }
+
+    private void writeBytes(byte[] bytes) {
+        buffer.write(bytes, 0, bytes.length);
     }
 
     private void writeShort(int value) {

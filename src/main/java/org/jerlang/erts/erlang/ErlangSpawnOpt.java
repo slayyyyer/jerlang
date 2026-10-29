@@ -13,6 +13,9 @@ public class ErlangSpawnOpt {
         case 2:
             return ErlangSpawn.spawn_opt_2(params.head().toFun(),
                 params.tail().head().toList());
+        case 3:
+            return ErlangSpawn.spawn_opt_3(params.head().toAtom(),
+                params.tail().head().toFun(), params.tail().tail().head().toList());
         case 4:
             return ErlangSpawn.spawn_opt_4(params.head().toAtom(),
                 params.tail().head().toAtom(),

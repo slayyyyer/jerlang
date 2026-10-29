@@ -30,6 +30,8 @@ public class ErlangSpawn {
         switch (params.length()) {
         case 1:
             return spawn_1(params.head().toFun());
+        case 2:
+            return spawn_2(params.head().toAtom(), params.tail().head().toFun());
         case 3:
             Atom m = params.head().toAtom();
             params = params.tail();
@@ -63,6 +65,27 @@ public class ErlangSpawn {
 
     public static PID spawn_3(Atom module, Atom fun, List args) {
         return VirtualMachine.instance().spawn(module, fun, args).pid();
+    }
+
+    /**
+     * Spawn a fun on another node. The peer receives an erlang:apply/2
+     * request whose first argument is the serialized fun, so the fun's
+     * lambda table entry and free variables cross the node boundary.
+     */
+    public static PID spawn_2(Atom node, Fun fun) {
+        return (PID) spawnFun(node, fun, new SpawnOptions(0), true);
+    }
+
+    public static Term spawn_link_2(Atom node, Fun fun) {
+        return spawnFun(node, fun, new SpawnOptions(SpawnOptions.LINK), false);
+    }
+
+    public static Term spawn_monitor_2(Atom node, Fun fun) {
+        return spawnFun(node, fun, new SpawnOptions(SpawnOptions.MONITOR), false);
+    }
+
+    public static Term spawn_opt_3(Atom node, Fun fun, List options) {
+        return spawnFun(node, fun, SpawnOptions.parse(options), false);
     }
 
     public static Term spawn_link_1(Fun fun) {
@@ -129,6 +152,45 @@ public class ErlangSpawn {
             throw new Error(reply);
         }
         return parsed.monitor ? Tuple.of(reply, requestId) : reply;
+    }
+
+    private static Term spawnFun(Atom node, Fun fun, SpawnOptions options, boolean uselessPid) {
+        VirtualMachine vm = VirtualMachine.instance();
+        if (node.equals(vm.node())) {
+            return start(vm.prepare(fun), options);
+        }
+        if (!Distribution.connect(node)) {
+            if (uselessPid) {
+                return vm.uselessPid();
+            }
+            throw new Error(Atom.of("noconnection"));
+        }
+        CompletableFuture<Term> result = new CompletableFuture<>();
+        Reference requestId = SpawnRequests.request(ProcessSignals.self().pid(), node,
+            Atom.of("erlang"), Atom.of("apply"), List.of(fun, List.nil),
+            options.forwarded(), result);
+        Term reply;
+        try {
+            reply = result.get(REMOTE_SPAWN_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            if (uselessPid) {
+                return vm.uselessPid();
+            }
+            throw new Error(Atom.of("noconnection"));
+        } catch (ExecutionException | TimeoutException e) {
+            if (uselessPid) {
+                return vm.uselessPid();
+            }
+            throw new Error(Atom.of("noconnection"));
+        }
+        if (!(reply instanceof PID)) {
+            if (uselessPid) {
+                return vm.uselessPid();
+            }
+            throw new Error(reply);
+        }
+        return options.monitor ? Tuple.of(reply, requestId) : reply;
     }
 
     private static Term start(Process child, SpawnOptions options) {

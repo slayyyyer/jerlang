@@ -45,9 +45,26 @@ public class LambdaInfo extends Tuple {
         return tuple.element(3).toInteger();
     }
 
+    /** The index into the module's lambda table. */
+    public int index() {
+        Tuple tuple = element(2).toTuple();
+        return tuple.element(4).toInteger().toInt();
+    }
+
     public int numFree() {
         Tuple tuple = element(2).toTuple();
         return tuple.element(5).toInteger().toInt();
+    }
+
+    /** The old-style index stored in the first lambda table field. */
+    public int oldIndex() {
+        return element(1).toInteger().toInt();
+    }
+
+    /** The old-style uniqueness value stored in the lambda table. */
+    public int oldUnique() {
+        Tuple tuple = element(2).toTuple();
+        return tuple.element(6).toInteger().toInt();
     }
 
 }

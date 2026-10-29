@@ -11,10 +11,12 @@
          demonitor_then_wait/1, monitor_remote_name/1, remote_exit/1, trapped_link/1,
          link_unreachable/1, noconnection_link/1, noconnection_monitor/1,
          spawn_waiter/0, wait_for_go/0, spawn_crasher/0, crash_after_go/0,
-         monitor_nodes_wait/1, monitor_node_wait/2, monitor_node_twice_wait/2,
+         monitor_nodes_wait/1, monitor_nodes_map/1, monitor_nodes_list/1,
+         monitor_nodes_hidden/1, monitor_nodes_invalid/0, monitor_nodes_unsubscribe/0,
+         monitor_node_wait/2, monitor_node_twice_wait/2,
          monitor_node_missing/1, nodes_subset/0, is_alive/0, connect_node/1,
          rpc_call/4, rpc_call/5, rpc_cast/4, rpc_target/0,
-         rpc_cast_target/0]).
+         rpc_cast_target/0, remote_fun_spawn/2, make_notify_fun/1]).
 
 %% link/1 sends a LINK signal and stays linked until the peer exits.
 link_remote(Remote) ->
@@ -138,6 +140,53 @@ monitor_nodes_wait(Ready) ->
         timeout
     end.
 
+%% A map subscription asks for the three-element form. Wait for both
+%% events so the test can inspect the connection id, node type and reason.
+monitor_nodes_map(Ready) ->
+    ok = net_kernel:monitor_nodes(true, #{connection_id => true,
+                                         node_type => all,
+                                         nodedown_reason => true}),
+    Ready ! {ready, self()},
+    receive
+        {nodeup, _, _} = Up ->
+            receive
+                {nodedown, _, _} = Down -> {Up, Down}
+            after 5000 ->
+                {Up, timeout}
+            end
+    after 5000 ->
+        timeout
+    end.
+
+%% A list subscription keeps the info in list form.
+monitor_nodes_list(Ready) ->
+    ok = net_kernel:monitor_nodes(true, [connection_id, {node_type, all},
+                                         nodedown_reason]),
+    Ready ! {ready, self()},
+    receive
+        {nodeup, _, _} = Up -> Up
+    after 5000 ->
+        timeout
+    end.
+
+%% Only hidden connections should reach this subscription.
+monitor_nodes_hidden(Ready) ->
+    ok = net_kernel:monitor_nodes(true, #{node_type => hidden}),
+    Ready ! {ready, self()},
+    receive
+        {nodeup, _, _} = Up -> Up
+    after 5000 ->
+        timeout
+    end.
+
+monitor_nodes_invalid() ->
+    net_kernel:monitor_nodes(true, #{bogus => true}).
+
+monitor_nodes_unsubscribe() ->
+    ok = net_kernel:monitor_nodes(true, #{connection_id => true}),
+    ok = net_kernel:monitor_nodes(false, #{connection_id => true}),
+    ok.
+
 monitor_node_wait(Node, Ready) ->
     true = monitor_node(Node, true),
     Ready ! {ready, self()},
@@ -198,3 +247,13 @@ rpc_target() ->
 rpc_cast_target() ->
     rpc_sink ! cast_done,
     ok.
+
+%% Send a fun with a free variable to another node. The remote side has
+%% to rebuild the lambda from NEW_FUN_EXT before it can run it.
+remote_fun_spawn(Node, N) ->
+    F = fun(X) -> X + N end,
+    spawn_link(Node, F).
+
+%% A zero-arity fun with a captured name, for an incoming spawn request.
+make_notify_fun(Name) ->
+    fun() -> Name ! fun_ran, ok end.

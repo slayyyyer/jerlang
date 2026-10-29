@@ -34,6 +34,10 @@ public final class Distribution {
 
     private static final Atom DOWN = Atom.of("DOWN");
     private static final Atom PROCESS = Atom.of("process");
+    private static final Atom CONNECTED = Atom.of("connected");
+    private static final Atom VISIBLE = Atom.of("visible");
+    private static final Atom HIDDEN = Atom.of("hidden");
+    private static final Atom DISCONNECT = Atom.of("disconnect");
 
     private Distribution() {
     }
@@ -60,7 +64,7 @@ public final class Distribution {
      */
     static void add(DistConnection connection) {
         if (install(connection)) {
-            notifyNodeUp(connection.peer());
+            notifyNodeUp(connection);
         }
     }
 
@@ -115,7 +119,7 @@ public final class Distribution {
             try {
                 DistConnection connection = DistConnection.open(node);
                 if (install(connection)) {
-                    notifyNodeUp(node);
+                    notifyNodeUp(connection);
                 }
                 return true;
             } catch (IOException | RuntimeException e) {
@@ -133,12 +137,25 @@ public final class Distribution {
     }
 
     /**
-     * The nodes this node has a connection to, as erlang:nodes/0 reports it.
+     * The visible nodes this node has a connection to, as erlang:nodes/0
+     * reports them. Hidden connections are omitted.
      */
     public static List nodes() {
+        return nodes(VISIBLE);
+    }
+
+    /**
+     * The subset of connected nodes selected by erlang:nodes/1.
+     * `connected` includes hidden nodes, `visible` excludes them and
+     * `hidden` contains only them.
+     */
+    public static List nodes(Atom type) {
+        boolean all = CONNECTED.equals(type);
+        boolean hidden = HIDDEN.equals(type);
         ArrayList<Atom> nodes = new ArrayList<>();
         for (Map.Entry<Atom, DistConnection> entry : CONNECTIONS.entrySet()) {
-            if (entry.getValue().isOpen()) {
+            DistConnection connection = entry.getValue();
+            if (connection.isOpen() && (all || connection.isHidden() == hidden)) {
                 nodes.add(entry.getKey());
             }
         }
@@ -481,10 +498,10 @@ public final class Distribution {
     public static void disconnect(Atom node) {
         DistConnection connection = CONNECTIONS.remove(node);
         if (connection != null) {
-            connection.close();
+            connection.close(DISCONNECT);
             fail(node);
             if (!isConnected(node)) {
-                notifyNodeDown(node);
+                notifyNodeDown(connection, DISCONNECT);
             }
         }
     }
@@ -505,23 +522,25 @@ public final class Distribution {
             // A replacement connection keeps the node up; otherwise the
             // node is down for every monitor_node/monitor_nodes subscriber.
             if (!isConnected(node)) {
-                notifyNodeDown(node);
+                notifyNodeDown(connection, connection.closeReason());
             }
         }
     }
 
-    private static void notifyNodeUp(Atom node) {
+    private static void notifyNodeUp(DistConnection connection) {
         for (ProcessOrPort process : ProcessRegistry.all()) {
             if (process instanceof Process) {
-                ((Process) process).nodeUp(node);
+                ((Process) process).nodeUp(connection.peer(), connection.isHidden(),
+                    connection.connectionId());
             }
         }
     }
 
-    private static void notifyNodeDown(Atom node) {
+    private static void notifyNodeDown(DistConnection connection, Term reason) {
         for (ProcessOrPort process : ProcessRegistry.all()) {
             if (process instanceof Process) {
-                ((Process) process).nodeDown(node);
+                ((Process) process).nodeDown(connection.peer(), connection.isHidden(),
+                    connection.connectionId(), reason);
             }
         }
     }

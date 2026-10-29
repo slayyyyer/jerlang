@@ -94,6 +94,15 @@ public final class DistFlags {
      */
     public static final long OURS = PUBLISHED | MANDATORY | DIST_MONITOR | DIST_MONITOR_NAME | SPAWN;
 
+    /**
+     * The flags a node presents. A hidden node clears DFLAG_PUBLISHED, so
+     * the peer knows that this connection is not part of the visible node
+     * set, exactly as OTP's hidden nodes do.
+     */
+    public static long ours(boolean hidden) {
+        return hidden ? OURS & ~PUBLISHED : OURS;
+    }
+
     private DistFlags() {
     }
 
