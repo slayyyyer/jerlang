@@ -48,9 +48,9 @@ What works today:
 * `gen_tcp`, `gen_udp` and `inet`, including IPv6 and multicast.
 * A reflective Java bridge (`java:new`, `java:call`, fields, release) and an
   embedding entry point for Java calling Erlang.
-* A 357-test suite, of which 13 are opt-in (a live OTP node, and a pass-rate
-  run over an OTP installation), run by GitHub Actions on every push and pull
-  request.
+* A 359-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
+  over an OTP installation, and the benchmarks. GitHub Actions runs the rest on
+  every push and pull request.
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP
   29.1.2 load, and every instruction in them has a handler. A separate CI job
   measures that rate, so the number is checked, not claimed.
@@ -157,11 +157,19 @@ an OTP 29 node with the cookie from
 mvn test -Dtest=OtpInteropTest -Djerlang.dist.otp=true
 ```
 
+The benchmarks are opt-in too, because they measure the machine rather than the
+build:
+
+```
+mvn -Dtest=BenchTest -Djerlang.bench=true test
+```
+
 ## Documentation
 
 * [docs/roadmap.md](docs/roadmap.md) — milestones from 0.4 to a production release
 * [docs/beam-compatibility.md](docs/beam-compatibility.md) — opcode and language coverage
 * [docs/distribution.md](docs/distribution.md) — distribution protocol and sockets
+* [docs/benchmarks.md](docs/benchmarks.md) — the recorded performance baseline
 
 ## Contribute
 
