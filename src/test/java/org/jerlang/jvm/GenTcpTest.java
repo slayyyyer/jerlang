@@ -82,6 +82,11 @@ public class GenTcpTest {
         assertEquals(Atom.of("ok"), apply("half_close"));
     }
 
+    @Test
+    public void testSendTimeoutAndSendTimeoutCloseFromCompiledErlang() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("send_timeout"));
+    }
+
     private Term apply(String function) throws Throwable {
         return Erlang.apply(Atom.of("gen_tcp_demo"), Atom.of(function), List.nil);
     }

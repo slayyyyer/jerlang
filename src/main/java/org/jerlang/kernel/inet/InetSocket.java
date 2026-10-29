@@ -9,6 +9,13 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.jerlang.Process;
 import org.jerlang.ProcessRegistry;
@@ -45,6 +52,7 @@ public final class InetSocket implements InetEndpoint {
     private final OutputStream out;
     private final Object readLock = new Object();
     private final Object writeLock = new Object();
+    private final ExecutorService sendExecutor;
 
     private volatile InetOptions options;
     private volatile PID owner;
@@ -59,6 +67,11 @@ public final class InetSocket implements InetEndpoint {
         this.socket = socket;
         this.options = options;
         this.owner = owner;
+        this.sendExecutor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "jerlang-tcp-send-" + this.id);
+            thread.setDaemon(true);
+            return thread;
+        });
         if (socket != null) {
             in = socket.getInputStream();
             out = socket.getOutputStream();
@@ -147,18 +160,65 @@ public final class InetSocket implements InetEndpoint {
         if (socket == null) {
             throw Error.badarg;
         }
-        synchronized (writeLock) {
-            if (closed) {
-                return InetSupport.error(closedAtom);
-            }
-            try {
-                out.write(data);
-                out.flush();
-                return ok;
-            } catch (IOException e) {
-                return InetSupport.error(closedAtom);
+        int timeout = options.sendTimeout;
+        if (timeout < 0) {
+            synchronized (writeLock) {
+                return write(data);
             }
         }
+        if (closed) {
+            return InetSupport.error(closedAtom);
+        }
+        Future<Term> pending;
+        try {
+            pending = sendExecutor.submit(() -> {
+                synchronized (writeLock) {
+                    return write(data);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            return InetSupport.error(closedAtom);
+        }
+        try {
+            return pending.get(timeout, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            // A blocked write can not be interrupted from Java, so cancel
+            // the queued send and let a close unblock a running one.
+            pending.cancel(true);
+            if (options.sendTimeoutClose) {
+                closeAfterSendTimeout();
+            }
+            return InetSupport.error(Atom.of("timeout"));
+        } catch (ExecutionException e) {
+            return InetSupport.error(closedAtom);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return InetSupport.error(closedAtom);
+        }
+    }
+
+    private Term write(byte[] data) {
+        if (closed) {
+            return InetSupport.error(closedAtom);
+        }
+        try {
+            out.write(data);
+            out.flush();
+            return ok;
+        } catch (IOException e) {
+            return InetSupport.error(closedAtom);
+        }
+    }
+
+    /**
+     * send_timeout_close closes the socket when a send times out, which
+     * also tells an active owner that the socket is gone.
+     */
+    private void closeAfterSendTimeout() {
+        if (!closed && options.active != InetOptions.Active.FALSE) {
+            deliver(Tuple.of(tcpClosed, id));
+        }
+        close();
     }
 
     public Term setopts(List opts) {
@@ -270,6 +330,7 @@ public final class InetSocket implements InetEndpoint {
         if (running != null) {
             running.interrupt();
         }
+        sendExecutor.shutdownNow();
     }
 
     public void start() {

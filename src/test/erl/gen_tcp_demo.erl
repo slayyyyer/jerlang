@@ -6,7 +6,7 @@
 
 -export([roundtrip/0, active_roundtrip/0, list_roundtrip/0, timeout_test/0,
          getopts_test/0, address_helpers/0, listen_default/0,
-         socket_options/0, half_close/0]).
+         socket_options/0, half_close/0, send_timeout/0]).
 
 roundtrip() ->
     {ok, Listen} = gen_tcp:listen(0, [binary, {active, false}, {reuseaddr, true}]),
@@ -119,6 +119,48 @@ socket_options() ->
     ok = gen_tcp:close(Client),
     ok = gen_tcp:close(Listen),
     ok.
+
+%% A peer that never reads fills the send buffer. send_timeout bounds the
+%% send, and send_timeout_close closes the socket when it fires.
+send_timeout() ->
+    {ok, Listen} = gen_tcp:listen(0, [binary, {active, false},
+                                      {recbuf, 4096}]),
+    {ok, {_, Port}} = inet:sockname(Listen),
+    {ok, Client} = gen_tcp:connect({127, 0, 0, 1}, Port,
+        [binary, {active, false}, {sndbuf, 4096},
+         {send_timeout, 200}]),
+    {ok, Server} = gen_tcp:accept(Listen, 2000),
+    {ok, [{send_timeout, 200}]} = inet:getopts(Client, [send_timeout]),
+    {ok, []} = inet:getopts(Client, [send_timeout_close]),
+    Payload = binary:copy(<<"x">>, 262144),
+    timeout = fill_send_buffer(Client, Payload, 100),
+    ok = inet:setopts(Client, [{send_timeout_close, true}]),
+    {ok, [{send_timeout_close, true}]} =
+        inet:getopts(Client, [send_timeout_close]),
+    timeout = fill_send_buffer(Client, Payload, 3),
+    ok = wait_for_peer_close(Server, 5),
+    ok = gen_tcp:close(Client),
+    ok = gen_tcp:close(Server),
+    ok = gen_tcp:close(Listen),
+    ok.
+
+fill_send_buffer(_Socket, _Payload, 0) ->
+    no_timeout;
+fill_send_buffer(Socket, Payload, N) ->
+    case gen_tcp:send(Socket, Payload) of
+        ok -> fill_send_buffer(Socket, Payload, N - 1);
+        {error, timeout} -> timeout
+    end.
+
+%% send_timeout_close closes the socket, so the peer reads end of file.
+wait_for_peer_close(_Socket, 0) ->
+    error(peer_not_closed);
+wait_for_peer_close(Socket, N) ->
+    case gen_tcp:recv(Socket, 65536, 2000) of
+        {ok, _} -> wait_for_peer_close(Socket, N);
+        {error, closed} -> ok;
+        {error, timeout} -> wait_for_peer_close(Socket, N - 1)
+    end.
 
 %% With exit_on_close false a half-closed peer still receives our writes.
 half_close() ->

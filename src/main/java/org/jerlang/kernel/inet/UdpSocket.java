@@ -187,7 +187,7 @@ public final class UdpSocket implements InetEndpoint {
 
     @Override
     public Term getopts(List requested) {
-        return InetSupport.ok(options.toList(requested));
+        return InetSupport.ok(InetOptions.withoutSendTimeout(options.toList(requested)));
     }
 
     @Override

@@ -63,6 +63,9 @@ public final class InetOptions {
     public int tos = 0;
     public boolean exitOnClose = true;
     public boolean delaySend = false;
+    /** Milliseconds a send may block; -1 is infinity, the OTP default. */
+    public int sendTimeout = -1;
+    public boolean sendTimeoutClose = false;
     public byte[] ip = null;
     public boolean inet6 = false;
     public int multicastTtl = -1;
@@ -95,6 +98,8 @@ public final class InetOptions {
         copy.tos = tos;
         copy.exitOnClose = exitOnClose;
         copy.delaySend = delaySend;
+        copy.sendTimeout = sendTimeout;
+        copy.sendTimeoutClose = sendTimeoutClose;
         copy.ip = ip == null ? null : ip.clone();
         copy.inet6 = inet6;
         copy.multicastTtl = multicastTtl;
@@ -179,6 +184,12 @@ public final class InetOptions {
             case "delay_send":
                 delaySend = truth(value);
                 break;
+            case "send_timeout":
+                sendTimeout = sendTimeout(value);
+                break;
+            case "send_timeout_close":
+                sendTimeoutClose = truth(value);
+                break;
             case "ip":
                 ip = InetSupport.addressBytes(value);
                 inet6 = ip.length == 16;
@@ -208,8 +219,7 @@ public final class InetOptions {
                 memberships.add(membership(value, true));
                 break;
             default:
-                // exit_on_close, buffer, recbuf, sndbuf, send_timeout and
-                // friends do not change the Java socket semantics here.
+                // An option this node does not act on is ignored.
                 break;
             }
         }
@@ -257,6 +267,21 @@ public final class InetOptions {
 
     private static boolean truth(Term value) {
         return "true".equals(value.toString());
+    }
+
+    /**
+     * A send timeout is a non-negative number of milliseconds or the atom
+     * infinity. OTP rejects a negative value.
+     */
+    private static int sendTimeout(Term value) {
+        if ("infinity".equals(value.toString())) {
+            return -1;
+        }
+        int millis = value.toInteger().toInt();
+        if (millis < 0) {
+            throw Error.badarg;
+        }
+        return millis;
     }
 
     private static Membership membership(Term value, boolean drop) {
@@ -351,6 +376,11 @@ public final class InetOptions {
             return truth(exitOnClose);
         case "delay_send":
             return truth(delaySend);
+        case "send_timeout":
+            return sendTimeout < 0 ? Atom.of("infinity") : Integer.of(sendTimeout);
+        case "send_timeout_close":
+            // OTP only stores the flag when it is enabled.
+            return sendTimeoutClose ? Atom.of("true") : null;
         case "linger":
             return linger
                 ? Tuple.of(Atom.of("true"), Integer.of(lingerSeconds))
@@ -475,6 +505,30 @@ public final class InetOptions {
         } catch (IOException ignored) {
             // Option reporting is best effort.
         }
+    }
+
+    /**
+     * A connectionless socket accepts the send timeout options but does
+     * not report them, matching inet:getopts/2 on a UDP socket.
+     */
+    public static List withoutSendTimeout(List options) {
+        java.util.List<Term> kept = new java.util.ArrayList<>();
+        while (options.length() > 0) {
+            Term option = options.head();
+            options = options.tail();
+            if (option instanceof Tuple && ((Tuple) option).arity() == 2) {
+                String name = ((Tuple) option).element(1).toString();
+                if ("send_timeout".equals(name) || "send_timeout_close".equals(name)) {
+                    continue;
+                }
+            }
+            kept.add(option);
+        }
+        List result = List.nil;
+        for (int index = kept.size() - 1; index >= 0; index--) {
+            result = new List(kept.get(index), result);
+        }
+        return result;
     }
 
     public Term activeTerm() {
