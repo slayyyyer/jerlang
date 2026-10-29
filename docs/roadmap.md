@@ -7,15 +7,15 @@ what the code does today, not against the original intent.
 
 | Area | State |
 |------|-------|
-| BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` loads `<module>.beam` from the working directory only; `-pa` and `ERL_LIBS` have flag entries but no code path uses them. |
+| BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` searches a code path built from the working directory, `-pa`, `-pz` and `ERL_LIBS`, and `code:which/1`, `lib_dir/1,2`, `priv_dir/1`, `root_dir/0`, `load_file/1`, `is_loaded/1`, `get_path/0`, `add_patha/1`, `add_pathz/1` and `del_path/1` report and change it. `code:ensure_loaded/1`, sticky directories and the parallel loader are missing. |
 | Interpreter | 161 opcode handlers; 191 opcodes known, 30 of them deprecated. Binary matching and construction, records and record updates, `get_hd`/`get_tl`, `bif3`, the coverage line opcodes and the native-record opcodes all have handlers. Native records as a data type are not implemented: constructing one raises a named error. |
 | BIFs | 75 `erlang` BIF modules. `lists`, `maps`, `binary`, `string`, `unicode`-adjacent helpers, `base64`, `math`, `timer`, `beam_lib` exist. |
 | Kernel | `gen_tcp`, `gen_udp`, `inet`, `net_adm`, `net_kernel`, `rpc`, `os`, and a `file` module with three functions. |
 | Distribution | OTP handshake, ETF (including funs, ports, compressed terms), links, monitors, remote spawn, `erpc`/`rpc`, node monitors. No `rex`, no `global`, no TLS distribution, no atom cache. |
 | ETS | `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all` for `set` tables, with named tables, `{keypos, N}` and exact key equality. No `match`, `select`, and no `ordered_set`, `bag` or `duplicate_bag`. |
-| OTP behaviours | None. There is no `gen_server`, `supervisor`, `application`, `proc_lib`, `logger`, `code`, or `gen_statem`. |
+| OTP behaviours | None. There is no `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` or `gen_statem`. The `code` module exists as a search path and loader, not as OTP's code server process. |
 | Scheduler | One scheduler thread per processor with no balancing. There are no reductions: a function activation runs to `return` or `wait`, and an intra-module tail call jumps labels without yielding, so a CPU-bound loop can hold a scheduler indefinitely. Cross-module tail calls nest JVM frames. |
-| Tests | 390 unit/integration tests; 15 opt-in tests that need an external system or measure the machine (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Tests | 399 unit/integration tests; 15 opt-in tests that need an external system or measure the machine (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
 | CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, plus a `conformance` job that installs OTP and records the pass rate. |
 | Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
@@ -86,8 +86,12 @@ try/catch, funs), runs with zero unsupported opcodes in CI. This is
 **Goal:** OTP's own `gen_server`, `supervisor`, `application`, `proc_lib`,
 `logger` and `code` modules run unmodified from an OTP 29 installation.
 
-* Module search path: `-pa`, `ERL_LIBS`, `code:which/1`, `code:lib_dir/1`,
-  `code:priv_dir/1`, `code:load_file/1`.
+**Status: in progress.**
+
+* ~~Module search path: `-pa`, `-pz`, `ERL_LIBS`, `code:which/1`,
+  `code:lib_dir/1,2`, `code:priv_dir/1`, `code:load_file/1` and
+  `code:is_loaded/1`.~~ `code:ensure_loaded/1`, sticky directories and the
+  parallel loader are still missing, and nothing reads a boot script yet.
 * Fill the BIF gaps the standard library needs. Expect a long tail in `file`,
   `io`, `unicode`, `binary`, `erlang:error/3`, `proc_lib`, and `logger`.
 * Implement ETS for real: `insert`, `lookup`, `delete`, `match`, `select`,
@@ -221,7 +225,8 @@ In order, each one a small pull request with a test. Steps 1 and 2 are done
 2. ~~`bs_get_tail`, `bs_get_position`, `bs_set_position`.~~
 3. ~~`bs_create_bin`, then `update_record`, `badrecord`, `get_hd`, `get_tl`,
    `bif3`.~~
-4. Module search path: `-pa`, `ERL_LIBS`, `code:which/1`, `code:lib_dir/1`.
+4. ~~Module search path: `-pa`, `-pz`, `ERL_LIBS`, `code:which/1`,
+   `code:lib_dir/1`, `code:priv_dir/1`, `code:load_file/1`.~~
 5. Boot OTP's `gen_server` with a minimal callback module; write down every gap
    it hits as the first conformance report.
 6. ~~ETS `insert`/`lookup`/`delete`/`tab2list`/`update_counter` for `set`,

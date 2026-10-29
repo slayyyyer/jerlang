@@ -7,7 +7,8 @@ to run one, and what still does not work.
 ## Compiling
 
 JErlang has no compiler of its own, so `.beam` files are produced with `erlc`
-from an Erlang/OTP installation and loaded from the working directory:
+from an Erlang/OTP installation and loaded from the working directory or from
+another directory on the code path:
 
 ```
 erlc -o src/test/resources src/test/erl/bridge_demo.erl

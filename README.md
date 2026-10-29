@@ -48,7 +48,12 @@ What works today:
 * `gen_tcp`, `gen_udp` and `inet`, including IPv6 and multicast.
 * A reflective Java bridge (`java:new`, `java:call`, fields, release) and an
   embedding entry point for Java calling Erlang.
-* A 390-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
+* A code server. `-pa`, `-pz` and `ERL_LIBS` build a search path, and
+  `code:which/1`, `code:lib_dir/1,2`, `code:priv_dir/1`, `code:root_dir/0`,
+  `code:load_file/1`, `code:is_loaded/1`, `code:get_path/0`,
+  `code:add_patha/1`, `code:add_pathz/1` and `code:del_path/1` report and use
+  it. Modules load from any directory on the path, not just the working one.
+* A 399-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
   over an OTP installation, and the benchmarks. GitHub Actions runs the rest on
   every push and pull request.
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP
@@ -65,10 +70,11 @@ What does not work yet:
   `{keypos, N}`, and exact key equality, so `1` and `1.0` are different keys,
   but there is no `match`, `select`, `ordered_set`, `bag` or `duplicate_bag`.
 * The OTP behaviours and most of the standard library: there is no `gen_server`,
-  `supervisor`, `application`, `logger` or `code` module.
+  `supervisor`, `application` or `logger` module.
 * Fair scheduling. There are no reductions, so a CPU-bound loop can hold a
   scheduler while other processes wait.
-* A module search path. Modules are loaded from the working directory only.
+* The rest of the `code` module: there is no `code:ensure_loaded/1`,
+  `code:replace_path/2`, sticky directory or parallel loader.
 
 [docs/beam-compatibility.md](docs/beam-compatibility.md) keeps the per-opcode
 notes and documents the one remaining language-feature gap.
@@ -82,7 +88,7 @@ notes and documents the one remaining language-feature gap.
 |0.3    |Language                  |Most BEAM opcodes are implemented                                |Done   |
 |0.4    |Network                   |Distribution and sockets work against OTP 29                     |Done   |
 |0.5    |Language completeness     |A corpus of constructs runs with no unsupported opcode           |Done   |
-|0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |Planned|
+|0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |In progress|
 |0.7    |Runtime and concurrency   |Preemption, timer bounds, no leaked processes under stress       |Planned|
 |0.8    |Interop and embedding     |Java↔Erlang examples in CI and a frozen API                      |Planned|
 |0.9    |Cluster and operations    |Metrics, reconnection and graceful shutdown under load           |Planned|
@@ -131,7 +137,8 @@ The bridge's type mapping and handle lifetime are not frozen yet; that is the
 ## Compiled Erlang
 
 JErlang does not compile Erlang source. Compile it with `erlc` and load the
-resulting `.beam` from the working directory:
+resulting `.beam` from the working directory or from a directory that `-pa`,
+`-pz` or `ERL_LIBS` puts on the code path:
 
 ```
 erlc -o src/test/resources src/test/erl/bridge_demo.erl

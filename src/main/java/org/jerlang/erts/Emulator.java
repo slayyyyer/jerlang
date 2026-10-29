@@ -86,12 +86,33 @@ public class Emulator {
         case SETCOOKIE:
             DistCookie.setCookie(args[++index]);
             return index;
+        case PA:
+            return parseCodePathFlag(args, index, true);
+        case PZ:
+            return parseCodePathFlag(args, index, false);
         case HIDDEN:
             VirtualMachine.instance().setHidden(true);
             return index;
         default:
             throw new Error("Unsupported init flag: " + flag);
         }
+    }
+
+    /**
+     * -pa and -pz take every directory up to the next flag, like erl does.
+     * The directories keep their order: -pa a b searches a before b.
+     */
+    private static int parseCodePathFlag(String[] args, int index, boolean front) {
+        java.util.List<String> directories = new java.util.ArrayList<>();
+        while (index + 1 < args.length && !args[index + 1].startsWith("-")) {
+            directories.add(args[++index]);
+        }
+        if (front) {
+            org.jerlang.CodePaths.addPathsa(directories);
+        } else {
+            org.jerlang.CodePaths.addPathsz(directories);
+        }
+        return index;
     }
 
     private static int parseNodeFlag(String[] args, int index, boolean longNames) {

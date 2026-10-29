@@ -1,5 +1,6 @@
 package org.jerlang;
 
+import java.io.File;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -57,6 +58,7 @@ public class Module {
     private final java.util.Set<FunctionSignature> native_functions;
     private Map<java.lang.Integer, FunctionSignature> functionsByLabel;
     private final Map<FunctionSignature, Integer> labels;
+    private File beamFile;
     private byte[] md5;
 
     public Module(BeamData beamData, Atom name) {
@@ -139,6 +141,18 @@ public class Module {
     }
 
     /**
+     * The BEAM file this module was loaded from, or null when it is
+     * implemented by the runtime.
+     */
+    public File beamFile() {
+        return beamFile;
+    }
+
+    public void setBeamFile(File beamFile) {
+        this.beamFile = beamFile;
+    }
+
+    /**
      * The 16 byte BeamLibMD5 value that NEW_FUN_EXT uses to identify the
      * module version. A module compiled from an in-memory or Java class
      * has no BEAM file, so its funs use a zero digest.
@@ -152,7 +166,7 @@ public class Module {
             return md5;
         }
         try {
-            Term result = BeamLibMD5.md5_1(Str.of(name.toString() + ".beam"));
+            Term result = BeamLibMD5.md5_1(Str.of(beamPath()));
             if (result instanceof Tuple && ((Tuple) result).arity() == 2
                 && Atom.of("ok").equals(((Tuple) result).element(1))) {
                 Tuple info = ((Tuple) result).element(2).toTuple();
@@ -187,6 +201,17 @@ public class Module {
             info = info.tail();
         }
         return null;
+    }
+
+    /**
+     * The file the module digest is read from. The code path decides where a
+     * module was found, so the digest must follow the same file.
+     */
+    private String beamPath() {
+        if (beamFile != null) {
+            return beamFile.getPath();
+        }
+        return name.toString() + ".beam";
     }
 
     /**

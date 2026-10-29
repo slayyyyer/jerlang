@@ -24,6 +24,7 @@ import org.jerlang.kernel.Rpc;
 import org.jerlang.stdlib.Base64;
 import org.jerlang.stdlib.BeamLib;
 import org.jerlang.stdlib.Binary;
+import org.jerlang.stdlib.Code;
 import org.jerlang.stdlib.ErlInternal;
 import org.jerlang.stdlib.Ets;
 import org.jerlang.stdlib.IO;
@@ -54,10 +55,15 @@ public class ModuleRegistry {
 
     public ModuleRegistry() {
         modules = new HashMap<>();
+        registerBuiltins();
+    }
+
+    private void registerBuiltins() {
         // TODO: Auto-register modules by reflection
         init(Base64.class).export();
         init(BeamLib.class).export();
         init(Binary.class).export();
+        init(Code.class).export();
         init(Erlang.class).export();
         init(Erpc.class).export();
         init(ErlInternal.class).export();
@@ -104,6 +110,23 @@ public class ModuleRegistry {
 
     public static ModuleRegistry instance() {
         return instance;
+    }
+
+    /**
+     * The module that is already loaded, without loading anything. This is
+     * what code:which/1 and code:is_loaded/1 report on.
+     */
+    public static Module loaded(Atom module) {
+        return instance.modules.get(module);
+    }
+
+    /**
+     * Drop every loaded module and go back to the built-ins. Used by tests,
+     * which load different BEAM files under the same module names.
+     */
+    public static void reset() {
+        instance.modules.clear();
+        instance.registerBuiltins();
     }
 
     public static void register(Module module) {
