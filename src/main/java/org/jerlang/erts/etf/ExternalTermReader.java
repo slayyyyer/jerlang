@@ -160,8 +160,9 @@ public class ExternalTermReader {
         int index = read4Bytes();
         int numFree = read4Bytes();
         Atom module = readNode();
-        read4Bytes(); // OldIndex
-        read4Bytes(); // OldUniq
+        // OldIndex and OldUniq are integer terms, not raw 32 bit fields.
+        readIntegerTerm();
+        readIntegerTerm();
         PID owner = readPIDTerm();
         Term[] free = readFreeVariables(numFree);
         return internalFun(module, index, arity, owner, free);
@@ -188,6 +189,13 @@ public class ExternalTermReader {
             throw new Error("EXPORT_EXT arity is not an integer: " + arity);
         }
         return new Fun(new FunctionSignature(module, (Atom) function, (Integer) arity), null);
+    }
+
+    private void readIntegerTerm() throws Throwable {
+        Term term = read();
+        if (!(term instanceof Integer)) {
+            throw new Error("Expected an integer, got " + term);
+        }
     }
 
     private PID readPIDTerm() throws Throwable {

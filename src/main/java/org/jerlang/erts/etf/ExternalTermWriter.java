@@ -342,8 +342,10 @@ public class ExternalTermWriter {
         body.writeInt(lambda.index());
         body.writeInt(free.length);
         body.writeTerm(module.name());
-        body.writeInt(lambda.oldIndex());
-        body.writeInt(lambda.oldUnique());
+        // OldIndex and OldUniq are integer terms, not raw 32 bit fields.
+        // OTP's decoder reads them with the normal term decoder.
+        body.writeTerm(Integer.of(lambda.oldIndex()));
+        body.writeTerm(Integer.of(lambda.oldUnique()));
         body.writeTerm(fun.owner() == null ? new PID(0) : fun.owner());
         for (Term term : free) {
             body.writeTerm(term);
