@@ -24,14 +24,19 @@ public class GetTupleElement {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
         Term destination = i.arg(2);
+        Tuple tuple = i.arg(0).toArg(proc).toTuple();
+        Integer element = i.arg(1).toInteger();
+        Term value = tuple.element(element.toInt() + 1);
         if (destination.isXRegister()) {
-            Tuple tuple = i.arg(0).toArg(proc).toTuple();
-            Integer element = i.arg(1).toInteger();
-            proc.setX(destination.toRegisterIndex(), tuple.element(element.toInt() + 1));
-            return null;
+            proc.setX(destination.toRegisterIndex(), value);
+        } else if (destination.isYRegister()) {
+            proc.setY(destination.toRegisterIndex(), value);
+        } else if (destination.isFRegister()) {
+            proc.setFR(destination.toRegisterIndex(), value.toFloat());
         } else {
             throw new Error("Not implemented: " + i);
         }
+        return null;
     }
 
 }

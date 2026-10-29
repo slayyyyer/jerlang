@@ -1,5 +1,6 @@
 package org.jerlang.kernel.net_adm;
 
+import org.jerlang.erts.dist.Distribution;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
 import org.jerlang.type.List;
@@ -26,7 +27,7 @@ public class NetAdmPing {
      * http://www.erlang.org/doc/man/net_adm.html#ping-1
      */
     public static Atom ping_1(Atom node) {
-        return pang;
+        return Distribution.connect(node) ? pong : pang;
     }
 
 }

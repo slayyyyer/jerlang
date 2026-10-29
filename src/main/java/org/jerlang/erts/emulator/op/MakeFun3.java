@@ -43,7 +43,7 @@ public class MakeFun3 {
             freeVariables = freeVariables.tail();
         }
 
-        Fun fun = new Fun(m, signature, lambda.label().toInt(), saved);
+        Fun fun = new Fun(proc, m, lambda, saved);
         Swap.set(proc, destination, fun);
         return null;
     }

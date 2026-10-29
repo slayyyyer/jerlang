@@ -21,31 +21,19 @@ public class PutList {
         Term tailArg = i.arg(1);
         Term destination = i.arg(2);
 
-        if (!destination.isXRegister()) {
-            throw new Error("Unsupported: " + i);
-        }
-
-        Term head;
-        if (headArg.isXRegister()) {
-            head = proc.getX(headArg.toRegisterIndex());
-        } else if (headArg.isYRegister()) {
-            head = proc.getY(headArg.toRegisterIndex());
+        // The head can be a literal (OTP 29 uses a literal tuple when
+        // building an option list); the tail can be a literal list or a
+        // register holding one.
+        Term head = headArg.toArg(proc);
+        List tail = tailArg.toArg(proc).toList();
+        List list = new List(head, tail);
+        if (destination.isXRegister()) {
+            proc.setX(destination.toRegisterIndex(), list);
+        } else if (destination.isYRegister()) {
+            proc.setY(destination.toRegisterIndex(), list);
         } else {
             throw new Error("Unsupported: " + i);
         }
-
-        List tail;
-        if (tailArg.isXRegister()) {
-            tail = proc.getX(tailArg.toRegisterIndex()).toList();
-        } else if (tailArg.isYRegister()) {
-            tail = proc.getY(tailArg.toRegisterIndex()).toList();
-        } else if (tailArg.isList()) {
-            tail = tailArg.toList();
-        } else {
-            throw new Error("Unsupported: " + i);
-        }
-
-        proc.setX(destination.toRegisterIndex(), new List(head, tail));
         return null;
     }
 

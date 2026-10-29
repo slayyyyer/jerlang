@@ -1,5 +1,6 @@
 package org.jerlang.erts.erlang;
 
+import org.jerlang.type.Atom;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
 
@@ -24,7 +25,9 @@ public class ErlangThrow {
      * http://www.erlang.org/doc/man/erlang.html#throw-1
      */
     public static Term throw_1(Term term) throws Error {
-        throw new Error(term);
+        // A throw is its own exception class, so catch throw:Value matches
+        // it and an uncaught throw is reported as {nocatch, Value}.
+        throw new Error(Atom.of("throw"), term);
     }
 
 }

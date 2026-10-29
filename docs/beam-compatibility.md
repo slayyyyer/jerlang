@@ -68,6 +68,11 @@ rejects the module before decoding.
 | `call_fun2` | 178 | Calling anonymous functions (OTP 24+) | Tag and type operands are ignored |
 | `build_stacktrace` | 160 | `try ... catch Class:Reason:Stack` (OTP 22+) | Normalises the recorded frame list |
 | `raw_raise` | 161 | `erlang:raise/3` in a catch clause (OTP 22+) | Class, reason and stacktrace are re-raised unchanged |
+| `is_tagged_tuple` | 159 | Tuple patterns and record tests (OTP 22+) | Checks arity and the first element |
+| `recv_marker_bind` | 173 | A second `receive` in one function (OTP 28+) | Records nothing: `Process.receivePosition` tracks the scan position |
+| `recv_marker_clear` | 174 | Leaving a marked `receive` | Nothing to clear, for the same reason |
+| `recv_marker_reserve` | 175 | A second `receive` in one function (OTP 28+) | Allocates the marker reference |
+| `recv_marker_use` | 176 | A second `receive` in one function (OTP 28+) | Falls through to the `loop_rec` that follows it |
 
 `put_list` also had to accept a literal tail, which is how an empty list is
 encoded when building a list from a literal and a register.
@@ -75,6 +80,22 @@ encoded when building a list from a literal and a register.
 Instruction arguments also gained the extended tag 5, a typed register
 `{tr,Register,Type}`. The type is only used by the JIT, but it has to be
 decoded to stay in sync with the instruction stream.
+
+OTP 28 also made the heap need of `allocate_heap` (and `test_heap`) a list of
+heap fragments such as `{alloc, [{words, 0}, {floats, 0}, {funs, 1}]}`
+instead of a word count. The JVM manages the heap, so the interpreter reads
+only the stack need and the live-register count and ignores the fragment
+description.
+
+### Receive scan position
+
+`loop_rec_end` used to remove the head of the mailbox. When the first message
+did not match a receive clause, it was therefore lost before a later receive
+could see it. `Process` now keeps `receivePosition` while a receive scans the
+mailbox: `loop_rec_end` advances it, `remove_message` removes the message at
+that position and resets the scan, and a timeout resets it as well. This is
+what lets `spawn_opt(..., [link, monitor])` receive the `DOWN` that follows an
+`EXIT` in the same mailbox.
 
 ## Fun calls
 
@@ -91,6 +112,20 @@ because it resolves the atom and the unique value into the instruction.
 interpreter loop advances past it. Every call through a fun therefore skipped
 the instruction after the call: in `funs_demo`, `run/0` skipped the `swap` that
 moved the fun into the argument register and passed a number instead.
+
+### Fun identity on the wire
+
+`term_to_binary/1` writes an internal fun as `NEW_FUN_EXT`, which names the
+module version the fun belongs to by a 16 byte digest and the index of the
+lambda in the module's function table. The digest is the value
+`beam_lib:md5/1` returns, so it has to be computed the way `beam_lib`
+computes it: over the significant chunks in the order `md5_chunks/0` lists
+them, not in file order, with the `OldUniq` of every lambda table record
+replaced by zero. `OldIndex` and `OldUniq` themselves are ordinary integer
+terms in the term stream. A receiver checks the digest against the module
+it has loaded and rejects a mismatch with `badfun`, so a node that holds
+an older compile of a module can not run a fun that was built from a
+newer one.
 
 ## Tail calls
 
@@ -125,6 +160,27 @@ continuation pointer saved at the `try`, so the catch clause returns to the
 right caller. A `catch` expression has no handler code of its own and continues
 after the caught call, so it leaves the frame alone.
 
+An exception that reaches the top of a process terminates that process with
+its reason instead of stopping the virtual machine. The scheduler then sends
+the reason to the process's links as exit signals and to its monitors as
+`DOWN` messages.
+
+The scheduler also prints an Erlang-style error report, on standard output
+like OTP's default logger handler, with the stacktrace captured at the raise:
+
+```text
+=ERROR REPORT==== 2026-10-28::17:00:00.000000 ===
+Error in process <0.33.0> with exit value:
+{{badmatch,2},[{crash_demo,crash_now,1,[{file,"crash_demo.erl"},{line,19}]}]}
+```
+
+The reason carried to links and monitors is the same value printed here. An
+uncaught error terminates the process with `{Reason, Stacktrace}`, and an
+uncaught `throw` with `{{nocatch, Value}, Stacktrace}`; `erlang:throw/1`
+raises the `throw` class that makes the `nocatch` wrapper possible. `exit/1`
+and a process killed by an exit signal keep their plain reason, and because
+they are normal ways to stop, print nothing.
+
 ## Stack frames
 
 `Process` keeps one activation per Erlang function call. A frame is recorded
@@ -155,12 +211,10 @@ emit them, because that is what decides which programs can run.
 
 | Number | Opcode | Needed for |
 |-------:|--------|------------|
-| 159 | `is_tagged_tuple` | Record tests and record patterns |
 | 162, 163 | `get_hd`, `get_tl` | OTP 26 `hd`/`tl` optimizations |
 | 165 | `bs_get_tail` | Binary matching |
 | 166, 170 | `bs_start_match3`, `bs_start_match4` | Binary matching (OTP 23+) |
 | 167, 168 | `bs_get_position`, `bs_set_position` | Binary matching |
-| 173-176 | `recv_marker_*` | `receive` in current compilers |
 | 177 | `bs_create_bin` | Binary construction (OTP 26+) |
 | 180, 181 | `badrecord`, `update_record` | Record updates |
 | 182 | `bs_match` | Binary matching |

@@ -22,11 +22,18 @@ public class AllocateHeap {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
         Integer stack = i.arg(0).toInteger();
-        Integer heap = i.arg(1).toInteger();
+        // The heap need is either a word count or, since OTP 28, an
+        // {alloc, [{words,N}, {floats,N}, {funs,N}]} description. The
+        // JVM heap is managed by Java, so only the stack need matters.
+        int heap = 0;
+        Term heapNeed = i.arg(1);
+        if (heapNeed instanceof Integer) {
+            heap = ((Integer) heapNeed).toInt();
+        }
         Integer live = i.arg(2).toInteger();
 
         if (stack.toInt() > 0) {
-            proc.allocate_heap(stack.toInt(), heap.toInt(), live.toInt());
+            proc.allocate_heap(stack.toInt(), heap, live.toInt());
         }
 
         proc.storeCP();

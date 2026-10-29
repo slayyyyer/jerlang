@@ -9,7 +9,10 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 import org.jerlang.erts.Erlang;
+import org.jerlang.erts.etf.ExternalTermReader;
+import org.jerlang.erts.etf.ExternalTermWriter;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Binary;
 import org.jerlang.type.Fun;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
@@ -56,6 +59,22 @@ public class FunsTest {
         assertEquals(Atom.of("funs_demo"), result.toFun().signature().module());
         assertEquals(Atom.of("-adder/1-fun-0-"), result.toFun().signature().function());
         assertEquals(2, result.toFun().signature().fun_arity().toInt());
+    }
+
+    @Test
+    public void testExternalTermFormatRoundTripsAFunWithFreeVariables() throws Throwable {
+        Fun fun = Erlang.apply(Atom.of("funs_demo"), Atom.of("adder"),
+            List.of(Integer.of(5))).toFun();
+
+        Binary encoded = ExternalTermWriter.encode(fun);
+        Fun decoded = new ExternalTermReader(encoded.toByteArray()).read().toFun();
+
+        assertEquals(fun.signature(), decoded.signature());
+        assertEquals(1, decoded.savedRegisters().length);
+        assertEquals(Integer.of(5), decoded.savedRegisters()[0]);
+        // twice(F, 1) = F(F(1)) = 11 when F adds 5.
+        assertEquals(Integer.of(11), Erlang.apply(Atom.of("funs_demo"),
+            Atom.of("twice"), List.of(decoded, Integer.of(1))));
     }
 
 }

@@ -26,7 +26,12 @@ public class CallLast {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
         Integer deallocate = i.arg(2).toInteger();
-        // A tail call replaces the current activation.
+        // A tail call replaces the current activation. Allocate saved the
+        // continuation pointer of this frame, so the replaced activation
+        // has to drop it; call_last only occurs when a frame was allocated.
+        if (deallocate.toInt() > 0) {
+            proc.restoreCP();
+        }
         proc.popFrame();
         FunctionSignature callee = m.functionAtLabel(i.arg(1).toRegisterIndex().toInt());
         if (callee != null) {

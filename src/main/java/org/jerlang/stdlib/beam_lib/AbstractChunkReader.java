@@ -2,6 +2,7 @@ package org.jerlang.stdlib.beam_lib;
 
 import java.io.DataInputStream;
 
+import org.jerlang.erts.etf.ExternalTermReader;
 import org.jerlang.type.Term;
 
 /**

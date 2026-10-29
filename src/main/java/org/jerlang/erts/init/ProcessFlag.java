@@ -1,31 +1,26 @@
 package org.jerlang.erts.init;
 
+import org.jerlang.Process;
 import org.jerlang.type.Atom;
 
 public class ProcessFlag {
 
-    public static boolean process_flag(Atom flag, boolean value) {
-        switch (flag.toString()) {
-        case "trap_exit":
-            return process_flag_trap_exit(value);
-        default:
-            // TODO: throw error
-            return false;
-        }
+    private ProcessFlag() {
     }
 
     /**
-     * When trap_exit is set to true, exit signals arriving to a process
-     * are converted to {'EXIT', From, Reason} messages, which can be
-     * received as ordinary messages. If trap_exit is set to false, the
-     * process exits if it receives an exit signal other than normal and
-     * the exit signal is propagated to its linked processes.
-     * Application processes should normally not trap exits.
-     *
-     * Returns the old value of the flag.
+     * Set a process flag. Returns the previous value, which is what
+     * process_flag/2 returns to Erlang code.
      */
-    private static boolean process_flag_trap_exit(boolean value) {
-        return true; // TODO: implementation missing
+    public static boolean process_flag(Process process, Atom flag, boolean value) {
+        switch (flag.toString()) {
+        case "trap_exit":
+            return process.setTrapExit(value);
+        case "monitor_nodes":
+            return process.monitorNodeEvents(value);
+        default:
+            return false;
+        }
     }
 
 }

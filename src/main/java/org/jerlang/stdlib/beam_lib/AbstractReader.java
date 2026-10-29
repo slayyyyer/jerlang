@@ -148,12 +148,12 @@ public class AbstractReader {
         BigInteger n = BigInteger.ZERO;
         for (byte x : bytes) {
             n = n.shiftLeft(8);
-            n = n.or(BigInteger.valueOf(x));
+            n = n.or(BigInteger.valueOf(x & 0xFF));
         }
 
-        // Negative number
-        if (bytes[0] > 127 && opcodeTag == OpcodeTag.i) {
-            n = n.subtract(BigInteger.ONE.shiftLeft(numBytes));
+        // Negative number, stored as two's complement in numBytes bytes.
+        if ((bytes[0] & 0x80) != 0 && opcodeTag == OpcodeTag.i) {
+            n = n.subtract(BigInteger.ONE.shiftLeft(numBytes * 8));
         }
 
         return new Integer(n);

@@ -3,6 +3,7 @@ package org.jerlang.erts.emulator.op;
 import org.jerlang.Module;
 import org.jerlang.Process;
 import org.jerlang.erts.emulator.Instruction;
+import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
@@ -30,7 +31,16 @@ public class PutTuple2 {
             elements = elements.tail();
         }
 
-        proc.setX(destination.toRegisterIndex(), tuple);
+        // The destination is often a Y register: the compiler spills a
+        // tuple that has to survive a call to the frame. Writing it to X
+        // instead left the variable holding nil.
+        if (destination.isXRegister()) {
+            proc.setX(destination.toRegisterIndex(), tuple);
+        } else if (destination.isYRegister()) {
+            proc.setY(destination.toRegisterIndex(), tuple);
+        } else {
+            throw new Error("Unsupported: " + i);
+        }
         return null;
     }
 

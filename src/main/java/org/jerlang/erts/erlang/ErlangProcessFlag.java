@@ -1,5 +1,6 @@
 package org.jerlang.erts.erlang;
 
+import org.jerlang.ProcessSignals;
 import org.jerlang.erts.init.ProcessFlag;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Boolean;
@@ -27,7 +28,7 @@ public class ErlangProcessFlag {
      * http://www.erlang.org/doc/man/erlang.html#process_flag-2
      */
     public static Term process_flag_2(Atom flag, Term value) {
-        return Boolean.of(ProcessFlag.process_flag(flag, value.isTrue()));
+        return Boolean.of(ProcessFlag.process_flag(ProcessSignals.self(), flag, value.isTrue()));
     }
 
 }

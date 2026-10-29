@@ -29,10 +29,12 @@ public class AttributeChunkReaderTest {
         assertNotNull(attributeChunk);
         assertNotNull(attributeChunk.attributes());
         List list = attributeChunk.attributes();
+        // The expected value is what beam_lib:chunks(File, [attributes])
+        // reports for this file on Erlang/OTP 29.
         assertEquals(Tuple.of(
             Atom.of("vsn"),
             List.of(
-                new Integer(new BigInteger("42628055827663549810906328445318760077"))
+                new Integer(new BigInteger("188119968269877117095917694195540496672"))
                 )), list.head());
     }
 

@@ -5,8 +5,11 @@ import java.util.HashSet;
 import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
+import org.jerlang.ProcessSignals;
 import org.jerlang.ProcessState;
+import org.jerlang.type.Atom;
 import org.jerlang.type.PidOrPortId;
+import org.jerlang.type.Term;
 
 /**
  * References:
@@ -30,11 +33,9 @@ public class Scheduler extends Thread {
     }
 
     public ProcessOrPort add(ProcessOrPort p) {
-        if (ids.contains(p.id())) {
-            System.err.println("Process or port already scheduled");
-            return p;
-        }
-
+        // A waiting process keeps its id while it is off the run queue, so
+        // membership must not prevent a message or timeout from re-queueing
+        // it. Only RUNNABLE processes are ever pushed back.
         ids.add(p.id());
 
         p.setScheduler(this);
@@ -106,9 +107,18 @@ public class Scheduler extends Thread {
         ProcessOrPort p = runQueue.poll();
         if (p != null) {
             ProcessRegistry.self(p);
+            Process process = p instanceof Process ? (Process) p : null;
             Throwable failure = null;
             try {
-                p.execute();
+                // An exit signal that arrived while the process was off the
+                // run queue takes effect before another instruction runs.
+                if (process != null && process.hasPendingExit()
+                    && p.state() != ProcessState.EXITING) {
+                    p.setState(ProcessState.EXITING);
+                }
+                if (p.state() != ProcessState.EXITING) {
+                    p.execute();
+                }
             } catch (Throwable t) {
                 // An uncaught error terminates the process, but must not
                 // terminate the scheduler thread that ran it.
@@ -117,14 +127,33 @@ public class Scheduler extends Thread {
                 ProcessRegistry.self(null);
             }
             if (failure != null) {
-                if (p instanceof Process) {
-                    ((Process) p).setFailure(failure);
+                if (process != null) {
+                    process.setFailure(failure);
                 }
                 p.setState(ProcessState.EXITING);
+            }
+            if (process != null && p.state() == ProcessState.EXITING) {
+                // An uncaught exception is reported before the links and
+                // monitors hear about it, so the report is not lost when a
+                // linked process handles the exit first.
+                CrashReport.print(process);
+                // The exit reason is the pending signal when there is one,
+                // otherwise what the process crashed with or `normal`.
+                Term reason = process.pendingExitReason();
+                if (reason == null) {
+                    reason = process.failure() == null
+                        ? Atom.of("normal")
+                        : ProcessSignals.reason(process.failure());
+                }
+                ProcessSignals.terminate(process, reason);
             }
             switch (p.state()) {
             case RUNNABLE:
                 runQueue.push(p);
+                break;
+            case WAITING:
+                // Keep it known to this scheduler. Process.send or its
+                // timer will make it runnable and enqueue it again.
                 break;
             default:
                 ids.remove(p.pid());

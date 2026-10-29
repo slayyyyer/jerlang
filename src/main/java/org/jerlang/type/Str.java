@@ -32,12 +32,24 @@ public class Str extends List {
             Str other = (Str) object;
             return string.equals(other.string);
         }
+        if (object instanceof List) {
+            // String literals load as Str, while values built by list-mode
+            // socket reads and list operations are plain List terms. They
+            // denote the same Erlang string when their characters match.
+            try {
+                return string.equals(convert((List) object).string());
+            } catch (RuntimeException e) {
+                return false;
+            }
+        }
         return false;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(string);
+        // A Str and the plain List of its characters are equal terms, so
+        // they must hash alike. List hashes its head and tail accessors.
+        return Objects.hash(head(), tail());
     }
 
     public String string() {

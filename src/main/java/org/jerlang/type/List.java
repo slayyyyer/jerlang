@@ -45,8 +45,10 @@ public class List extends Term {
     public boolean equals(Object object) {
         if (object instanceof List) {
             List other = (List) object;
-            return (head == null && other.head == null)
-                || (head != null && head.equals(other.head) && tail.equals(other.tail));
+            // Use the accessors: Str overrides head() and tail() without
+            // filling in the fields it inherits from List.
+            return (head() == null && other.head() == null)
+                || (head() != null && head().equals(other.head()) && tail().equals(other.tail()));
         }
         return false;
     }
