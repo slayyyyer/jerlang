@@ -15,8 +15,9 @@ what the code does today, not against the original intent.
 | ETS | `new`, `lookup`, `all`. `insert` is a stub and the file contains 63 `return null` stubs in total, so a created table can never hold an object. |
 | OTP behaviours | None. There is no `gen_server`, `supervisor`, `application`, `proc_lib`, `logger`, `code`, or `gen_statem`. |
 | Scheduler | One scheduler thread per processor with no balancing. There are no reductions: a function activation runs to `return` or `wait`, and an intra-module tail call jumps labels without yielding, so a CPU-bound loop can hold a scheduler indefinitely. Cross-module tail calls nest JVM frames. |
-| Tests | 336 unit/integration tests, 12 opt-in live OTP 29 tests. The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
-| CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`. |
+| Tests | 357 unit/integration tests; 13 opt-in tests that need an external system (12 live OTP peers plus the pass-rate run). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
+| CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, plus a `conformance` job that installs OTP and records the pass rate. |
 | Performance | No benchmark exists. No speed claim can be made in either direction. |
 
 The 0.4 claim — "multi-node applications can be interpreted" — is true for
@@ -182,8 +183,12 @@ commit that is tagged 1.0, and the artifact is installable from a clean machine.
 These are not milestones. They start now and continue through 1.0.
 
 * **Conformance corpus and pass-rate metric.** The 0.5 corpus is checked in
-  and runs in CI. The pass-rate metric over a larger corpus of real OTP
-  modules is still to come; opcode counts are not the metric.
+  and runs in CI, and the pass rate over a larger corpus is measured in the
+  `conformance` job against the OTP installation it sets up. At 0.5 the larger
+  corpus is 1366 modules from OTP 29.1.2, all loading and all opcode-clean.
+  Opcode counts are not the metric. What the number can not say yet is how
+  much of that code *runs*: execution needs the standard library, which is
+  0.6, and the metric has to grow a run column once it exists.
 * **Benchmarks from 0.5.** A number recorded at every milestone makes the 1.0
   performance discussion factual.
 * **CI.** Unit and corpus tests on every push; the live OTP suite and a short

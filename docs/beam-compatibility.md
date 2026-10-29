@@ -19,6 +19,44 @@ Erlang/OTP 29.1.2, and
 [`ErlangSourceBridgeTest`](../src/test/java/org/jerlang/jvm/ErlangSourceBridgeTest.java)
 runs it.
 
+## Conformance pass rate
+
+The metric is the fraction of real BEAM files the runtime can load and, of
+those, the fraction whose every instruction has a handler. Both are needed
+before a module's code can run, so a module counts as a pass only if it
+satisfies both. Opcode counts are not the metric.
+
+[`ConformanceReport`](../src/test/java/org/jerlang/conformance/ConformanceReport.java)
+loads every `.beam` below a directory and classifies each file:
+
+* **load failure** — the loader rejected the file: an unknown opcode number, a
+  chunk it can not read, a missing code chunk, or a file that is not BEAM.
+* **opcode gap** — the file loaded, but at least one instruction has no
+  handler. The gap is named per opcode. This is the allowed failure form for a
+  language-level gap; a module should not stop with "Unsupported opcode".
+* **pass** — loaded, and every instruction has a handler.
+
+Loading is read-only. Nothing is registered, so a run over an OTP tree does
+not install it, and execution is not part of the metric: calling arbitrary
+exported functions needs the standard library, which is `0.6`.
+
+Against the modules that ship with **Erlang/OTP 29.1.2**, in the `conformance`
+CI job:
+
+| Corpus | Modules | Loaded | Passed | Opcode gaps | Load failures |
+|--------|---------|--------|--------|-------------|---------------|
+| OTP 29.1.2 `lib` | 1366 | 100% | 100% | 0 | 0 |
+
+The number is reproducible with an OTP installation and any JDK:
+
+```
+mvn -Dtest=PassRateTest -Djerlang.conformance.dir="$OTP/lib" test
+```
+
+The directory may be a path list and is searched recursively. The run prints
+the rate; add `-Djerlang.conformance.min=0.99` to also assert a floor. The
+checked-in corpus is gated at 100% by the `test` job.
+
 ## What a modern BEAM file contains that the loader did not expect
 
 ### Atoms are UTF-8 and may use compact lengths
