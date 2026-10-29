@@ -149,8 +149,11 @@ Modules built by current OTP releases need the loader support described in
 
 ## Build and test
 
-JErlang builds with Maven and JDK 25, the version CI uses. The bytecode target
-is still Java 8. The unit tests need no installed Erlang.
+JErlang builds with Maven. CI runs it on JDK 25; the compiler targets Java 21,
+so any JDK from 21 up can build it and the jar runs on 21 and newer. Building
+with `--release` means an accidental use of a newer JDK's API is a compile error
+instead of a `NoSuchMethodError` at run time. The unit tests need no installed
+Erlang.
 
 ```
 mvn test
