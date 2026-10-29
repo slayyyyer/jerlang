@@ -176,6 +176,20 @@ build:
 mvn -Dtest=BenchTest -Djerlang.bench=true test
 ```
 
+Coverage and mutation testing are opt-in as well:
+
+```
+mvn jacoco:prepare-agent test jacoco:report
+mvn pitest:mutationCoverage
+```
+
+`mvn pitest:mutationCoverage` mutates every class under `org.jerlang` and takes
+a long time, so point it at the package under change while iterating:
+
+```
+mvn pitest:mutationCoverage -DtargetClasses=org.jerlang.type.Nil -DtargetTests=org.jerlang.type.ListTest
+```
+
 ## Documentation
 
 * [docs/roadmap.md](docs/roadmap.md) — milestones from 0.4 to a production release
