@@ -51,17 +51,29 @@ import org.jerlang.util.ByteUtil;
 public class ModuleLoader {
 
     /**
-     * Try to load the module from the file system.
+     * Try to load the module from the working directory.
      *
      * Returns null when there is no BEAM file in the working directory or the
      * file can not be loaded. The caller decides whether the module replaces a
      * built-in one, and registers it.
      */
     public static Module load(Atom module) {
-        String filename = module.toString() + ".beam";
-        if (!new File(filename).isFile()) {
+        return load(module, new File(module.toString() + ".beam"));
+    }
+
+    /**
+     * Try to load a named BEAM file.
+     *
+     * Same contract as {@link #load(Atom)}, but the file may live anywhere.
+     * Nothing is registered: a module loaded this way exists only for the
+     * caller, which is what a conformance run over a directory of unrelated
+     * BEAM files needs.
+     */
+    public static Module load(Atom module, File file) {
+        if (!file.isFile()) {
             return null;
         }
+        String filename = file.getPath();
         try {
             Term info = BeamLib.info(Str.of(filename));
             if (!(info instanceof List)) {
