@@ -80,6 +80,7 @@ public class OtpInteropTest {
     private static final Path DIST_DEMO = Paths.get("dist_demo.beam");
     private static final Path SPAWN_DEMO = Paths.get("dist_spawn_demo.beam");
     private static final Path LIVE_DEMO = Paths.get("otp_live_demo.beam");
+    private static final Path ACCEPTANCE_DEMO = Paths.get("acceptance_demo.beam");
 
     private VirtualMachine vm;
     private Atom previousNode;
@@ -102,6 +103,8 @@ public class OtpInteropTest {
             StandardCopyOption.REPLACE_EXISTING);
         Files.copy(Paths.get("src/test/resources/otp_live_demo.beam"), LIVE_DEMO,
             StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(Paths.get("src/test/resources/acceptance_demo.beam"), ACCEPTANCE_DEMO,
+            StandardCopyOption.REPLACE_EXISTING);
         vm.start();
         started = true;
     }
@@ -119,6 +122,7 @@ public class OtpInteropTest {
             Files.deleteIfExists(DIST_DEMO);
             Files.deleteIfExists(SPAWN_DEMO);
             Files.deleteIfExists(LIVE_DEMO);
+            Files.deleteIfExists(ACCEPTANCE_DEMO);
         } catch (Exception ignored) {
             // Nothing to clean up if the file was never copied.
         }
@@ -349,6 +353,30 @@ public class OtpInteropTest {
         Term message = process.nextMessage();
         process.removeMessage();
         return message;
+    }
+
+    /**
+     * The milestone 0.4 acceptance case: a two node application. A coordinator
+     * on this node starts a worker on the peer, receives its progress and its
+     * result through a name registered here, sees the monitor report its
+     * normal exit, applies a fun on the peer with a captured value, and gets
+     * an answer from a process the peer started for a name on this node.
+     */
+    @Test
+    public void runsATwoNodeApplicationEndToEnd() throws Throwable {
+        assertEquals(Atom.of("pong"), ping());
+
+        Tuple result = Erlang.apply(Atom.of("acceptance_demo"), Atom.of("run"),
+            List.of(PEER)).toTuple();
+
+        assertEquals(Atom.of("ok"), result.element(1));
+        assertEquals(PEER, result.element(2).toPID().node());
+        assertEquals(List.of(Integer.of(1), Integer.of(4), Integer.of(9)),
+            result.element(3));
+        assertEquals(Atom.of("normal"), result.element(4));
+        // {Sum, FunResult}: the worker's total and the fun's total.
+        assertEquals(Tuple.of(Integer.of(6), Integer.of(14)), result.element(5));
+        assertEquals(Atom.of("pong_from_peer"), result.element(6));
     }
 
     @Test

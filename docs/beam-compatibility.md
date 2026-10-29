@@ -113,6 +113,20 @@ interpreter loop advances past it. Every call through a fun therefore skipped
 the instruction after the call: in `funs_demo`, `run/0` skipped the `swap` that
 moved the fun into the argument register and passed a number instead.
 
+### Fun identity on the wire
+
+`term_to_binary/1` writes an internal fun as `NEW_FUN_EXT`, which names the
+module version the fun belongs to by a 16 byte digest and the index of the
+lambda in the module's function table. The digest is the value
+`beam_lib:md5/1` returns, so it has to be computed the way `beam_lib`
+computes it: over the significant chunks in the order `md5_chunks/0` lists
+them, not in file order, with the `OldUniq` of every lambda table record
+replaced by zero. `OldIndex` and `OldUniq` themselves are ordinary integer
+terms in the term stream. A receiver checks the digest against the module
+it has loaded and rejects a mismatch with `badfun`, so a node that holds
+an older compile of a module can not run a fun that was built from a
+newer one.
+
 ## Tail calls
 
 `call_ext_only` and `call_ext_last` used to end the process with their result,

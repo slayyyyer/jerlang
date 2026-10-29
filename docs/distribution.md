@@ -54,14 +54,23 @@ The BIFs `erlang:term_to_binary/1` and `erlang:binary_to_term/1` use them.
 | map | `MAP_EXT` |
 | pid | `NEW_PID_EXT` (32 bit creation number) |
 | reference | `NEWER_REFERENCE_EXT` with up to five 32 bit words |
+| port | `V4_PORT_EXT` (32 bit creation number) |
+| fun | `NEW_FUN_EXT` for internal funs, `EXPORT_EXT` for `fun M:F/A` |
 
-The decoder also understands the older `PID_EXT`, `REFERENCE_EXT`,
-`NEW_REFERENCE_EXT` and `FLOAT_EXT` tags, because a peer may send them.
+The decoder also understands the older `PID_EXT`, `PORT_EXT`,
+`REFERENCE_EXT`, `NEW_REFERENCE_EXT` and `FLOAT_EXT` tags, because a peer
+may send them.
+
+A `NEW_FUN_EXT` names the module version it was built from by the same
+digest `beam_lib:md5/1` reports, plus the index of the lambda in the
+module's function table. A node that decodes the fun checks the digest
+against the module it has loaded: a peer that still runs an older
+compile of the module rejects the fun with `badfun`, exactly as OTP does.
+`Module.md5()` computes the digest from the BEAM file the module was
+loaded from, and falls back to zero for a module that has no file.
 
 ### What is not encoded yet
 
-* funs (`FUN_EXT`, `NEW_FUN_EXT`, `EXPORT_EXT`) and ports (`PORT_EXT`)
-  are rejected with an error;
 * compressed terms (`COMPRESSED`, tag 80) are rejected;
 * atom cache tags (`ATOM_CACHE_REF`) are rejected. JErlang does not
   negotiate `DIST_HDR_ATOM_CACHE`, so peers do not send them.
@@ -156,8 +165,13 @@ closes the connection and `net_adm:ping` returns `pang`.
 * [`OtpInteropTest`](../src/test/java/org/jerlang/erts/dist/OtpInteropTest.java)
   is opt-in (`-Djerlang.dist.otp=true`) and runs against a real OTP 29
   node. It checks `net_adm:ping/1`, both message directions, `nodes/0`,
-  and a compiled Erlang module that receives a remote reply in a
-  `receive ... after` expression.
+  a remote reply in a `receive ... after` expression, `rpc:call` and
+  `rpc:cast` in both directions, `erpc`-style spawn and monitor, ports
+  and funs travelling in both directions, `monitor_node/2` reporting
+  `nodedown` when the peer drops the connection, and
+  `net_kernel:monitor_nodes/1` reporting `nodeup` for a connection made
+  after the subscription. The Erlang side lives in
+  [`otp_live_demo.erl`](../src/test/erl/otp_live_demo.erl).
 * [`DistSignalsTest`](../src/test/java/org/jerlang/erts/dist/DistSignalsTest.java)
   runs [`dist_signals_demo.erl`](../src/test/erl/dist_signals_demo.erl)
   against a fake peer and checks `LINK`, `UNLINK_ID`/`UNLINK_ID_ACK`,
@@ -175,17 +189,36 @@ closes the connection and `net_adm:ping` returns `pang`.
   references, and compares byte sequences with `erlang:term_to_binary/1`
   on OTP 29.
 
-To run the live test, start the peer and then run Maven:
+To run the live test, start the peer and then run Maven. The peer needs
+`-pa src/test/resources` so it can run the funs of `otp_live_demo`, and
+its cookie must be the one `DistCookie` defaults to:
 
 ```
-erl -sname peer -setcookie dist-test-cookie -noshell -eval \
+erl -name peer@127.0.0.1 -setcookie dist-test-cookie -noshell \
+  -pa src/test/resources -eval \
   'register(echo, spawn(fun Loop() -> receive {From, Msg} ->
      From ! {echo, Msg}, Loop() end end)),
+   P = open_port({spawn, "cmd"}, []),
+   register(port_ping, spawn(fun Loop() -> receive
+     {From, port_request} -> From ! {port, P}, Loop();
+     {From, {port_echo, Q}} ->
+       From ! {port_same, is_port(Q) andalso Q =:= P}, Loop()
+   end end)),
+   register(drop, spawn(fun Loop() -> receive
+     {From, {drop, Node}} -> From ! dropping,
+       erlang:disconnect_node(Node), Loop()
+   end end)),
    io:format("READY ~p~n", [node()]),
    receive after infinity -> ok end.'
 
 mvn test -Dtest=OtpInteropTest -Djerlang.dist.otp=true
 ```
+
+Restart the peer, or run `code:purge(otp_live_demo)` and
+`code:load_file(otp_live_demo)` on it, after recompiling
+`otp_live_demo.erl`. A peer that still has an older version in memory
+rejects the funs this node sends with `badfun`, because the module digest
+in `NEW_FUN_EXT` no longer matches the version the peer loaded.
 
 `net_adm:ping('jerlang@<host>')` from a second OTP node must return
 `pong`, and a message to `{sink, 'jerlang@<host>'}` must arrive at the
@@ -439,8 +472,4 @@ exists.
 * `rex`, the `global` name server and the old `rpc:call` wire protocol.
   Messages to those names are dropped. `rpc:call` between this node and
   OTP uses `erpc`'s `SPAWN_REQUEST`/monitor protocol.
-* Remote funs: `spawn_link(Node, Fun)` and sending a fun to another node
-  are not implemented. Remote spawn requires a module, function and
-  arguments.
-* Atom cache in the distribution header, compressed terms, funs and
-  ports in messages.
+* Atom cache in the distribution header and compressed terms.
