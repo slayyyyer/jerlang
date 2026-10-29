@@ -149,6 +149,20 @@ re-enter the function and loop forever. It now recognises those entry labels
 and raises `error:function_clause`, so a single-clause function called with the
 wrong argument terminates the process instead of hanging a scheduler.
 
+### Comparisons
+
+A comparison in a function body compiles to a `bif` instruction that calls
+`erlang:'<'/2` and friends, while the same test in a guard compiles to
+`is_lt`, `is_ge`, `is_eq`, `is_ne`, `is_eq_exact` or `is_ne_exact`. The
+operands may be literals, X registers or Y registers, on either side: `X < 12`,
+`12 < X` and `A < B` all appear in compiled code.
+
+Both paths share `TermOrder`, which implements the Erlang term order
+(number < atom < reference < fun < port < pid < tuple < map < nil < list <
+bitstring). `==` and `/=` compare numbers by value, so `1 == 1.0` is true,
+while `=:=` and `=/=` stay exact. The guard instructions used to handle only
+one literal/register shape and raised `Can not compare` for every other order.
+
 ### Receive scan position
 
 `loop_rec_end` used to remove the head of the mailbox. When the first message

@@ -3,10 +3,9 @@ package org.jerlang.erts.emulator.op;
 import org.jerlang.Module;
 import org.jerlang.Process;
 import org.jerlang.erts.emulator.Instruction;
-import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
-import org.jerlang.type.Tuple;
+import org.jerlang.type.TermOrder;
 
 /**
  * is greater or equal
@@ -17,25 +16,19 @@ import org.jerlang.type.Tuple;
  * 3. Arg2
  *
  * Compare two terms and jump to Lbl if Arg1 is less than Arg2.
+ *
+ * Both operands may be literals, X registers or Y registers; the compiler
+ * uses is_ge as the failing test for &lt; and &lt;=.
  */
 public class IsGe {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
-        Term lbl = i.arg(0);
-        Term arg1 = i.arg(1);
-        Term arg2 = i.arg(2);
-
-        if (arg1 instanceof Tuple && arg2 instanceof Integer) {
-            int registerIndex = arg1.toTuple().element(2).toInteger().toInt();
-            Integer a = proc.registers()[registerIndex].toInteger();
-            Integer b = arg2.toInteger();
-            if (a.toInt() < b.toInt()) {
-                return lbl;
-            } else {
-                return null;
-            }
+        Term arg1 = i.arg(1).toArg(proc);
+        Term arg2 = i.arg(2).toArg(proc);
+        if (TermOrder.compare(arg1, arg2) < 0) {
+            return i.arg(0);
         } else {
-            throw new Error("Can not compare: " + arg1 + " / " + arg2);
+            return null;
         }
     }
 
