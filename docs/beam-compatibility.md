@@ -73,6 +73,12 @@ rejects the module before decoding.
 | `recv_marker_clear` | 174 | Leaving a marked `receive` | Nothing to clear, for the same reason |
 | `recv_marker_reserve` | 175 | A second `receive` in one function (OTP 28+) | Allocates the marker reference |
 | `recv_marker_use` | 176 | A second `receive` in one function (OTP 28+) | Falls through to the `loop_rec` that follows it |
+| `bs_start_match3` | 166 | Starting a binary match (OTP 22+) | The source is stored as a one element list; a match context is copied |
+| `bs_start_match4` | 170 | Starting a match on a known matchable value (OTP 23+) | `no_fail` and `resume` modes; a label fails like `bs_start_match3` |
+| `bs_match` | 182 | Binary matching (OTP 26+) | Carries the get, skip and literal compare operations as a flat command list |
+| `bs_get_position` | 167 | Saving a match position (OTP 22+) | The position is the bit offset |
+| `bs_set_position` | 168 | Restoring a match position (OTP 22+) | |
+| `bs_get_tail` | 165 | Capturing the rest of a match (OTP 22+) | A binary when byte aligned, otherwise a bitstring |
 
 `put_list` also had to accept a literal tail, which is how an empty list is
 encoded when building a list from a literal and a register.
@@ -86,6 +92,26 @@ heap fragments such as `{alloc, [{words, 0}, {floats, 0}, {funs, 1}]}`
 instead of a word count. The JVM manages the heap, so the interpreter reads
 only the stack need and the live-register count and ignores the fragment
 description.
+
+### Binary matching
+
+OTP 26 stopped emitting the individual `bs_get_integer2` and
+`bs_get_binary2` instructions for a match and folded them into one `bs_match`
+instruction with a command list. The interpreter reads that list in order:
+`ensure_at_least`, `ensure_exactly`, `skip`, `get_tail`, `=:=`, `integer`,
+`binary` and `float`. A command whose field does not fit jumps to the fail
+label of the instruction.
+
+Fields can be signed, little endian or big endian, and a match can start at a
+bit offset: `<<A:3, B:5, Rest/bitstring>>` works because `get_tail` returns a
+bitstring when the rest is not a whole number of bytes. The position
+instructions save the bit offset, so a failed match restores the start and
+`bs_get_tail` can capture the original value for the failure reason.
+
+Limitations: little endian fields must be a whole number of bytes, `native` is
+treated as little endian, and UTF fields still go through their own
+`bs_get_utf*`/`bs_skip_utf*` instructions rather than through `bs_match`
+commands.
 
 ### Receive scan position
 
@@ -212,23 +238,19 @@ emit them, because that is what decides which programs can run.
 | Number | Opcode | Needed for |
 |-------:|--------|------------|
 | 162, 163 | `get_hd`, `get_tl` | OTP 26 `hd`/`tl` optimizations |
-| 165 | `bs_get_tail` | Binary matching |
-| 166, 170 | `bs_start_match3`, `bs_start_match4` | Binary matching (OTP 23+) |
-| 167, 168 | `bs_get_position`, `bs_set_position` | Binary matching |
 | 177 | `bs_create_bin` | Binary construction (OTP 26+) |
 | 180, 181 | `badrecord`, `update_record` | Record updates |
-| 182 | `bs_match` | Binary matching |
 | 183, 184 | `executable_line`, `debug_line` | Coverage and debug line information |
 | 185 | `bif3` | Three-argument BIF calls |
 | 186-191 | native record opcodes | Native records (Erlang/OTP 28+) |
 
-For Elixir this list is the short version of why it cannot run yet: binaries and
-records appear in nearly every Elixir module, and those need `bs_create_bin` and
-the `bs_start_match*` family. Anonymous functions and `try`/`rescue` are no
-longer on that list. The second barrier is
-the standard library: Elixir's `Kernel`, `Enum` and the OTP behaviours are
-themselves compiled modules that JErlang's kernel and stdlib only partially
-replace.
+For Elixir this list is the short version of why it cannot run yet: binary
+construction and record updates appear in nearly every Elixir module, and those
+need `bs_create_bin` and `update_record`; binary matching itself now works.
+Anonymous functions and `try`/`rescue` are no longer on that list. The second
+barrier is the standard library: Elixir's `Kernel`, `Enum` and the OTP
+behaviours are themselves compiled modules that JErlang's kernel and stdlib
+only partially replace.
 
 ## Not changed
 

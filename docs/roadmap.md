@@ -8,14 +8,14 @@ what the code does today, not against the original intent.
 | Area | State |
 |------|-------|
 | BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` loads `<module>.beam` from the working directory only; `-pa` and `ERL_LIBS` have flag entries but no code path uses them. |
-| Interpreter | 140 opcode handlers, 178 opcodes known. 20 OTP 29 opcodes are unimplemented, including the whole `bs_start_match*` family, `bs_create_bin`, `bs_match`, `bs_get_tail`, `update_record`/`badrecord`, `bif3`, and the native-record opcodes. |
+| Interpreter | 146 opcode handlers, 182 opcodes known. Binary matching is implemented (`bs_start_match3/4`, the `bs_match` command list, positions and tails). 14 OTP 29 opcodes remain: `bs_create_bin`, `update_record`/`badrecord`, `get_hd`/`get_tl`, `bif3`, the native-record opcodes, and the coverage line opcodes. |
 | BIFs | 75 `erlang` BIF modules. `lists`, `maps`, `binary`, `string`, `unicode`-adjacent helpers, `base64`, `math`, `timer`, `beam_lib` exist. |
 | Kernel | `gen_tcp`, `gen_udp`, `inet`, `net_adm`, `net_kernel`, `rpc`, `os`, and a `file` module with three functions. |
 | Distribution | OTP handshake, ETF (including funs, ports, compressed terms), links, monitors, remote spawn, `erpc`/`rpc`, node monitors. No `rex`, no `global`, no TLS distribution, no atom cache. |
 | ETS | `new`, `lookup`, `all`. `insert` is a stub and the file contains 63 `return null` stubs in total, so a created table can never hold an object. |
 | OTP behaviours | None. There is no `gen_server`, `supervisor`, `application`, `proc_lib`, `logger`, `code`, or `gen_statem`. |
 | Scheduler | One scheduler thread per processor with no balancing. There are no reductions: a function activation runs to `return` or `wait`, and an intra-module tail call jumps labels without yielding, so a CPU-bound loop can hold a scheduler indefinitely. Cross-module tail calls nest JVM frames. |
-| Tests | 315 unit/integration tests, 12 opt-in live OTP 29 tests. |
+| Tests | 324 unit/integration tests, 12 opt-in live OTP 29 tests. |
 | CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`. |
 | Performance | No benchmark exists. No speed claim can be made in either direction. |
 
@@ -63,10 +63,11 @@ not when its issue list is empty.
 **Goal:** any pure-Erlang module compiled by OTP 29 loads and runs, or fails with
 a named BIF/feature gap rather than an unknown opcode.
 
-* Implement the 20 missing opcodes. Binary matching first
-  (`bs_start_match3/4`, `bs_match`, `bs_get_tail`, `bs_get_position`,
-  `bs_set_position`, `bs_create_bin`), then records (`update_record`,
-  `badrecord`), `get_hd`/`get_tl`, `bif3`, and the native-record opcodes.
+* Binary matching is done: `bs_start_match3/4`, the `bs_match` command list,
+  `bs_get_position`, `bs_set_position` and `bs_get_tail`.
+* Implement the remaining 14 opcodes: `bs_create_bin` first (binary
+  construction), then records (`update_record`, `badrecord`), `get_hd`/
+  `get_tl`, `bif3`, and the native-record and coverage-line opcodes.
 * Turn `Unsupported opcode` into an error that names the module, function and
   line, and count these in the conformance report.
 * Keep opcode tests generated from real OTP 29 output, as the existing
@@ -205,11 +206,13 @@ qualifier that this covers the implemented subset of the standard library.
 
 ## First slice
 
-In order, each one a small pull request with a test:
+In order, each one a small pull request with a test. Steps 1 and 2 are done
+(`binary_match.erl`, compiled by OTP 29, covers them):
 
-1. `bs_start_match3/4` and `bs_match`, with modules generated from OTP 29.
-2. `bs_get_tail`, `bs_get_position`, `bs_set_position`, `bs_create_bin`.
-3. `update_record`, `badrecord`, `get_hd`, `get_tl`, `bif3`.
+1. ~~`bs_start_match3/4` and `bs_match`, with modules generated from OTP 29.~~
+2. ~~`bs_get_tail`, `bs_get_position`, `bs_set_position`.~~
+3. `bs_create_bin`, then `update_record`, `badrecord`, `get_hd`, `get_tl`,
+   `bif3`.
 4. Module search path: `-pa`, `ERL_LIBS`, `code:which/1`, `code:lib_dir/1`.
 5. Boot OTP's `gen_server` with a minimal callback module; write down every gap
    it hits as the first conformance report.

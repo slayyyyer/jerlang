@@ -405,6 +405,28 @@ public enum Opcode {
     bs_restore2(123, 2),
 
     // ------------------------------------------------------------------------
+    // Binary matching in OTP 22 and later. OTP 26 folded the individual get,
+    // skip and literal compare operations into the bs_match command list.
+
+    /** Implemented in org.jerlang.erts.emulator.op.BsGetTail */
+    bs_get_tail(165, 3),
+
+    /** Implemented in org.jerlang.erts.emulator.op.BsStartMatch3 */
+    bs_start_match3(166, 4),
+
+    /** Implemented in org.jerlang.erts.emulator.op.BsGetPosition */
+    bs_get_position(167, 3),
+
+    /** Implemented in org.jerlang.erts.emulator.op.BsSetPosition */
+    bs_set_position(168, 2),
+
+    /** Implemented in org.jerlang.erts.emulator.op.BsStartMatch4 */
+    bs_start_match4(170, 4),
+
+    /** Implemented in org.jerlang.erts.emulator.op.BsMatch */
+    bs_match(182, 3),
+
+    // ------------------------------------------------------------------------
     // New GC bifs introduced in R11B.
 
     /** Implemented in org.jerlang.erts.emulator.op.GcBif1 */
