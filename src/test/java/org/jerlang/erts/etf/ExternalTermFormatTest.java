@@ -17,6 +17,7 @@ import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Map;
 import org.jerlang.type.PID;
+import org.jerlang.type.PortID;
 import org.jerlang.type.Reference;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
@@ -189,14 +190,54 @@ public class ExternalTermFormatTest {
         assertEquals(tuple, decode(new Binary(packet.toByteArray())));
     }
 
-    @Test(expected = org.jerlang.erts.erlang.Error.class)
-    public void refusesPortsWithoutAnExternalRepresentation() {
-        ExternalTermWriter.encode(new org.jerlang.type.PortID(1));
+    @Test
+    public void encodesALocalPortExactlyLikeOtp() {
+        // erlang:term_to_binary(open_port({spawn, "cmd"}, [])), OTP 29.
+        assertArrayEquals(bytes(portBytesFromOtp()),
+            ExternalTermWriter.encode(new PortID(1)).toByteArray());
+    }
+
+    @Test
+    public void decodesPortsWrittenByOtp() {
+        PortID decoded = decode(new Binary(portBytesFromOtp())).toPortID();
+        assertEquals(new PortID(Atom.of("nonode@nohost"), 1, 0), decoded);
+        assertEquals("#Port<0.1>", decoded.toString());
+    }
+
+    @Test
+    public void decodesLegacyPortsWithAOneByteCreation() {
+        // PORT_EXT, the form OTP used before 26: 102, node, id, creation.
+        int[] legacy = new int[] { 131, 102, 119, 13, 110, 111, 110, 111, 100,
+            101, 64, 110, 111, 104, 111, 115, 116, 0, 0, 0, 7, 3 };
+        assertEquals(new PortID(Atom.of("nonode@nohost"), 7, 3),
+            decode(new Binary(bytes(legacy))).toPortID());
+    }
+
+    @Test
+    public void roundtripsLocalAndRemotePorts() {
+        PortID local = new PortID(42);
+        assertEquals(local, roundtrip(local));
+
+        PortID remote = new PortID(Atom.of("peer@host"), 9, 300);
+        PortID decoded = roundtrip(remote).toPortID();
+        assertEquals(remote, decoded);
+        assertEquals("#Port<peer@host.9>", decoded.toString());
+    }
+
+    @Test
+    public void roundtripsPortsInsideTuples() {
+        Tuple message = Tuple.of(Atom.of("port"), new PortID(3));
+        assertEquals(message, roundtrip(message));
     }
 
     private static int[] pidBytesFromOtp() {
         return new int[] { 131, 88, 119, 13, 110, 111, 110, 111, 100, 101, 64,
             110, 111, 104, 111, 115, 116, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0 };
+    }
+
+    private static int[] portBytesFromOtp() {
+        return new int[] { 131, 120, 119, 13, 110, 111, 110, 111, 100, 101, 64,
+            110, 111, 104, 111, 115, 116, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
     }
 
     private static int[] referenceBytesFromOtp() {

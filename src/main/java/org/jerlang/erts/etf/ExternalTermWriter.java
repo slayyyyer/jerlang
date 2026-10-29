@@ -19,6 +19,7 @@ import org.jerlang.type.List;
 import org.jerlang.type.Map;
 import org.jerlang.type.Nil;
 import org.jerlang.type.PID;
+import org.jerlang.type.PortID;
 import org.jerlang.type.Reference;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
@@ -55,6 +56,7 @@ public class ExternalTermWriter {
     private static final int MAP_EXT = 116;
     private static final int NEW_FUN_EXT = 112;
     private static final int EXPORT_EXT = 113;
+    private static final int V4_PORT_EXT = 120;
     private static final int ATOM_UTF8_EXT = 118;
     private static final int SMALL_ATOM_UTF8_EXT = 119;
 
@@ -103,6 +105,8 @@ public class ExternalTermWriter {
             writePID((PID) term);
         } else if (term instanceof Reference) {
             writeReference((Reference) term);
+        } else if (term instanceof PortID) {
+            writePort((PortID) term);
         } else if (term instanceof Fun) {
             writeFun((Fun) term);
         } else {
@@ -357,6 +361,19 @@ public class ExternalTermWriter {
         writeTerm(signature.module());
         writeTerm(signature.function());
         writeTerm(signature.fun_arity());
+    }
+
+    /**
+     * Ports use V4_PORT_EXT, the four byte creation form that OTP 26 and
+     * later send to another node. The older PORT_EXT has a one byte
+     * creation and is only read, for terms produced by old nodes.
+     */
+    private void writePort(PortID port) {
+        writeByte(V4_PORT_EXT);
+        writeTerm(port.node());
+        writeInt(0);
+        writeInt(port.processId());
+        writeInt(port.creation());
     }
 
     private void writeByte(int value) {

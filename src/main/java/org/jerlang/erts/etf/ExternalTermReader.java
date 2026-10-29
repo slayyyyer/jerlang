@@ -23,6 +23,7 @@ import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Map;
 import org.jerlang.type.PID;
+import org.jerlang.type.PortID;
 import org.jerlang.type.Reference;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
@@ -81,6 +82,10 @@ public class ExternalTermReader {
             return readAtom(read2Bytes());
         case 101: // REFERENCE_EXT
             return readReference();
+        case 102: // PORT_EXT, one byte creation
+            return readPort();
+        case 120: // V4_PORT_EXT, four byte creation
+            return readV4Port();
         case 103: // PID_EXT
             return readPID();
         case 104: // SMALL_TUPLE_EXT
@@ -330,6 +335,33 @@ public class ExternalTermReader {
         int serial = read4Bytes();
         int creation = read4Bytes();
         return new PID(node, id, serial, creation);
+    }
+
+    /**
+     * The old port tag has a four byte id and a one byte creation.
+     */
+    private PortID readPort() throws Throwable {
+        Atom node = readNode();
+        int id = read4Bytes();
+        int creation = read1Byte();
+        return new PortID(node, id, creation);
+    }
+
+    /**
+     * OTP 26 and later send ports with a 64 bit id and a four byte
+     * creation, the same creation form as NEW_PID_EXT.
+     */
+    private PortID readV4Port() throws Throwable {
+        Atom node = readNode();
+        int highId = read4Bytes();
+        int id = read4Bytes();
+        int creation = read4Bytes();
+        if (highId != 0) {
+            throw new Error("Unsupported port identifier: "
+                + java.lang.Integer.toUnsignedString(highId) + ":"
+                + java.lang.Integer.toUnsignedString(id));
+        }
+        return new PortID(node, id, creation);
     }
 
     private Reference readReference() throws Throwable {

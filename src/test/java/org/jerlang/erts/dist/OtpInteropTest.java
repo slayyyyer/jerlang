@@ -1,6 +1,7 @@
 package org.jerlang.erts.dist;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -16,6 +17,7 @@ import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
+import org.jerlang.type.PortID;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 import org.jerlang.vm.VirtualMachine;
@@ -32,6 +34,12 @@ import org.junit.Test;
  *   erl -name peer@localhost -setcookie dist-test-cookie -noshell -eval \
  *     'register(echo, spawn(fun Loop() -> receive {From, Msg} ->
  *        From ! {echo, Msg}, Loop() end end)),
+ *      P = open_port({spawn, "cmd"}, []),
+ *      register(port_ping, spawn(fun Loop() -> receive
+ *        {From, port_request} -> From ! {port, P}, Loop();
+ *        {From, {port_echo, Q}} ->
+ *          From ! {port_same, is_port(Q) andalso Q =:= P}, Loop()
+ *      end end)),
  *      io:format("READY ~p~n", [node()]),
  *      receive after infinity -> ok end.'
  *
@@ -149,6 +157,49 @@ public class OtpInteropTest {
         assertEquals(Atom.of("down"), down.element(1));
         assertEquals(PEER, down.element(3).toPID().node());
         assertEquals(Atom.of("normal"), down.element(4));
+    }
+
+    /**
+     * OTP sends a port inside a message; we decode it, send it back, and
+     * OTP compares it with its own port term. This covers the external
+     * term format in both directions on a real connection.
+     */
+    @Test
+    public void carriesPortTermsToAndFromOtp() throws Throwable {
+        assertEquals(Atom.of("pong"),
+            Erlang.apply(Atom.of("net_adm"), Atom.of("ping"), List.of(PEER)));
+
+        Process sink = new Process(new PID(124));
+        ProcessRegistry.register(sink);
+        ProcessRegistry.register(Atom.of("port_sink"), sink.id());
+
+        Tuple target = Tuple.of(Atom.of("port_ping"), PEER);
+        Distribution.send(target, sink.pid(),
+            Tuple.of(sink.pid(), Atom.of("port_request")));
+
+        Tuple reply = awaitMessage(sink).toTuple();
+        assertEquals(Atom.of("port"), reply.element(1));
+        PortID port = reply.element(2).toPortID();
+        assertEquals(PEER, port.node());
+        assertFalse(port.isLocal());
+
+        Distribution.send(target, sink.pid(),
+            Tuple.of(sink.pid(), Tuple.of(Atom.of("port_echo"), port)));
+
+        Tuple same = awaitMessage(sink).toTuple();
+        assertEquals(Atom.of("port_same"), same.element(1));
+        assertEquals(Atom.of("true"), same.element(2));
+    }
+
+    private static Term awaitMessage(Process process) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 5000;
+        while (!process.hasMessage() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10);
+        }
+        assertTrue("OTP did not send a reply", process.hasMessage());
+        Term message = process.nextMessage();
+        process.removeMessage();
+        return message;
     }
 
     @Test
