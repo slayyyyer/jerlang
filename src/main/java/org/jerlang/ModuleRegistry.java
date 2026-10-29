@@ -25,6 +25,7 @@ import org.jerlang.stdlib.Base64;
 import org.jerlang.stdlib.BeamLib;
 import org.jerlang.stdlib.Binary;
 import org.jerlang.stdlib.ErlInternal;
+import org.jerlang.stdlib.Ets;
 import org.jerlang.stdlib.IO;
 import org.jerlang.stdlib.Java;
 import org.jerlang.stdlib.Lists;
@@ -60,6 +61,7 @@ public class ModuleRegistry {
         init(Erlang.class).export();
         init(Erpc.class).export();
         init(ErlInternal.class).export();
+        init(Ets.class).export();
         init(File.class).export();
         init(GenTcp.class).export();
         init(GenUdp.class).export();
