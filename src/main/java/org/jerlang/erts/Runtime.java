@@ -40,7 +40,13 @@ public class Runtime {
     }
 
     public static org.jerlang.Process getProcess() {
-        return process.get();
+        org.jerlang.Process current = process.get();
+        if (current == null) {
+            // When a .beam module runs on a scheduler thread, self() is the
+            // source of truth; the thread local is only set by the shell.
+            current = org.jerlang.vm.VirtualMachine.instance().self();
+        }
+        return current;
     }
 
     public static FunctionSignature getRunFlag() {

@@ -3,8 +3,10 @@ package org.jerlang.stdlib.beam_lib;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.jerlang.Opcode;
 import org.jerlang.erts.emulator.Instruction;
@@ -92,19 +94,40 @@ public class CodeChunk extends Chunk {
     private int functions;
     private ArrayList<Instruction> instructions;
     private Map<Integer, Integer> labels;
+    private Set<Integer> functionEntryLabels;
 
     public CodeChunk(Chunk chunk) {
         super(ChunkId.CODE, chunk);
         instructions = new ArrayList<>();
         labels = new HashMap<>();
+        functionEntryLabels = new HashSet<>();
     }
 
     public boolean add(Instruction instruction) {
         if (instruction.opcode().equals(Opcode.label)) {
             labels.put(instruction.arg(0).toInteger().toInt(), instructions.size());
         }
+        if (instruction.opcode().equals(Opcode.func_info)) {
+            // A clause that does not match jumps back to the label before
+            // func_info. That is not a normal jump: it means no clause
+            // matched, so the interpreter raises function_clause.
+            for (int index = instructions.size() - 1; index >= 0; index--) {
+                Instruction previous = instructions.get(index);
+                if (previous.opcode().equals(Opcode.label)) {
+                    functionEntryLabels.add(previous.arg(0).toInteger().toInt());
+                    break;
+                }
+                if (!previous.opcode().equals(Opcode.line)) {
+                    break;
+                }
+            }
+        }
         instructions.add(instruction);
         return instruction.opcode() != Opcode.int_code_end;
+    }
+
+    public boolean isFunctionEntryLabel(int label) {
+        return functionEntryLabels.contains(label);
     }
 
     public List<Instruction> instructions() {

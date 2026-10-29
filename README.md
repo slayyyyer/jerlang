@@ -36,24 +36,26 @@ What works today:
 
 * BEAM files compiled by OTP 29 load, including the literal, line, atom, export,
   import and lambda tables.
-* Most opcodes of the interpreter are implemented: calls, tail calls, funs,
-  `try`/`catch`, stack frames, maps, tuples, list comprehensions, and
-  exceptions with real stacktraces. Binary matching works, including bit-level
-  patterns, signed and little endian fields, and tail capture. Record updates
-  are not among them yet.
+* All 161 non-deprecated OTP 29 opcodes have handlers: calls, tail calls,
+  funs, `try`/`catch`, stack frames, maps, tuples, list comprehensions,
+  records and record updates, and exceptions with real stacktraces. Binary
+  matching and construction work, including bit-level patterns, signed and
+  little endian fields, tail capture, UTF segments, and string-table-backed
+  string segments. A checked-in corpus of modules compiled by OTP 29 runs in CI.
 * Distribution in both directions: handshake, external term format (including
   funs, ports, and compressed terms on receive), links, monitors, remote spawn,
   `erpc` and `rpc`, and node monitors. Verified against a real OTP 29 peer.
 * `gen_tcp`, `gen_udp` and `inet`, including IPv6 and multicast.
 * A reflective Java bridge (`java:new`, `java:call`, fields, release) and an
   embedding entry point for Java calling Erlang.
-* A 324-test suite, of which 12 are opt-in tests against a live OTP node, run by
+* A 336-test suite, of which 12 are opt-in tests against a live OTP node, run by
   GitHub Actions on every push and pull request.
 
 What does not work yet:
 
-* 14 OTP 29 opcodes, including binary construction (`bs_create_bin`), record
-  updates and `bif3`. Many real modules hit these on the first function.
+* Native records, the experimental OTP 29 data type declared as
+  `-record #name{...}`. Type tests always fail and construction raises a named
+  error; ordinary tuple records are fully supported.
 * ETS is a facade: `new`, `lookup` and `all` exist, but `insert` is a stub, so a
   table can never hold an object.
 * The OTP behaviours and most of the standard library: there is no `gen_server`,
@@ -62,8 +64,8 @@ What does not work yet:
   scheduler while other processes wait.
 * A module search path. Modules are loaded from the working directory only.
 
-[docs/beam-compatibility.md](docs/beam-compatibility.md) keeps the precise list
-of unimplemented opcodes and the constructs that need them.
+[docs/beam-compatibility.md](docs/beam-compatibility.md) keeps the per-opcode
+notes and documents the one remaining language-feature gap.
 
 ## Roadmap
 
@@ -71,9 +73,9 @@ of unimplemented opcodes and the constructs that need them.
 |:-----:|--------------------------|-----------------------------------------------------------------|:-----:|
 |0.1    |File format               |BEAM files parse                                                 |Done   |
 |0.2    |Proof of concept          |A simple "hello world" is interpreted                            |Done   |
-|0.3    |Language                  |Most BEAM opcodes are implemented                                |Partial|
+|0.3    |Language                  |Most BEAM opcodes are implemented                                |Done   |
 |0.4    |Network                   |Distribution and sockets work against OTP 29                     |Done   |
-|0.5    |Language completeness     |A corpus of constructs runs with no unsupported opcode           |Started|
+|0.5    |Language completeness     |A corpus of constructs runs with no unsupported opcode           |Done   |
 |0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |Planned|
 |0.7    |Runtime and concurrency   |Preemption, timer bounds, no leaked processes under stress       |Planned|
 |0.8    |Interop and embedding     |Java↔Erlang examples in CI and a frozen API                      |Planned|

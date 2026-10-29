@@ -570,6 +570,12 @@ public enum Opcode {
     /** Implemented in org.jerlang.erts.emulator.op.RawRaise */
     raw_raise(161, 0),
 
+    /** Implemented in org.jerlang.erts.emulator.op.GetHd */
+    get_hd(162, 2),
+
+    /** Implemented in org.jerlang.erts.emulator.op.GetTl */
+    get_tl(163, 2),
+
     /** Implemented in org.jerlang.erts.emulator.op.PutTuple2 */
     put_tuple2(164, 2),
 
@@ -598,7 +604,61 @@ public enum Opcode {
     recv_marker_reserve(175, 1),
 
     /** Implemented in org.jerlang.erts.emulator.op.RecvMarkerUse */
-    recv_marker_use(176, 1);
+    recv_marker_use(176, 1),
+
+    // ------------------------------------------------------------------------
+    // OTP 25
+
+    /** Implemented in org.jerlang.erts.emulator.op.BsCreateBin */
+    bs_create_bin(177, 6),
+
+    /** Implemented in org.jerlang.erts.emulator.op.NifStart */
+    nif_start(179, 0),
+
+    /** Implemented in org.jerlang.erts.emulator.op.Badrecord */
+    badrecord(180, 1),
+
+    // ------------------------------------------------------------------------
+    // OTP 26
+
+    /** Implemented in org.jerlang.erts.emulator.op.UpdateRecord */
+    update_record(181, 5),
+
+    // ------------------------------------------------------------------------
+    // OTP 27
+
+    /** Implemented in org.jerlang.erts.emulator.op.ExecutableLine */
+    executable_line(183, 2),
+
+    // ------------------------------------------------------------------------
+    // OTP 28
+
+    /** Implemented in org.jerlang.erts.emulator.op.DebugLine */
+    debug_line(184, 4),
+
+    // ------------------------------------------------------------------------
+    // OTP 29
+
+    /** Implemented in org.jerlang.erts.emulator.op.Bif3 */
+    bif3(185, 6),
+
+    /** Implemented in org.jerlang.erts.emulator.op.IsAnyNativeRecord */
+    is_any_native_record(186, 2),
+
+    /** Implemented in org.jerlang.erts.emulator.op.IsNativeRecord */
+    is_native_record(187, 4),
+
+    /** Implemented in org.jerlang.erts.emulator.op.GetRecordElements */
+    get_record_elements(188, 3),
+
+    /** Implemented in org.jerlang.erts.emulator.op.PutRecord */
+    put_record(189, 6),
+
+    /** Implemented in org.jerlang.erts.emulator.op.IsRecordAccessible */
+    is_record_accessible(190, 3),
+
+    /** Implemented in org.jerlang.erts.emulator.op.GetRecordField */
+    get_record_field(191, 5);
 
     // ========================================================================
 

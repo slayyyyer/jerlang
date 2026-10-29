@@ -34,6 +34,22 @@ public class StackFrame {
         this.line = line;
     }
 
+    public Atom func() {
+        return function;
+    }
+
+    public int arity() {
+        return arity;
+    }
+
+    public String filename() {
+        return filename;
+    }
+
+    public int lineNumber() {
+        return line;
+    }
+
     public Term toTerm() {
         Term location = List.nil;
         if (filename != null && line > 0) {

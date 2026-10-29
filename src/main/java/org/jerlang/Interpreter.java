@@ -12,6 +12,7 @@ import org.jerlang.type.List;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 import org.jerlang.type.stack.ExceptionHandler;
+import org.jerlang.type.stack.StackFrame;
 
 /**
  * Executes opcodes
@@ -98,12 +99,26 @@ public class Interpreter {
                         } else {
                             // this must be a label jump (e.g. "{f,1}")
                             int lbl = r.toRegisterIndex().toInt();
+                            if (code.isFunctionEntryLabel(lbl)) {
+                                // A failed clause test jumps back to the
+                                // function entry. BEAM turns that into
+                                // function_clause instead of re-entering.
+                                throw new Error(Atom.of("function_clause"));
+                            }
                             index = labels.get(lbl);
                         }
                     }
                 } else {
-                    System.err.println("Unsupported opcode: " + i.opcode());
-                    break;
+                    StackFrame frame = process.currentFrame();
+                    String where = m.name().toString();
+                    if (frame != null) {
+                        where += ":" + frame.func() + "/" + frame.arity();
+                        if (frame.lineNumber() > 0) {
+                            where += " at " + frame.lineNumber();
+                        }
+                    }
+                    throw new Error(Str.of("Unsupported opcode " + i.opcode()
+                        + " in " + where));
                 }
             } catch (Error error) {
                 // Capture the stack at the raise, before the handler unwinds it.
