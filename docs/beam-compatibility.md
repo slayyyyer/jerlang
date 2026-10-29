@@ -179,6 +179,26 @@ that position and resets the scan, and a timeout resets it as well. This is
 what lets `spawn_opt(..., [link, monitor])` receive the `DOWN` that follows an
 `EXIT` in the same mailbox.
 
+## Built-in modules
+
+JErlang ships a few modules in Java so that programs run without an OTP
+installation. For `lists`, a `lists.beam` in the working directory now wins:
+the module is loaded from disk, and the built-in implementation is only used
+for functions the BEAM file declares but does not implement.
+
+OTP ships its BIFs and NIFs that way. `lists:reverse/2` and `lists:member/2`,
+for example, are exported by `lists.beam`, but their body only calls
+`erlang:nif_error/1`; the runtime has to provide them. The loader recognises
+that placeholder and adopts the built-in function, so the real Erlang code in
+`lists.beam` (sort, usort, sum, last and the rest) runs while the primitives
+stay native. `lists:reverse/2` and `lists:member/2` were added to the built-in
+module for this. A function adopted that way has no instruction stream, so a
+call from Java is dispatched straight to it instead of spawning a process.
+
+Other built-in modules still take precedence over a same-named BEAM file,
+because some of them (for example `erlang`) only declare BIFs in their BEAM
+form and would remove the runtime's implementations of them.
+
 ## Fun calls
 
 `make_fun3` carries a lambda index, a destination and an explicit list of free

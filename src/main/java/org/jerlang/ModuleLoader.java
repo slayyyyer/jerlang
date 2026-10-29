@@ -51,18 +51,34 @@ import org.jerlang.util.ByteUtil;
 public class ModuleLoader {
 
     /**
-     * Try to load the module from file system
+     * Try to load the module from the file system.
+     *
+     * Returns null when there is no BEAM file in the working directory or the
+     * file can not be loaded. The caller decides whether the module replaces a
+     * built-in one, and registers it.
      */
-    public static void load(Atom module) {
+    public static Module load(Atom module) {
         String filename = module.toString() + ".beam";
-        Term info = BeamLib.info(Str.of(filename));
-        if (!(info instanceof List)) {
-            System.err.println("Can not load module: " + info);
-            return;
+        if (!new File(filename).isFile()) {
+            return null;
         }
-        Module m = new Module(loadBeamData(filename, info.toList()), module);
-        ModuleRegistry.register(m);
-        m.export();
+        try {
+            Term info = BeamLib.info(Str.of(filename));
+            if (!(info instanceof List)) {
+                System.err.println("Can not load module: " + info);
+                return null;
+            }
+            BeamData beamData = loadBeamData(filename, info.toList());
+            if (beamData == null) {
+                return null;
+            }
+            Module m = new Module(beamData, module);
+            m.export();
+            return m;
+        } catch (Throwable e) {
+            System.err.println("Can not load module " + filename + ": " + e);
+            return null;
+        }
     }
 
     private static BeamData loadBeamData(String filename, List info) {
