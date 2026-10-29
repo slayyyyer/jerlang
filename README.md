@@ -3,7 +3,7 @@
 [Erlang/OTP](https://github.com/erlang/otp) on the
 [Java Virtual Machine](https://en.wikipedia.org/wiki/Java_virtual_machine) (JVM).
 
-[![Build Status](https://travis-ci.org/jerlang/jerlang.svg?branch=master)](https://travis-ci.org/jerlang/jerlang)
+[![Tests](https://github.com/slayyyyer/jerlang/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/slayyyyer/jerlang/actions/workflows/tests.yml)
 [![Dependency Status](https://www.versioneye.com/user/projects/55acc9853065350023000481/badge.svg?style=flat)](https://www.versioneye.com/user/projects/55acc9853065350023000481)
 
 ## Roadmap
