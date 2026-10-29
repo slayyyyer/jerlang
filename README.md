@@ -149,7 +149,7 @@ Modules built by current OTP releases need the loader support described in
 
 ## Build and test
 
-JErlang builds with Maven and JDK 21, the version CI uses. The bytecode target
+JErlang builds with Maven and JDK 25, the version CI uses. The bytecode target
 is still Java 8. The unit tests need no installed Erlang.
 
 ```
