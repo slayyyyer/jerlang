@@ -98,6 +98,12 @@ rejects the module before decoding.
 `put_list` also had to accept a literal tail, which is how an empty list is
 encoded when building a list from a literal and a register.
 
+A literal tuple is an operand too. `move` used to treat any two element tuple
+source as a register, so a function returning `{ok, Value}` or `{[], []}`
+failed with "Cannot convert to integer". Operands now go through `toArg`,
+which treats only `{x,N}`, `{y,N}` and `{fr,N}` as registers and returns any
+other tuple unchanged.
+
 Instruction arguments also gained the extended tag 5, a typed register
 `{tr,Register,Type}`. The type is only used by the JIT, but it has to be
 decoded to stay in sync with the instruction stream.
