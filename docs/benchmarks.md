@@ -77,11 +77,14 @@ Same machine, same harness, after the change:
 
 | Workload | Before | After | Change |
 |---|---:|---:|---:|
-| Java to Erlang call | 108.0 ms | 0.09-0.16 ms | ~700-1,200x faster |
-| Java to Erlang round trip | 525.0 ms | 0.46-0.65 ms | ~800-1,100x faster |
+| Java to Erlang call | 108.0 ms | 0.09-0.19 ms | ~580-1,200x faster |
+| Java to Erlang round trip | 525.0 ms | 0.46-0.74 ms | ~700-1,100x faster |
 
 The cross-boundary rows are dominated by OS scheduling and vary more between
-runs than the others, hence the range.
+runs than the others, hence the range. The upper ends (0.19 ms and 0.74 ms)
+come from four repeat runs of `BenchTest` on 2026-10-29 with other processes
+loading the machine; the lower ends are from a quieter run of the same harness.
+A single run of either row is only good to about 30%.
 
 Interpreted workloads are unchanged within noise (call 520-680 ns, guard
 315-460 ns, list head 270-340 ns, binary construct 630-820 ns, record update
