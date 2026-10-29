@@ -11,7 +11,7 @@
          spawn_opt_link_monitor/0, spawn_opt_fun/0]).
 
 -export([link_and_wait/1, crash_after_go/0, normal_return/0,
-         wait/0, wait_plain/0]).
+         wait_notify/1, wait_plain/0]).
 
 %% A process linked to a crashing process dies with the same reason, and a
 %% monitor on the middle process reports that reason.
@@ -74,10 +74,17 @@ exit_signal() ->
         error(no_exit)
     end.
 
-%% kill is uncatchable, even for a process that traps exits.
+%% kill is uncatchable, even for a process that traps exits. The victim
+%% reports that it has started trapping before the signal is sent, so the
+%% test always exercises the trapping process and never wins a race against
+%% the child's first instruction.
 kill() ->
-    Victim = spawn(link_demo, wait, []),
+    Victim = spawn(link_demo, wait_notify, [self()]),
     Ref = monitor(process, Victim),
+    receive ready -> ok
+    after 2000 ->
+        error(not_ready)
+    end,
     true = exit(Victim, kill),
     receive
         {'DOWN', Ref, process, Victim, killed} -> ok
@@ -85,8 +92,9 @@ kill() ->
         error(not_killed)
     end.
 
-wait() ->
+wait_notify(Parent) ->
     process_flag(trap_exit, true),
+    Parent ! ready,
     receive stop -> ok end.
 
 wait_plain() ->

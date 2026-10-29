@@ -1058,6 +1058,11 @@ public class Process extends ProcessOrPort {
      * Deliver an exit signal. trap_exit turns it into a message; otherwise a
      * non-normal reason becomes the pending exit of this process, which the
      * interpreter and the scheduler act on.
+     *
+     * `kill` is uncatchable, so it is checked before trap_exit: a process
+     * that traps exits still dies of an `exit(Pid, kill)` with reason
+     * `killed`, as in Erlang/OTP. Checking trap_exit first made the signal
+     * depend on whether the target had already run its process_flag call.
      */
     public void exitSignal(Term reason, PID from) {
         boolean waiting;
@@ -1065,15 +1070,18 @@ public class Process extends ProcessOrPort {
             if (terminated) {
                 return;
             }
-            if (trapExit) {
+            if (KILL.equals(reason)) {
+                pendingExit = KILLED;
+                waiting = state() == ProcessState.WAITING;
+            } else if (trapExit) {
                 send(Tuple.of(EXIT, from, reason));
                 return;
-            }
-            if (NORMAL.equals(reason)) {
+            } else if (NORMAL.equals(reason)) {
                 return;
+            } else {
+                pendingExit = reason;
+                waiting = state() == ProcessState.WAITING;
             }
-            pendingExit = KILL.equals(reason) ? KILLED : reason;
-            waiting = state() == ProcessState.WAITING;
         }
         if (waiting) {
             Scheduler scheduler = scheduler();

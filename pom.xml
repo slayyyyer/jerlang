@@ -37,7 +37,6 @@
     <version.maven-site-plugin>3.6</version.maven-site-plugin>
     <version.maven-surefire-report-plugin>2.20.1</version.maven-surefire-report-plugin>
     <version.pitest-maven>1.2.4</version.pitest-maven>
-    <version.totallylazy>1.78</version.totallylazy>
   </properties>
   <issueManagement>
     <url>https://github.com/jerlang/jerlang/issues</url>
@@ -213,11 +212,6 @@
     </repository>
   </repositories>
   <dependencies>
-    <dependency>
-      <groupId>com.googlecode.totallylazy</groupId>
-      <artifactId>totallylazy</artifactId>
-      <version>${version.totallylazy}</version>
-    </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-math3</artifactId>
