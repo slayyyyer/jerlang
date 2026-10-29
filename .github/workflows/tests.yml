@@ -1,8 +1,10 @@
 name: Tests
 
 on:
+  # Every branch, so a push to a milestone branch is tested without waiting
+  # for a pull request. Fork pull requests are still covered by the
+  # pull_request event, which does not fire for a push to this repository.
   push:
-    branches: [master]
   pull_request:
     branches: [master]
 
