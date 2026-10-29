@@ -69,9 +69,16 @@ compile of the module rejects the fun with `badfun`, exactly as OTP does.
 `Module.md5()` computes the digest from the BEAM file the module was
 loaded from, and falls back to zero for a module that has no file.
 
+### Compressed terms
+
+A peer can compress the term that follows a distribution header with the
+`COMPRESSED` tag (80). The decoder inflates it, so a message from a node
+that has turned on distribution compression still arrives. This node never
+compresses what it sends, and `erlang:term_to_binary/2` is not implemented:
+only `term_to_binary/1` works.
+
 ### What is not encoded yet
 
-* compressed terms (`COMPRESSED`, tag 80) are rejected;
 * atom cache tags (`ATOM_CACHE_REF`) are rejected. JErlang does not
   negotiate `DIST_HDR_ATOM_CACHE`, so peers do not send them.
 
@@ -472,4 +479,6 @@ exists.
 * `rex`, the `global` name server and the old `rpc:call` wire protocol.
   Messages to those names are dropped. `rpc:call` between this node and
   OTP uses `erpc`'s `SPAWN_REQUEST`/monitor protocol.
-* Atom cache in the distribution header and compressed terms.
+* Atom cache in the distribution header, and compressed encoding.
+  Compressed terms are read but never written, and `term_to_binary/2`
+  raises `badarg`.
