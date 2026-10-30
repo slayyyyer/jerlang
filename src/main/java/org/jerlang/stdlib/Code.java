@@ -108,6 +108,15 @@ public class Code {
     }
 
     /**
+     * Make sure a module is loaded: `{module, Module}` when it already is or
+     * was just loaded, `{error, Reason}` when the code server can not load
+     * it.
+     */
+    public static Term ensure_loaded(Term module) {
+        return org.jerlang.stdlib.code.CodeEnsureLoaded.ensure_loaded(module.toAtom());
+    }
+
+    /**
      * Load a module from the code path. Returns `{module, Module}` when the
      * BEAM file was found and loaded, and `{error, nofile}` otherwise.
      */

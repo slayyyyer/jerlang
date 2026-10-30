@@ -7,6 +7,7 @@ import org.jerlang.stdlib.maps.MapsKeys;
 import org.jerlang.stdlib.maps.MapsMap;
 import org.jerlang.stdlib.maps.MapsNew;
 import org.jerlang.stdlib.maps.MapsSize;
+import org.jerlang.stdlib.maps.MapsToList;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Map;
@@ -57,6 +58,13 @@ public class Maps {
 
     public Integer size(Map map) {
         return MapsSize.size_1(map);
+    }
+
+    /**
+     * The key-value pairs of a map, in key order.
+     */
+    public static List to_list(Map map) {
+        return MapsToList.to_list_1(map);
     }
 
 }

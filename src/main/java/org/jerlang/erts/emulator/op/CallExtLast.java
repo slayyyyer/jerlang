@@ -41,9 +41,13 @@ public class CallExtLast {
 
     public static Term execute(Process process, Module m, Instruction i, List params) throws ThrowException {
         Integer deallocate = i.arg(2).toInteger();
-        if (deallocate.toInt() > 0) {
-            process.restoreCP();
-        }
+        // The function allocated, so its continuation pointer is on the CP
+        // stack. A tail call replaces that frame and returns to the pointer
+        // saved by the caller's allocate, which is a restore even when the
+        // deallocate operand is zero: then the CP is the only word to drop.
+        // Skipping it leaked the caller's continuation and the outer frame
+        // later returned into its own middle, with whatever X0 held by then.
+        process.restoreCP();
         process.deallocate(deallocate.toInt());
 
         FunctionSignature signature = CallExt.resolve(m, i.arg(1).toInteger());

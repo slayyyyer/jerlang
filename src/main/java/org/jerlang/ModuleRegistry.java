@@ -28,12 +28,14 @@ import org.jerlang.stdlib.Code;
 import org.jerlang.stdlib.ErlInternal;
 import org.jerlang.stdlib.Ets;
 import org.jerlang.stdlib.IO;
+import org.jerlang.stdlib.IOLib;
 import org.jerlang.stdlib.Java;
 import org.jerlang.stdlib.Lists;
 import org.jerlang.stdlib.Maps;
 import org.jerlang.stdlib.Math;
 import org.jerlang.stdlib.PersistentTerm;
 import org.jerlang.stdlib.Shell;
+import org.jerlang.stdlib.Unicode;
 import org.jerlang.type.Atom;
 
 /**
@@ -75,6 +77,9 @@ public class ModuleRegistry {
         init(Inet.class).export();
         init(Init.class).export();
         init(IO.class).export();
+        // The Java class name IOLib does not map to io_lib by the CamelCase
+        // rule, so the module name is given explicitly.
+        init(IOLib.class, Atom.of("io_lib")).export();
         init(Java.class).export();
         init(Lists.class).export();
         init(Maps.class).export();
@@ -87,6 +92,7 @@ public class ModuleRegistry {
         init(PersistentTerm.class).export();
         init(PrimInet.class).export();
         init(Shell.class).export();
+        init(Unicode.class).export();
     }
 
     public static Module get(Atom module) {
