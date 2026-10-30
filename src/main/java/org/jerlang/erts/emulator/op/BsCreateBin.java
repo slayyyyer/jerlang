@@ -28,9 +28,11 @@ import org.jerlang.type.Term;
  *    [Type, Seg, Unit, Flags, Value, Size]
  *
  * Example:
+ * <pre>{@code
  * {bs_create_bin,{f,0},0,2,8,{x,0},
  *   {list,[{atom,string},0,8,nil,{string,<<1>>},{integer,1},
  *          {atom,integer},1,1,nil,{x,0},{integer,16}]}}
+ * }</pre>
  */
 public class BsCreateBin {
 

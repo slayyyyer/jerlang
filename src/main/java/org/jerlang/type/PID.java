@@ -14,8 +14,8 @@ import org.jerlang.vm.VirtualMachine;
  *
  * PIDs whose node is the node of this virtual machine are printed
  * without the node, exactly like Erlang/OTP prints local PIDs:
- * `<0.33.0>`. PIDs from another node are printed with the node:
- * `<other@host.33.0>`.
+ * {@code <0.33.0>}. PIDs from another node are printed with the node:
+ * {@code <other@host.33.0>}.
  *
  * See:
  * http://erlang.org/doc/reference_manual/data_types.html#id68224

@@ -97,9 +97,10 @@ public class CodePaths {
 
     /**
      * The library directory of an application. The code path is the source
-     * of truth: an entry ending in `<app>/ebin` or `<app>-<vsn>/ebin` names
-     * the application, the same way OTP finds it. When the path has no such
-     * entry, `<root>/lib` is searched for a matching directory.
+     * of truth: an entry ending in {@code <app>/ebin} or
+     * {@code <app>-<vsn>/ebin} names the application, the same way OTP finds
+     * it. When the path has no such entry, {@code <root>/lib} is searched for
+     * a matching directory.
      *
      * Returns null when the application is not installed.
      */

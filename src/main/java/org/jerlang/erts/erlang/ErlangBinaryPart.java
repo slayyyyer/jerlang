@@ -34,18 +34,22 @@ public class ErlangBinaryPart {
      *
      * Negative length can be used to extract bytes at the end of a binary:
      *
+     * <pre>{@code
      * 1> Bin = <<1,2,3,4,5,6,7,8,9,10>>.
      * 2> binary_part(Bin,{byte_size(Bin), -5}).
      * <<6,7,8,9,10>>
+     * }</pre>
      *
      * If PosLen in any way references outside the binary,
      * a badarg exception is raised.
      *
      * Start is zero-based, i.e.:
      *
+     * <pre>{@code
      * 1> Bin = <<1,2,3>>
      * 2> binary_part(Bin,{0,2}).
      * <<1,2>>
+     * }</pre>
      *
      * See the STDLIB module binary for details about the PosLen semantics.
      *

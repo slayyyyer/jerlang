@@ -34,7 +34,7 @@ import org.jerlang.type.Term;
  * - Erlang list -> java.util.Collection or an array
  * - Erlang tuple -> Object[]
  * - atom true/false -> boolean
- * - atom undefined <- null
+ * - atom undefined {@code <-} null
  *
  * A Java exception is raised as
  * `error({java_exception, ClassName, Message})`.

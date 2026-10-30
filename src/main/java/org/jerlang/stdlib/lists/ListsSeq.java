@@ -13,7 +13,7 @@ import org.jerlang.type.Term;
  * (in the latter case, To is not an element of the sequence).
  * Incr defaults to 1.
  *
- * Failure: If To<From-Incr and Incr is positive,
+ * Failure: If {@code To<From-Incr} and Incr is positive,
  * or if To>From-Incr and Incr is negative,
  * or if Incr==0 and From/=To.
  */
