@@ -168,10 +168,6 @@ public class Erlang {
     }
 
     public static Term apply(Term m, Term f, Term a) throws Error {
-        if (java.lang.Boolean.getBoolean("jerlang.debug.errors")
-            && f.toString().equals("cancel_timer")) {
-            System.err.println("ERLANG_APPLY " + m + ":" + f + " args=" + a);
-        }
         return ErlangApply.apply_3(m, f, a);
     }
 
@@ -524,16 +520,10 @@ public class Erlang {
     }
 
     public static Term cancel_timer(Term timer) {
-        if (java.lang.Boolean.getBoolean("jerlang.debug.errors")) {
-            System.err.println("CANCEL_TIMER/1 " + timer.getClass().getSimpleName() + " " + timer);
-        }
         return ErlangCancelTimer.cancel_timer_1(timer);
     }
 
     public static Term cancel_timer(Term timer, List options) {
-        if (java.lang.Boolean.getBoolean("jerlang.debug.errors")) {
-            System.err.println("CANCEL_TIMER/2 " + timer.getClass().getSimpleName() + " " + timer);
-        }
         return ErlangCancelTimer.cancel_timer_2(timer, options);
     }
 

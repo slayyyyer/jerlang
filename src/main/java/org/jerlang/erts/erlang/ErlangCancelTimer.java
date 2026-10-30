@@ -92,10 +92,6 @@ public class ErlangCancelTimer {
 
     private static TimerReference timer(Term timer) {
         if (!(timer instanceof TimerReference)) {
-            if (java.lang.Boolean.getBoolean("jerlang.debug.errors")) {
-                System.err.println("CANCEL_TIMER arg class=" + timer.getClass().getName()
-                    + " value=" + timer);
-            }
             throw Error.badarg;
         }
         return (TimerReference) timer;

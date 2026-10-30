@@ -45,50 +45,62 @@ public class Set extends Table {
 
     @Override
     public void delete(Term key) {
-        elements.remove(key);
+        synchronized (lock()) {
+            elements.remove(key);
+        }
     }
 
     @Override
     public void insert(Tuple object) {
         // Store a copy: set_tuple_element updates a tuple in place, so keeping
         // the caller's tuple would let a later setelement change the table.
-        elements.put(object.element(keypos()), new Tuple(object));
+        synchronized (lock()) {
+            elements.put(object.element(keypos()), new Tuple(object));
+        }
     }
 
     @Override
     public List lookup(Term key) {
-        Term element = elements.get(key);
-        if (element == null) {
-            return List.nil;
-        } else {
-            return List.of(new Tuple(element.toTuple()));
+        synchronized (lock()) {
+            Term element = elements.get(key);
+            if (element == null) {
+                return List.nil;
+            } else {
+                return List.of(new Tuple(element.toTuple()));
+            }
         }
     }
 
     @Override
     public Tuple objectOf(Term key) {
-        Term object = elements.get(key);
-        return object == null ? null : object.toTuple();
+        synchronized (lock()) {
+            Term object = elements.get(key);
+            return object == null ? null : object.toTuple();
+        }
     }
 
     @Override
     public java.util.List<Tuple> objects() {
-        java.util.List<Tuple> result = new java.util.ArrayList<>();
-        for (Term element : elements.values()) {
-            result.add((Tuple) element);
+        synchronized (lock()) {
+            java.util.List<Tuple> result = new java.util.ArrayList<>();
+            for (Term element : elements.values()) {
+                result.add((Tuple) element);
+            }
+            return result;
         }
-        return result;
     }
 
     @Override
     public List tab2list() {
         // Descending iteration with a prepend builds an ascending list, which
         // is the order a sorted set already implies in this implementation.
-        List result = List.nil;
-        for (Term element : elements.descendingMap().values()) {
-            result = new List(new Tuple(element.toTuple()), result);
+        synchronized (lock()) {
+            List result = List.nil;
+            for (Term element : elements.descendingMap().values()) {
+                result = new List(new Tuple(element.toTuple()), result);
+            }
+            return result;
         }
-        return result;
     }
 
 }

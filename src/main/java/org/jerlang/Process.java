@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.jerlang.erts.dist.Distribution;
 import org.jerlang.erts.dist.NodeMonitorOptions;
 import org.jerlang.erts.erlang.Error;
+import org.jerlang.stdlib.ets.TableRegistry;
 import org.jerlang.type.Atom;
 import org.jerlang.type.BitString;
 import org.jerlang.type.Float;
@@ -68,6 +69,11 @@ public class Process extends ProcessOrPort {
     // Continuation Pointer
     private int cp = -1;
     private Stack<java.lang.Integer> cpStack = new Stack<>();
+
+    // Entry point of a process started from a fun. It is consumed by the
+    // first run and then cleared: the fun has no caller, so its return must
+    // end the process with cp = 0 instead of re-entering the lambda.
+    private int funEntry = -1;
 
     // Stack / Y register
     private Term[] stack = new Term[16];
@@ -203,6 +209,7 @@ public class Process extends ProcessOrPort {
             throw new Error("No instruction for fun label " + label);
         }
         cp = start;
+        funEntry = start;
     }
 
     public Process(PID pid, Atom module, Atom fun, List args) {
@@ -739,7 +746,14 @@ public class Process extends ProcessOrPort {
             }
             break;
         case RUNNABLE:
-            Interpreter.continueExecution(signatures.peek(), cp);
+            if (funEntry >= 0) {
+                int start = funEntry;
+                funEntry = -1;
+                setCP(0);
+                Interpreter.continueExecution(signatures.peek(), start);
+            } else {
+                Interpreter.continueExecution(signatures.peek(), cp);
+            }
             break;
         default:
             System.out.println("Skipping process " + pid() + " in state " + state());
@@ -1301,6 +1315,10 @@ public class Process extends ProcessOrPort {
         }
         terminated = true;
         setState(ProcessState.EXITING);
+        // A table lives only as long as the process that owns it. Doing this
+        // here, before the peers are notified, means a supervisor that hears
+        // the DOWN and restarts the child already finds the name free.
+        TableRegistry.deleteOwnedBy(pid());
         if (waitTimer != null) {
             waitTimer.cancel(false);
             waitTimer = null;

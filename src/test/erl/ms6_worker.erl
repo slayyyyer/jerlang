@@ -21,9 +21,16 @@ crash() ->
     gen_server:call(?MODULE, crash).
 
 init([]) ->
+    %% The table is owned by this gen_server, so the runtime destroys it when
+    %% the process crashes. Creating it again on the supervisor's restart is
+    %% the regression this test covers: a leaked table would make init fail
+    %% with badarg and the child would never come back.
+    ets:new(ms6_worker_table, [named_table]),
     {ok, 0}.
 
 handle_call(ping, _From, Count) ->
+    %% Use the table so a restart that lost it fails here, not silently.
+    _ = ets:update_counter(ms6_worker_table, pings, {2, 1}, {pings, 0}),
     {reply, pong, Count + 1};
 handle_call(count, _From, Count) ->
     {reply, Count, Count};

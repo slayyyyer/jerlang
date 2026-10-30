@@ -72,7 +72,11 @@ public class PassRateTest {
 
         String floor = System.getProperty("jerlang.conformance.min");
         if (floor != null && !floor.isEmpty()) {
-            assertEquals(report.render(), Double.parseDouble(floor), report.passRate(), 0.0001);
+            double minimum = Double.parseDouble(floor);
+            // A floor, not an equality: a newer OTP patch may add modules
+            // that lift the rate, and that must not fail the build.
+            assertTrue("pass rate " + report.passRate() + " is below " + minimum
+                + "\n" + report.render(), report.passRate() >= minimum);
         }
     }
 

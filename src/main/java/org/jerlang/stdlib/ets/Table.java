@@ -19,6 +19,12 @@ public abstract class Table {
 
     private static final AtomicInteger COUNTER = new AtomicInteger();
 
+    // One lock per table. Processes run on several scheduler threads, so the
+    // map that holds the objects is guarded by this instead of relying on the
+    // scheduler serialising table access. update_counter holds it across the
+    // read-modify-write, which is what makes the increment atomic.
+    private final Object lock = new Object();
+
     private final Integer id;
     private final Type type;
     private final Access access;
@@ -57,9 +63,16 @@ public abstract class Table {
         return id;
     }
 
+    /** Guard for the object store, held by every operation on the table. */
+    final Object lock() {
+        return lock;
+    }
+
     /**
      * Remove the table and everything in it. The table identifier stops
-     * working; a named table's name becomes free again.
+     * working; a named table's name becomes free again. A table lives as long
+     * as the process that owns it, so the runtime calls this when that process
+     * terminates as well as for an explicit ets:delete/1.
      */
     public void delete() {
         TableRegistry.unregister(this);
@@ -127,7 +140,11 @@ public abstract class Table {
      * already checked that it owns the table and that the target is alive.
      */
     public void giveAway(PID newOwner) {
-        this.owner = newOwner;
+        // Serialized with the owner-death cleanup, so a table that is being
+        // given away can not be destroyed by its previous owner's exit.
+        synchronized (lock) {
+            this.owner = newOwner;
+        }
     }
 
     public Type type() {

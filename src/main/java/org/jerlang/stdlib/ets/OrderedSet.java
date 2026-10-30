@@ -28,47 +28,59 @@ public class OrderedSet extends Table {
 
     @Override
     public void delete(Term key) {
-        elements.remove(key);
+        synchronized (lock()) {
+            elements.remove(key);
+        }
     }
 
     @Override
     public void insert(Tuple object) {
         // Store a copy: set_tuple_element updates a tuple in place, so keeping
         // the caller's tuple would let a later setelement change the table.
-        elements.put(object.element(keypos()), new Tuple(object));
+        synchronized (lock()) {
+            elements.put(object.element(keypos()), new Tuple(object));
+        }
     }
 
     @Override
     public List lookup(Term key) {
-        Tuple element = elements.get(key);
-        if (element == null) {
-            return List.nil;
+        synchronized (lock()) {
+            Tuple element = elements.get(key);
+            if (element == null) {
+                return List.nil;
+            }
+            return List.of(new Tuple(element));
         }
-        return List.of(new Tuple(element));
     }
 
     @Override
     public Tuple objectOf(Term key) {
-        Tuple element = elements.get(key);
-        return element == null ? null : element;
+        synchronized (lock()) {
+            Tuple element = elements.get(key);
+            return element == null ? null : element;
+        }
     }
 
     @Override
     public java.util.List<Tuple> objects() {
-        return new java.util.ArrayList<>(elements.values());
+        synchronized (lock()) {
+            return new java.util.ArrayList<>(elements.values());
+        }
     }
 
     @Override
     public List tab2list() {
         // Ascending key order, which is what an ordered_set guarantees and
         // what tab2list reports for it.
-        List result = List.nil;
-        for (Tuple element : elements.descendingMap().values()) {
-            // Copy like set does: set_tuple_element updates a tuple in place,
-            // so the table must not hand out the tuple it stores.
-            result = new List(new Tuple(element), result);
+        synchronized (lock()) {
+            List result = List.nil;
+            for (Tuple element : elements.descendingMap().values()) {
+                // Copy like set does: set_tuple_element updates a tuple in place,
+                // so the table must not hand out the tuple it stores.
+                result = new List(new Tuple(element), result);
+            }
+            return result;
         }
-        return result;
     }
 
 }

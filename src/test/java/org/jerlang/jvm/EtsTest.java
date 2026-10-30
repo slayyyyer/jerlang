@@ -1,14 +1,29 @@
 package org.jerlang.jvm;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
+import org.jerlang.Process;
+import org.jerlang.ProcessOrPort;
+import org.jerlang.ProcessRegistry;
+import org.jerlang.ProcessSignals;
 import org.jerlang.erts.Erlang;
+import org.jerlang.stdlib.Ets;
+import org.jerlang.stdlib.ets.TableRegistry;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
@@ -248,20 +263,142 @@ public class EtsTest {
         assertEquals(Atom.of("ok"), apply("give_away_requires_the_owner"));
     }
 
+    @Test
+    public void testTableDiesWithItsOwnerFromCompiledErlang() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("table_dies_with_owner"));
+    }
+
     /**
      * The same insert and lookup, called from Java, so a failure points at
      * the table and not at the interpreter path that reaches it.
+     *
+     * The table is created on the test thread, which is not an Erlang
+     * process, so it has no owner and outlives the calls. Creating it through
+     * erlang:apply would put it in a temporary process that terminates when
+     * the call returns, and the table would (correctly) die with it.
      */
     @Test
     public void testInsertAndLookupFromJava() throws Throwable {
-        Term tab = Erlang.apply(Atom.of("ets"), Atom.of("new"),
-            List.of(Atom.of("ets_test_java"), List.nil));
+        Term tab = Ets._new(Atom.of("ets_test_java"), List.nil);
         Term object = Tuple.of(Atom.of("key"), Atom.of("value"));
 
-        assertEquals(Atom.of("true"), Erlang.apply(Atom.of("ets"), Atom.of("insert"),
-            List.of(tab, object)));
-        assertEquals(List.of(object), Erlang.apply(Atom.of("ets"), Atom.of("lookup"),
-            List.of(tab, Atom.of("key"))));
+        assertEquals(Atom.of("true"), Ets.insert(tab, object));
+        assertEquals(List.of(object), Ets.lookup(tab, Atom.of("key")));
+        Ets.delete(tab);
+    }
+
+    /**
+     * A table is destroyed with the process that owns it, and give_away moves
+     * the ownership so the old owner can terminate without taking it down.
+     */
+    @Test
+    public void testTableDiesWithItsOwner() throws Throwable {
+        VirtualMachine machine = VirtualMachine.instance();
+        Process owner = new Process(machine.uselessPid());
+        Process keeper = new Process(machine.uselessPid());
+        ProcessRegistry.register(owner);
+        ProcessRegistry.register(keeper);
+
+        ProcessOrPort previous = ProcessRegistry.self();
+        try {
+            ProcessRegistry.self(owner);
+            Atom name = Atom.of("ets_owner_lifetime");
+            assertEquals(name, Ets._new(name, List.of(Atom.of("named_table"))));
+            assertNotNull(TableRegistry.lookup(name));
+            assertEquals(Atom.of("true"), Ets.give_away(name, keeper.pid(), Atom.of("gift")));
+        } finally {
+            ProcessRegistry.self(previous);
+        }
+
+        ProcessSignals.terminate(owner, Atom.of("normal"));
+        assertNotNull("a given-away table survives its previous owner",
+            TableRegistry.lookup(Atom.of("ets_owner_lifetime")));
+
+        ProcessSignals.terminate(keeper, Atom.of("normal"));
+        assertNull("a table dies with its owner",
+            TableRegistry.lookup(Atom.of("ets_owner_lifetime")));
+
+        // The name is free again, which is what lets a restarted gen_server
+        // recreate the table its init/1 creates.
+        Atom name = Atom.of("ets_owner_lifetime");
+        assertEquals(name, Ets._new(name, List.of(Atom.of("named_table"))));
+        Ets.delete(name);
+    }
+
+    /**
+     * update_counter is a read-modify-write. Several processes incrementing
+     * one key must not lose an increment.
+     */
+    @Test
+    public void testConcurrentUpdateCounterKeepsEveryIncrement() throws Exception {
+        Atom name = Atom.of("ets_concurrent_counter");
+        Term tab = Ets._new(name, List.of(Atom.of("named_table")));
+        Term key = Atom.of("counter");
+        Ets.insert(tab, Tuple.of(key, Integer.of(0)));
+
+        int workers = 8;
+        int perWorker = 500;
+        ExecutorService pool = Executors.newFixedThreadPool(workers);
+        CountDownLatch start = new CountDownLatch(1);
+        java.util.List<Future<?>> futures = new ArrayList<>();
+        try {
+            for (int worker = 0; worker < workers; worker++) {
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    for (int i = 0; i < perWorker; i++) {
+                        Ets.update_counter(tab, key, Tuple.of(Integer.of(2), Integer.of(1)));
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (Future<?> future : futures) {
+                future.get(30, TimeUnit.SECONDS);
+            }
+            assertEquals(List.of(Tuple.of(key, Integer.of(workers * perWorker))),
+                Ets.lookup(tab, key));
+        } finally {
+            pool.shutdownNow();
+            Ets.delete(name);
+        }
+    }
+
+    /**
+     * Two processes racing to create the same named table: exactly one wins,
+     * the rest get badarg. A check-then-put could let both succeed and leave
+     * the name pointing at only one of them.
+     */
+    @Test
+    public void testConcurrentNamedTableCreationHasOneWinner() throws Exception {
+        Atom name = Atom.of("ets_named_race");
+        int workers = 8;
+        ExecutorService pool = Executors.newFixedThreadPool(workers);
+        CountDownLatch start = new CountDownLatch(1);
+        java.util.List<Future<Boolean>> futures = new ArrayList<>();
+        try {
+            for (int worker = 0; worker < workers; worker++) {
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    try {
+                        Ets._new(name, List.of(Atom.of("named_table")));
+                        return true;
+                    } catch (org.jerlang.erts.erlang.Error expected) {
+                        return false;
+                    }
+                }));
+            }
+            start.countDown();
+            int winners = 0;
+            for (Future<Boolean> future : futures) {
+                if (future.get(30, TimeUnit.SECONDS)) {
+                    winners++;
+                }
+            }
+            assertEquals("exactly one ets:new may claim a name", 1, winners);
+        } finally {
+            pool.shutdownNow();
+            Ets.delete(name);
+        }
     }
 
     private Term apply(String function) throws Throwable {

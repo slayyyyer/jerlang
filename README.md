@@ -53,9 +53,10 @@ What works today:
   `code:load_file/1`, `code:is_loaded/1`, `code:get_path/0`,
   `code:add_patha/1`, `code:add_pathz/1` and `code:del_path/1` report and use
   it. Modules load from any directory on the path, not just the working one.
-* A 463-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
-  over an OTP installation, and the benchmarks. GitHub Actions runs the rest on
-  every push and pull request.
+* A 465-test suite. The unit tests need no Erlang and run on every push and
+  pull request. Nine tests drive OTP's own modules and run in a separate CI job
+  with an OTP 29 installation; a further 15 are opt-in external or machine
+  tests (the live peer suite, the pass-rate run and the benchmarks).
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP
   29.1.2 load, and every instruction in them has a handler. A separate CI job
   measures that rate, so the number is checked, not claimed.
@@ -67,14 +68,17 @@ What does not work yet:
   error; ordinary tuple records are fully supported.
 * ETS has `set` and `ordered_set` tables. `new`, `insert`, `lookup`, `delete`,
   `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`,
-  `select` and `give_away` work, with named tables and `{keypos, N}`. Match
-  specs support the whole pattern language, bodies and the common guards;
-  `is_map_key` and arithmetic guards are not implemented, and there is no
-  `bag`, `duplicate_bag`, `match_delete`, `select_delete` or heir support.
+  `select` and `give_away` work, with named tables and `{keypos, N}`. A table
+  is destroyed when its owner terminates, `give_away` moves the ownership
+  first, and `update_counter` is atomic across processes. Match specs support
+  the whole pattern language, bodies and the common guards; `is_map_key` and
+  arithmetic guards are not implemented, and there is no `bag`,
+  `duplicate_bag`, `match_delete`, `select_delete` or heir support.
 * OTP's `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and
   `code` run unmodified from an OTP 29 installation. `gen_statem` and the wider
   standard library are not covered. Included applications, start phases and
-  dead-tree bookkeeping work in the application controller, but
+  dead-tree bookkeeping work in the application controller, including stopping
+  an included application when its parent's tree dies on its own, but
   `application_master` itself is not modelled: distributed takeover and
   automatic restart of a crashed permanent application are missing.
 * Fair scheduling. There are no reductions, so a CPU-bound loop can hold a
@@ -96,7 +100,7 @@ notes and documents the one remaining language-feature gap.
 |0.3    |Language                  |Most BEAM opcodes are implemented                                |Done   |
 |0.4    |Network                   |Distribution and sockets work against OTP 29                     |Done   |
 |0.5    |Language completeness     |A corpus of constructs runs with no unsupported opcode           |Done   |
-|0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |In progress|
+|0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |Done   |
 |0.7    |Runtime and concurrency   |Preemption, timer bounds, no leaked processes under stress       |Planned|
 |0.8    |Interop and embedding     |Java↔Erlang examples in CI and a frozen API                      |Planned|
 |0.9    |Cluster and operations    |Metrics, reconnection and graceful shutdown under load           |Planned|

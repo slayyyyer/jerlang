@@ -80,13 +80,6 @@ public class Module {
     }
 
     public Term apply(FunctionSignature signature, Term params) throws Error {
-        if (java.lang.Boolean.getBoolean("jerlang.debug.errors")
-            && signature.module().toString().equals("erlang")
-            && signature.function().toString().equals("cancel_timer")) {
-            System.err.println("APPLY erlang:cancel_timer/" + signature.fun_arity()
-                + " internal=" + isInternal() + " native=" + native_functions.contains(signature)
-                + " stream=" + hasInstructionStream(signature));
-        }
         if (!hasFunction(signature)) {
             // A call to a function the module does not export, or does not
             // have at all, is what OTP reports as undef.

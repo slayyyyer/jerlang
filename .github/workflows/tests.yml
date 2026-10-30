@@ -36,6 +36,45 @@ jobs:
           path: target/surefire-reports/
           if-no-files-found: ignore
 
+  otp:
+    # The standard library boot tests run OTP's own gen_server, supervisor,
+    # application, proc_lib and logger modules, so they need an Erlang
+    # installation. Without this job the milestone's exit test is green only
+    # on a developer machine: the test classes skip themselves when
+    # -Djerlang.otp.dir is not set.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Set up Erlang/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: '29'
+
+      - name: Run the OTP-backed tests
+        run: |
+          OTP_ROOT="$(erl -noshell -eval 'io:format("~s", [code:root_dir()]), halt().')"
+          echo "OTP root: $OTP_ROOT"
+          mvn -B \
+            -Dtest=ApplicationTest,SupervisorTest,GenServerTest,ProcLibTest,LoggerTest \
+            -Djerlang.otp.dir="$OTP_ROOT" test
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: otp-surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+
   conformance:
     # The pass rate over real OTP modules, which is the number the roadmap
     # tracks. It needs an OTP installation, so it lives in its own job.
@@ -60,4 +99,10 @@ jobs:
         run: |
           OTP_ROOT="$(erl -noshell -eval 'io:format("~s", [code:root_dir()]), halt().')"
           echo "OTP root: $OTP_ROOT"
-          mvn -B -Dtest=PassRateTest -Djerlang.conformance.dir="$OTP_ROOT/lib" test
+          # The floor turns the recorded rate into a gate. From the OTP 29.1.2
+          # run the rate is 1.0; 0.99 leaves room for a patch release that
+          # ships a module the loader can not read yet without hiding a
+          # regression in the bulk of the corpus.
+          mvn -B -Dtest=PassRateTest \
+            -Djerlang.conformance.dir="$OTP_ROOT/lib" \
+            -Djerlang.conformance.min=0.99 test

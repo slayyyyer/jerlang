@@ -21,7 +21,7 @@
          select_projects_the_body/0, select_guards/0,
          select_multiple_clauses/0, select_bad_specification/0,
          give_away_transfers_ownership/0, give_away_to_self_is_badarg/0,
-         give_away_requires_the_owner/0, holder/1,
+         give_away_requires_the_owner/0, table_dies_with_owner/0, holder/1,
          give_away_from_other/2]).
 
 %% A table created with ets:new/2 holds an object after insert, and lookup
@@ -463,6 +463,30 @@ give_away_transfers_ownership() ->
     true = ets:give_away(Tab, Pid, gift),
     Pid = ets:whereis(Tab),
     Pid ! stop,
+    ok.
+
+%% A table belongs to the process that created it and is destroyed when
+%% that process exits, so the name is free again afterwards. The child waits
+%% for go after the parent has monitored it, which makes the DOWN
+%% deterministic instead of racing a process that may already be gone.
+table_dies_with_owner() ->
+    Name = ets_demo_owner,
+    Parent = self(),
+    Pid = spawn(fun() ->
+        ets:new(Name, [named_table]),
+        ets:insert(Name, {key, value}),
+        Parent ! {ready, self()},
+        receive go -> ok end
+    end),
+    receive {ready, Pid} -> ok after 2000 -> error(owner_did_not_start) end,
+    Ref = erlang:monitor(process, Pid),
+    Pid ! go,
+    receive {'DOWN', Ref, process, Pid, normal} -> ok
+    after 2000 -> error(owner_did_not_exit) end,
+    undefined = ets:whereis(Name),
+    %% The name is free: a restarted gen_server can create its table again.
+    Name = ets:new(Name, [named_table]),
+    true = ets:delete(Name),
     ok.
 
 %% Giving a table away to yourself is badarg.

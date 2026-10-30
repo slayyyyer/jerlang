@@ -55,8 +55,9 @@ mvn -Dtest=PassRateTest -Djerlang.conformance.dir="$OTP/lib" test
 ```
 
 The directory may be a path list and is searched recursively. The run prints
-the rate; add `-Djerlang.conformance.min=0.99` to also assert a floor. The
-checked-in corpus is gated at 100% by the `test` job.
+the rate; the `conformance` CI job passes `-Djerlang.conformance.min=0.99`, so
+a drop below that floor fails the build. The checked-in corpus is gated at 100%
+by the `test` job.
 
 ## What a modern BEAM file contains that the loader did not expect
 

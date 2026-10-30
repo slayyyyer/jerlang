@@ -579,6 +579,7 @@ public final class Applications {
      */
     private static void reapDead() {
         java.util.List<Atom> dead = new ArrayList<>();
+        java.util.List<Atom> included = new ArrayList<>();
         synchronized (LOCK) {
             for (Map.Entry<Atom, Running> entry : running.entrySet()) {
                 Term pid = entry.getValue().pid;
@@ -587,8 +588,30 @@ public final class Applications {
                 }
             }
             for (Atom name : dead) {
-                running.remove(name);
+                Running entry = running.remove(name);
+                if (entry == null) {
+                    continue;
+                }
+                // An included application is started by its parent, but its
+                // supervision tree is not linked to the parent's, so it is
+                // still alive when the parent dies. OTP stops it with the
+                // parent; leaving it running would leak a tree whose owner no
+                // longer exists.
+                for (Term app : elements(entry.spec.includedApplications.toList())) {
+                    if (app instanceof Atom) {
+                        included.add((Atom) app);
+                    }
+                }
             }
+        }
+        // Stop them outside the lock: stopping a tree waits for processes.
+        for (Atom name : included) {
+            synchronized (LOCK) {
+                if (!running.containsKey(name)) {
+                    continue;
+                }
+            }
+            stop(name);
         }
     }
 

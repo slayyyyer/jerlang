@@ -137,6 +137,10 @@ public class ApplicationTest extends AbstractVirtualMachineTest {
             Thread.sleep(20);
         }
         assertFalse(isRunning(APP));
+        // The included application's tree is not linked to the parent's, but
+        // it must still be stopped when its parent dies on its own.
+        assertFalse("the included application is stopped with its parent",
+            isRunning(INCLUDED));
         assertEquals(Tuple.of(ERROR, Tuple.of(Atom.of("not_started"), APP)),
             call(APPLICATION, Atom.of("stop"), List.of(APP)));
     }

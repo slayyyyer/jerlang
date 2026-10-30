@@ -82,11 +82,9 @@ public class EtsNew {
         }
 
         // A name can only belong to one table at a time. OTP rejects the
-        // second ets:new with badarg instead of replacing the first table.
-        if (is_named_table && TableRegistry.lookup(name) != null) {
-            throw Error.badarg;
-        }
-
+        // second ets:new with badarg instead of replacing the first table;
+        // TableRegistry.register claims the name atomically during the
+        // construction below, so two concurrent calls can not both win.
         Table table;
         switch (type) {
         case SET:
@@ -96,7 +94,9 @@ public class EtsNew {
             table = new OrderedSet(access, name, is_named_table, is_compressed, key_position);
             break;
         default:
-            throw new Error("not implemented yet");
+            // bag and duplicate_bag are documented gaps, not invalid options:
+            // name the option that is unsupported instead of a string.
+            throw new Error(Tuple.of(Atom.of("not_supported"), type.toAtom()));
         }
         // A named table is addressed by its name, so that is what OTP
         // returns. An unnamed one returns its identifier.
