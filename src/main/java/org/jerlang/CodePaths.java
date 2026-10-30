@@ -24,6 +24,10 @@ public class CodePaths {
 
     private static final List<String> paths = new ArrayList<>();
 
+    // Directories whose modules may not be replaced by a file from another
+    // directory. This is the code server's sticky directory facility.
+    private static final java.util.Set<String> sticky = new java.util.LinkedHashSet<>();
+
     static {
         paths.add(CURRENT_DIRECTORY);
         addErlLibs(System.getenv("ERL_LIBS"));
@@ -71,6 +75,20 @@ public class CodePaths {
      */
     public static synchronized List<String> get() {
         return new ArrayList<>(paths);
+    }
+
+    /**
+     * Replace one entry of the code path with another directory. The old
+     * entry has to be on the path; the new one is inserted at its position so
+     * the relative order of the path is kept.
+     */
+    public static synchronized boolean replace(String from, String to) {
+        int index = paths.indexOf(normalizePath(from));
+        if (index < 0) {
+            return false;
+        }
+        paths.set(index, normalizePath(to));
+        return true;
     }
 
     /**
@@ -229,10 +247,40 @@ public class CodePaths {
     }
 
     /**
+     * Make a directory sticky, so a module already loaded from it can not be
+     * replaced by a file from another directory. Returns false when the
+     * argument is not a directory.
+     */
+    public static synchronized boolean stick(String directory) {
+        if (!new File(directory).isDirectory()) {
+            return false;
+        }
+        sticky.add(normalizePath(directory));
+        return true;
+    }
+
+    /**
+     * Remove the sticky mark from a directory. Returns false when the
+     * argument is not a directory.
+     */
+    public static synchronized boolean unstick(String directory) {
+        if (!new File(directory).isDirectory()) {
+            return false;
+        }
+        sticky.remove(normalizePath(directory));
+        return true;
+    }
+
+    public static synchronized boolean isSticky(String directory) {
+        return sticky.contains(normalizePath(directory));
+    }
+
+    /**
      * Back to the default path. Used by tests.
      */
     public static synchronized void reset() {
         paths.clear();
+        sticky.clear();
         paths.add(CURRENT_DIRECTORY);
     }
 
@@ -263,6 +311,15 @@ public class CodePaths {
         String name = directory.substring(directory.lastIndexOf('/') + 1);
         int dash = name.indexOf('-');
         return dash < 0 ? name : name.substring(0, dash);
+    }
+
+    /**
+     * The directory that contains a file. An empty string when there is none,
+     * which is what the sticky directory check needs for a bare file name.
+     */
+    public static String parentOf(String path) {
+        File parent = new File(path).getParentFile();
+        return parent == null ? "" : parent.getPath();
     }
 
     /**

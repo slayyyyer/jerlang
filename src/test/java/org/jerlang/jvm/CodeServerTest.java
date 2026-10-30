@@ -157,6 +157,86 @@ public class CodeServerTest extends AbstractVirtualMachineTest {
     }
 
     @Test
+    public void testStickyDirectoryRefusesAReplacement() throws Throwable {
+        Path first = ebin(root.resolve("first"));
+        Path second = ebin(root.resolve("second"));
+        beam("code_demo", first);
+        beam("code_demo", second);
+
+        CodePaths.addPatha(path(first));
+        assertEquals(Tuple.of(Atom.of("module"), Atom.of("code_demo")),
+            call("code", "load_file", Atom.of("code_demo")));
+        assertEquals(Atom.of("ok"), call("code", "stick_dir", Str.of(path(first))));
+
+        // The search path now resolves to the other directory, but the
+        // loaded module came from a sticky one and may not be replaced.
+        CodePaths.addPatha(path(second));
+        assertEquals(Atom.of(path(second) + "/code_demo.beam"),
+            call("code", "which", Atom.of("code_demo")));
+        assertEquals(Tuple.of(Atom.of("error"), Atom.of("sticky_directory")),
+            call("code", "load_file", Atom.of("code_demo")));
+
+        assertEquals(Atom.of("ok"), call("code", "unstick_dir", Str.of(path(first))));
+        assertEquals(Tuple.of(Atom.of("module"), Atom.of("code_demo")),
+            call("code", "load_file", Atom.of("code_demo")));
+    }
+
+    @Test
+    public void testStickyDirectoryQueries() throws Throwable {
+        Path directory = Files.createDirectories(root.resolve("sticky"));
+        assertEquals(Atom.of("false"), call("code", "is_sticky", Str.of(path(directory))));
+        assertEquals(Atom.of("ok"), call("code", "stick_dir", Str.of(path(directory))));
+        assertEquals(Atom.of("true"), call("code", "is_sticky", Str.of(path(directory))));
+        assertEquals(Atom.of("ok"), call("code", "unstick_dir", Str.of(path(directory))));
+        assertEquals(Atom.of("false"), call("code", "is_sticky", Str.of(path(directory))));
+
+        Tuple badDirectory = Tuple.of(Atom.of("error"), Atom.of("bad_directory"));
+        assertEquals(badDirectory, call("code", "stick_dir",
+            Str.of(path(root.resolve("missing")))));
+        assertEquals(badDirectory, call("code", "unstick_dir",
+            Str.of(path(root.resolve("missing")))));
+    }
+
+    @Test
+    public void testEnsureModulesLoadedLoadsEveryModule() throws Throwable {
+        Path ebin = ebin(root.resolve("ensure"));
+        beam("code_demo", ebin);
+        beam("code_extra", ebin);
+        CodePaths.addPatha(path(ebin));
+
+        assertEquals(Atom.of("ok"), call("code", "ensure_modules_loaded",
+            List.of(Atom.of("code_demo"), Atom.of("code_extra"))));
+        assertEquals(Tuple.of(Atom.of("file"), Str.of(path(ebin) + "/code_demo.beam")),
+            call("code", "is_loaded", Atom.of("code_demo")));
+        assertEquals(Tuple.of(Atom.of("file"), Str.of(path(ebin) + "/code_extra.beam")),
+            call("code", "is_loaded", Atom.of("code_extra")));
+
+        assertEquals(Tuple.of(Atom.of("error"),
+                List.of(Tuple.of(Atom.of("no_such_module"), Atom.of("nofile")))),
+            call("code", "ensure_modules_loaded", List.of(Atom.of("no_such_module"))));
+    }
+
+    @Test
+    public void testReplacePathKeepsThePosition() throws Throwable {
+        Path first = Files.createDirectories(root.resolve("first"));
+        Path last = Files.createDirectories(root.resolve("last"));
+        Path replacement = Files.createDirectories(root.resolve("replacement"));
+        CodePaths.addPatha(path(first));
+        CodePaths.addPathz(path(last));
+
+        assertEquals(Atom.of("true"),
+            call("code", "replace_path", Str.of(path(last)), Str.of(path(replacement))));
+        // The working directory stays between the -pa entry and the -pz
+        // entry, so the replacement keeps its place at the end.
+        List path = call("code", "get_path").toList();
+        assertEquals(Str.of(path(first)), path.head());
+        assertEquals(Str.of(path(replacement)), path.tail().tail().head());
+        assertEquals(Tuple.of(Atom.of("error"), Atom.of("bad_directory")),
+            call("code", "replace_path", Str.of(path(first)),
+                Str.of(path(root.resolve("missing")))));
+    }
+
+    @Test
     public void testCompiledErlangUsesTheCodeServer() throws Throwable {
         Path ebin = ebin(root.resolve("erlang"));
         beam("code_demo", ebin);

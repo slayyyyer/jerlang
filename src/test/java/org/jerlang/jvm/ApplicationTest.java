@@ -20,6 +20,7 @@ import org.jerlang.kernel.application_controller.Applications;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
+import org.jerlang.type.PID;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 import org.junit.After;
@@ -46,6 +47,8 @@ public class ApplicationTest extends AbstractVirtualMachineTest {
     private static final Atom UNDEFINED = Atom.of("undefined");
     private static final Atom DEMO = Atom.of("ms6_demo");
     private static final Atom APP = Atom.of("ms6_app");
+    private static final Atom INCLUDED = Atom.of("ms6_included");
+    private static final Atom ERROR = Atom.of("error");
 
     @Before
     public void startApplication() throws Exception {
@@ -67,6 +70,12 @@ public class ApplicationTest extends AbstractVirtualMachineTest {
         } catch (Throwable ignored) {
             // The application may already be down.
         }
+        try {
+            call(Atom.of("persistent_term"), Atom.of("erase"),
+                List.of(Atom.of("ms6_start_phase")));
+        } catch (Throwable ignored) {
+            // Nothing was stored when the application never started.
+        }
         Applications.reset();
         CodePaths.reset();
         ModuleRegistry.reset();
@@ -80,6 +89,12 @@ public class ApplicationTest extends AbstractVirtualMachineTest {
             call(APPLICATION, Atom.of("get_env"), List.of(APP, Atom.of("restart_intensity"))));
         assertTrue(isRunning(APP));
         assertTrue(isLoaded(APP));
+        // The declared start phase ran in the application callback.
+        assertEquals(Atom.of("phase_ran"),
+            call(Atom.of("persistent_term"), Atom.of("get"),
+                List.of(Atom.of("ms6_start_phase"))));
+        // The included application was started with its parent.
+        assertTrue(isRunning(INCLUDED));
         assertEquals(Tuple.of(Atom.of("ok"),
                 List.of(APP, Atom.of("ms6_sup"), Atom.of("ms6_worker"))),
             call(APPLICATION, Atom.of("get_key"), List.of(APP, Atom.of("modules"))));
@@ -103,6 +118,27 @@ public class ApplicationTest extends AbstractVirtualMachineTest {
         assertEquals(UNDEFINED, call(DEMO, Atom.of("worker"), List.of()));
         assertEquals(UNDEFINED, call(DEMO, Atom.of("supervisor"), List.of()));
         assertFalse(isRunning(APP));
+        assertFalse(isRunning(INCLUDED));
+    }
+
+    /**
+     * A tree that dies on its own is no longer a running application, even
+     * though there is no application_master to report the exit.
+     */
+    @Test
+    public void testDeadTreeLeavesTheRunningSet() throws Throwable {
+        assertEquals(OK, call(APPLICATION, Atom.of("start"), List.of(APP)));
+        Term master = call(Atom.of("application_controller"),
+            Atom.of("get_master"), List.of(APP));
+        assertTrue("the started application has a top pid", master instanceof PID);
+
+        call(Atom.of("erlang"), Atom.of("exit"), List.of(master, Atom.of("kill")));
+        for (int attempt = 0; attempt < 100 && isRunning(APP); attempt++) {
+            Thread.sleep(20);
+        }
+        assertFalse(isRunning(APP));
+        assertEquals(Tuple.of(ERROR, Tuple.of(Atom.of("not_started"), APP)),
+            call(APPLICATION, Atom.of("stop"), List.of(APP)));
     }
 
     private static boolean isRunning(Term application) throws Throwable {

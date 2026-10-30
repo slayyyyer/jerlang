@@ -53,7 +53,7 @@ What works today:
   `code:load_file/1`, `code:is_loaded/1`, `code:get_path/0`,
   `code:add_patha/1`, `code:add_pathz/1` and `code:del_path/1` report and use
   it. Modules load from any directory on the path, not just the working one.
-* A 399-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
+* A 463-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
   over an OTP installation, and the benchmarks. GitHub Actions runs the rest on
   every push and pull request.
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP
@@ -65,16 +65,24 @@ What does not work yet:
 * Native records, the experimental OTP 29 data type declared as
   `-record #name{...}`. Type tests always fail and construction raises a named
   error; ordinary tuple records are fully supported.
-* ETS is limited to `set` tables. `new`, `insert`, `lookup`, `delete`,
-  `tab2list`, `update_counter` and `all` work, with named tables,
-  `{keypos, N}`, and exact key equality, so `1` and `1.0` are different keys,
-  but there is no `match`, `select`, `ordered_set`, `bag` or `duplicate_bag`.
-* The OTP behaviours and most of the standard library: there is no `gen_server`,
-  `supervisor`, `application` or `logger` module.
+* ETS has `set` and `ordered_set` tables. `new`, `insert`, `lookup`, `delete`,
+  `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`,
+  `select` and `give_away` work, with named tables and `{keypos, N}`. Match
+  specs support the whole pattern language, bodies and the common guards;
+  `is_map_key` and arithmetic guards are not implemented, and there is no
+  `bag`, `duplicate_bag`, `match_delete`, `select_delete` or heir support.
+* OTP's `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and
+  `code` run unmodified from an OTP 29 installation. `gen_statem` and the wider
+  standard library are not covered. Included applications, start phases and
+  dead-tree bookkeeping work in the application controller, but
+  `application_master` itself is not modelled: distributed takeover and
+  automatic restart of a crashed permanent application are missing.
 * Fair scheduling. There are no reductions, so a CPU-bound loop can hold a
   scheduler while other processes wait.
-* The rest of the `code` module: there is no `code:ensure_loaded/1`,
-  `code:replace_path/2`, sticky directory or parallel loader.
+* The rest of the `code` module: sticky directories, `code:replace_path/2` and
+  `code:ensure_modules_loaded/1` work; the loader is sequential because the
+  atom table and module registry are not thread safe, and OTP boot scripts are
+  not interpreted.
 
 [docs/beam-compatibility.md](docs/beam-compatibility.md) keeps the per-opcode
 notes and documents the one remaining language-feature gap.

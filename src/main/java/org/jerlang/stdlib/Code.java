@@ -118,22 +118,108 @@ public class Code {
 
     /**
      * Load a module from the code path. Returns `{module, Module}` when the
-     * BEAM file was found and loaded, and `{error, nofile}` otherwise.
+     * BEAM file was found and loaded, and `{error, nofile}` otherwise. A
+     * module already loaded from a sticky directory may only be replaced by
+     * that same file, which is what code:stick_dir/1 protects.
      */
     public static Term load_file(Atom module) {
+        Module current = ModuleRegistry.loaded(module);
+        String target = CodePaths.find(module.toString());
+        if (current != null && current.beamFile() != null && target != null
+            && !CodePaths.normalizePath(current.beamFile().getPath()).equals(target)
+            && CodePaths.isSticky(CodePaths.parentOf(current.beamFile().getPath()))) {
+            return Tuple.of(Atom.of("error"), Atom.of("sticky_directory"));
+        }
         Module loaded = ModuleLoader.load(module);
         if (loaded == null) {
             return Tuple.of(Atom.of("error"), Atom.of("nofile"));
         }
-        Module current = ModuleRegistry.loaded(module);
-        if (current != null && current.isInternal()) {
+        Module existing = ModuleRegistry.loaded(module);
+        if (existing != null && existing.isInternal()) {
             // The BEAM file replaces a built-in module but keeps the
             // primitives that the file declares without implementing.
-            loaded.adoptBuiltins(current);
+            loaded.adoptBuiltins(existing);
         }
         ModuleRegistry.register(loaded);
         return Tuple.of(Atom.of("module"), module);
     }
+
+    /**
+     * Load several modules. OTP loads them in parallel; module loading and
+     * the atom table are not thread safe in this runtime, so the loads here
+     * are sequential. `ok` means every module is loaded, otherwise the result
+     * lists the modules that failed with their reason.
+     *
+     * http://www.erlang.org/doc/man/code.html#ensure_modules_loaded-1
+     */
+    public static Term ensure_modules_loaded(Term modules) {
+        java.util.List<Term> failures = new java.util.ArrayList<>();
+        List entries = modules.toList();
+        while (entries.length() > 0) {
+            Term entry = entries.head();
+            if (!(entry instanceof Atom)) {
+                throw Error.badarg;
+            }
+            Atom module = (Atom) entry;
+            if (ModuleRegistry.loaded(module) == null) {
+                Term result = load_file(module);
+                if (!(result instanceof Tuple) || ((Tuple) result).arity() != 2
+                    || !Atom.of("module").equals(((Tuple) result).element(1))) {
+                    Term reason = result instanceof Tuple && ((Tuple) result).arity() == 2
+                        ? ((Tuple) result).element(2) : result;
+                    failures.add(Tuple.of(module, reason));
+                }
+            }
+            entries = entries.tail();
+        }
+        if (failures.isEmpty()) {
+            return Atom.of("ok");
+        }
+        List list = List.nil;
+        for (int index = failures.size() - 1; index >= 0; index--) {
+            list = new List(failures.get(index), list);
+        }
+        return Tuple.of(Atom.of("error"), list);
+    }
+
+    /**
+     * Make a directory sticky, so a module already loaded from it can not be
+     * replaced from another directory.
+     */
+    public static Term stick_dir(Term directory) {
+        return CodePaths.stick(PathArgument.of(directory))
+            ? Atom.of("ok") : Tuple.of(Atom.of("error"), Atom.of("bad_directory"));
+    }
+
+    /**
+     * Remove the sticky mark from a directory.
+     */
+    public static Term unstick_dir(Term directory) {
+        return CodePaths.unstick(PathArgument.of(directory))
+            ? Atom.of("ok") : Tuple.of(Atom.of("error"), Atom.of("bad_directory"));
+    }
+
+    public static Term is_sticky(Term directory) {
+        return CodePaths.isSticky(PathArgument.of(directory))
+            ? Atom.of("true") : Atom.of("false");
+    }
+
+    /**
+     * Replace one entry of the code path with another directory. The old
+     * entry has to be on the path and the new one has to exist.
+     */
+    public static Term replace_path(Term name, Term directory) {
+        String from = PathArgument.of(name);
+        String to = PathArgument.of(directory);
+        if (!new java.io.File(to).isDirectory()) {
+            return Tuple.of(Atom.of("error"), Atom.of("bad_directory"));
+        }
+        if (!CodePaths.replace(from, to)) {
+            return Tuple.of(Atom.of("error"), Atom.of("bad_path"));
+        }
+        return Atom.of("true");
+    }
+
 
     /**
      * The private directory of an application.

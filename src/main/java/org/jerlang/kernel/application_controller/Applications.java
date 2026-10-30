@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.jerlang.CodePaths;
 import org.jerlang.Process;
+import org.jerlang.ProcessRegistry;
 import org.jerlang.erts.Erlang;
 import org.jerlang.kernel.file.TermReader;
 import org.jerlang.type.Atom;
@@ -65,10 +66,13 @@ public final class Applications {
         public final Term mod;
         public final Term applications;
         public final Term optionalApplications;
+        public final Term includedApplications;
+        public final Term startPhases;
         public final Map<Term, Term> properties;
 
         private Spec(Atom name, Term description, Term vsn, Term mod,
                      Term applications, Term optionalApplications,
+                     Term includedApplications, Term startPhases,
                      Map<Term, Term> properties) {
             this.name = name;
             this.description = description;
@@ -76,6 +80,8 @@ public final class Applications {
             this.mod = mod;
             this.applications = applications;
             this.optionalApplications = optionalApplications;
+            this.includedApplications = includedApplications;
+            this.startPhases = startPhases;
             this.properties = properties;
         }
 
@@ -143,7 +149,7 @@ public final class Applications {
 
     private static Spec builtin(Atom name, String description) {
         return new Spec(name, Str.of(description), Str.of(""), List.nil, List.nil, List.nil,
-            new LinkedHashMap<>());
+            List.nil, List.nil, new LinkedHashMap<>());
     }
 
     /**
@@ -231,12 +237,22 @@ public final class Applications {
         if (optional == null) {
             optional = List.nil;
         }
+        Term included = map.get(Atom.of("included_applications"));
+        if (included == null) {
+            included = List.nil;
+        }
+        Term phases = map.get(Atom.of("start_phases"));
+        if (phases == null) {
+            phases = List.nil;
+        }
         return new Spec(name,
             description == null ? Str.of("") : description,
             vsn == null ? Str.of("") : vsn,
             mod == null ? List.nil : mod,
             applications,
             optional,
+            included,
+            phases,
             map);
     }
 
@@ -283,6 +299,7 @@ public final class Applications {
     }
 
     private static Term start(Atom name, Atom type, java.util.List<Atom> starting) {
+        reapDead();
         Spec spec;
         synchronized (LOCK) {
             if (running.containsKey(name)) {
@@ -330,6 +347,27 @@ public final class Applications {
                 }
                 start(dependencyName, type, starting);
             }
+            // Included applications belong to this application's master in
+            // OTP. They are started (and stopped) with the parent here; the
+            // parent callback still runs on its own, so the start arguments
+            // an included application gets in OTP are not modelled.
+            java.util.List<Atom> startedIncluded = new ArrayList<>();
+            for (Term included : elements(spec.includedApplications.toList())) {
+                Atom includedName = included.toAtom();
+                synchronized (LOCK) {
+                    if (running.containsKey(includedName)) {
+                        continue;
+                    }
+                }
+                Term includedResult = start(includedName, type, starting);
+                if (!OK.equals(includedResult) && !alreadyStarted(includedResult)) {
+                    for (Atom started : startedIncluded) {
+                        stop(started);
+                    }
+                    return includedResult;
+                }
+                startedIncluded.add(includedName);
+            }
             Term pid = List.nil;
             if (spec.mod instanceof Tuple && ((Tuple) spec.mod).arity() == 2) {
                 Atom module = ((Tuple) spec.mod).element(1).toAtom();
@@ -349,6 +387,14 @@ public final class Applications {
                 } else {
                     return error(Tuple.of(Atom.of("bad_return"), result));
                 }
+            }
+            Term phaseResult = startPhases(spec, type);
+            if (!OK.equals(phaseResult)) {
+                terminate(pid);
+                for (Atom started : startedIncluded) {
+                    stop(started);
+                }
+                return phaseResult;
             }
             synchronized (LOCK) {
                 running.put(name, new Running(spec, type, pid));
@@ -376,6 +422,7 @@ public final class Applications {
      */
     public static Term stop(Term application) {
         Atom name = application.toAtom();
+        reapDead();
         Running current;
         synchronized (LOCK) {
             current = running.get(name);
@@ -393,6 +440,41 @@ public final class Applications {
         terminate(current.pid);
         synchronized (LOCK) {
             running.remove(name);
+        }
+        for (Term included : elements(current.spec.includedApplications.toList())) {
+            if (Boolean.am_true.equals(isRunning(included))) {
+                stop(included);
+            }
+        }
+        return OK;
+    }
+
+    /**
+     * Run the start phases declared by the resource file, in order. OTP calls
+     * the application callback's start_phase/3 after start/2 has returned,
+     * and a phase that fails stops the application from starting.
+     */
+    private static Term startPhases(Spec spec, Atom type) {
+        if (!(spec.startPhases instanceof List) || isNil(spec.startPhases)) {
+            return OK;
+        }
+        if (!(spec.mod instanceof Tuple) || ((Tuple) spec.mod).arity() != 2) {
+            return error(Tuple.of(Atom.of("bad_application"), spec.name));
+        }
+        for (Term entry : elements(spec.startPhases.toList())) {
+            if (!(entry instanceof Tuple) || ((Tuple) entry).arity() != 2) {
+                return error(Tuple.of(Atom.of("bad_application"), entry));
+            }
+            Tuple phase = (Tuple) entry;
+            Atom module = ((Tuple) spec.mod).element(1).toAtom();
+            Call call = callInProcess(module, Atom.of("start_phase"),
+                List.of(phase.element(1), type, phase.element(2)), 30000, false);
+            if (call.crashed()) {
+                return error(Tuple.of(phase.element(1), call.reason));
+            }
+            if (!OK.equals(call.result)) {
+                return error(Tuple.of(phase.element(1), call.result));
+            }
         }
         return OK;
     }
@@ -482,12 +564,36 @@ public final class Applications {
     }
 
     public static Term isRunning(Term application) {
+        reapDead();
         synchronized (LOCK) {
             return Boolean.of(running.containsKey(application.toAtom()));
         }
     }
 
+    /**
+     * A supervision tree that died on its own must not stay in the controller
+     * as a running application. The controller has no application_master
+     * process to monitor the tree, so it checks the top pid when it is asked
+     * about the running set. OTP would also restart a permanent application;
+     * that is the application_master's job and is not modelled.
+     */
+    private static void reapDead() {
+        java.util.List<Atom> dead = new ArrayList<>();
+        synchronized (LOCK) {
+            for (Map.Entry<Atom, Running> entry : running.entrySet()) {
+                Term pid = entry.getValue().pid;
+                if (pid instanceof PID && !ProcessRegistry.isAlive((PID) pid)) {
+                    dead.add(entry.getKey());
+                }
+            }
+            for (Atom name : dead) {
+                running.remove(name);
+            }
+        }
+    }
+
     public static List whichApplications() {
+        reapDead();
         java.util.List<Term> entries = new ArrayList<>();
         synchronized (LOCK) {
             for (Map.Entry<Atom, Running> entry : running.entrySet()) {
@@ -510,6 +616,7 @@ public final class Applications {
     }
 
     public static Term getMaster(Term application) {
+        reapDead();
         synchronized (LOCK) {
             Running current = running.get(application.toAtom());
             if (current == null || !(current.pid instanceof PID)) {
@@ -686,6 +793,10 @@ public final class Applications {
 
     private static Term error(Term reason) {
         return Tuple.of(ERROR, reason);
+    }
+
+    private static boolean isNil(Term term) {
+        return term instanceof List && ((List) term).length() == 0;
     }
 
     static java.util.List<Term> elements(List list) {
