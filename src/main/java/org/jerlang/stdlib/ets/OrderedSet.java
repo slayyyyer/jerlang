@@ -64,7 +64,9 @@ public class OrderedSet extends Table {
         // what tab2list reports for it.
         List result = List.nil;
         for (Tuple element : elements.descendingMap().values()) {
-            result = new List(element, result);
+            // Copy like set does: set_tuple_element updates a tuple in place,
+            // so the table must not hand out the tuple it stores.
+            result = new List(new Tuple(element), result);
         }
         return result;
     }
