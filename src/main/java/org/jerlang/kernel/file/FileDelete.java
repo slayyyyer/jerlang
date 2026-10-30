@@ -24,7 +24,9 @@ public class FileDelete {
     public static Term dispatch(List params) {
         switch (params.length()) {
         case 1:
-            return delete_1(params.head().toStr());
+            // A path is any string, and the one ++ builds is a plain list,
+            // not the Str a literal loads as.
+            return delete(FileSupport.path(params.head()));
         default:
             throw Error.badarg;
         }
@@ -34,7 +36,11 @@ public class FileDelete {
      * http://www.erlang.org/doc/man/file.html#delete-1
      */
     public static Term delete_1(Str filename) {
-        int result = posix.unlink(filename.string());
+        return delete(filename.string());
+    }
+
+    private static Term delete(String filename) {
+        int result = posix.unlink(filename);
         switch (result) {
         case 0:
             return ok;

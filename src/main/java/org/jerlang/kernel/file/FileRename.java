@@ -24,9 +24,11 @@ public class FileRename {
     public static Term dispatch(List params) {
         switch (params.length()) {
         case 2:
-            Str src = params.head().toStr();
+            // A path is any string, and the one ++ builds is a plain list,
+            // not the Str a literal loads as.
+            Str src = Str.of(FileSupport.path(params.head()));
             params = params.tail();
-            Str dst = params.head().toStr();
+            Str dst = Str.of(FileSupport.path(params.head()));
             return rename_2(src, dst);
         default:
             throw Error.badarg;
