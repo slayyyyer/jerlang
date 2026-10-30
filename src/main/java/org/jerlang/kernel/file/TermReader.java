@@ -23,9 +23,9 @@ import org.jerlang.type.Tuple;
  * the full grammar of erl_parse. An expression or a call is a syntax error
  * here, as it is in consult: a term file does not evaluate anything.
  */
-final class TermReader {
+public final class TermReader {
 
-    static final class SyntaxError extends Exception {
+    public static final class SyntaxError extends Exception {
 
         private final int line;
 
@@ -34,7 +34,7 @@ final class TermReader {
             this.line = line;
         }
 
-        int line() {
+        public int line() {
             return line;
         }
 
@@ -51,7 +51,7 @@ final class TermReader {
     /**
      * Every term in the text, in file order.
      */
-    static List parseAll(String text) throws SyntaxError {
+    public static List parseAll(String text) throws SyntaxError {
         TermReader reader = new TermReader(text);
         ArrayList<Term> terms = new ArrayList<>();
         while (true) {

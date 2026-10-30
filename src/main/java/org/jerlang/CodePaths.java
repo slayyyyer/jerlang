@@ -96,6 +96,21 @@ public class CodePaths {
     }
 
     /**
+     * The path of the first file with the given name on the code path, or
+     * null when no directory has it. This is code:where_is_file/1, which is
+     * how the application controller finds a .app resource file.
+     */
+    public static synchronized String findFile(String fileName) {
+        for (String directory : paths) {
+            File file = new File(directory, fileName);
+            if (file.isFile()) {
+                return normalizePath(file.getPath());
+            }
+        }
+        return null;
+    }
+
+    /**
      * The library directory of an application. The code path is the source
      * of truth: an entry ending in {@code <app>/ebin} or
      * {@code <app>-<vsn>/ebin} names the application, the same way OTP finds

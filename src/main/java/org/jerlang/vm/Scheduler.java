@@ -17,6 +17,8 @@ import org.jerlang.type.Term;
  */
 public class Scheduler extends Thread {
 
+    private static final boolean DEBUG_EXITS = Boolean.getBoolean("jerlang.debug.errors");
+
     private final HashSet<PidOrPortId> ids;
 
     private final RunQueue<ProcessOrPort> runQueueMax;
@@ -152,6 +154,11 @@ public class Scheduler extends Thread {
                     reason = process.failure() == null
                         ? Atom.of("normal")
                         : ProcessSignals.reason(process.failure());
+                }
+                if (DEBUG_EXITS) {
+                    System.err.println("EXIT " + process.pid() + " reason=" + reason
+                        + " failure=" + process.failure()
+                        + " name=" + ProcessRegistry.registeredName(process.pid()));
                 }
                 ProcessSignals.terminate(process, reason);
             }

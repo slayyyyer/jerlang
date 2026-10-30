@@ -106,11 +106,23 @@ public class Process extends ProcessOrPort {
     // entered from another module.
     private volatile Module waitModule = null;
     private volatile int waitIndex = -1;
+    // The activation the receive loop belongs to, so handlers it installed
+    // are still in scope when it is resumed.
+    private volatile long waitActivation = 0;
 
     // The enclosing activations of a suspended nested call, innermost first.
     // A cross-module call runs on the Java stack, which a parked process
     // loses, so each activation records where it continues after the call.
     private final java.util.Deque<ResumePoint> resumePoints = new java.util.ArrayDeque<>();
+
+    // One identifier per running process activation. An instruction stream
+    // runs as a Java frame, and a cross-module call nests another one, so a
+    // try handler belongs to exactly one of them: a raise from a callee must
+    // unwind to the activation that installed the handler, not be caught by
+    // the first Java frame that happens to see a handler on the process.
+    private static final boolean DEBUG_ERRORS = Boolean.getBoolean("jerlang.debug.errors");
+    private static final AtomicLong ACTIVATION_IDS = new AtomicLong();
+    private final java.util.Deque<Long> activations = new java.util.ArrayDeque<>();
 
     // The mailbox position of the current receive loop. Messages before
     // this position did not match the clauses already tried and stay in
@@ -151,6 +163,17 @@ public class Process extends ProcessOrPort {
         new ConcurrentHashMap<>();
 
     private volatile boolean trapExit = false;
+
+    /**
+     * Whether a normal exit must leave this process' links alone.
+     *
+     * The application controller starts an application's tree from a process
+     * whose only job is to call the callback and collect its return value.
+     * That process is not the owner of the tree - OTP's application_master
+     * never returns - so its normal exit must not take the tree down with it.
+     * An abnormal exit still signals the links.
+     */
+    private volatile boolean keepLinksOnNormalExit = false;
     private volatile Term pendingExit = null;
     private volatile boolean terminated = false;
 
@@ -349,6 +372,12 @@ public class Process extends ProcessOrPort {
     }
 
     public Term getY(int index) {
+        if (DEBUG_ERRORS && (sp - index < 0 || sp - index >= stack.length
+            || stack[sp - index] == null)) {
+            System.err.println("BAD_Y " + index + " sp=" + sp + " len=" + stack.length
+                + " frame=" + frames.peek() + " value=" + (sp - index >= 0 && sp - index < stack.length
+                    ? stack[sp - index] : "out of range"));
+        }
         return stack[sp - index];
     }
 
@@ -412,6 +441,7 @@ public class Process extends ProcessOrPort {
     public synchronized void waitForMessage(Module module, int index, Term label, long timeoutMillis) {
         waitModule = module;
         waitIndex = index;
+        waitActivation = currentActivation();
         waitLabel = label;
         waitTimedOut = false;
         waitGeneration++;
@@ -590,10 +620,12 @@ public class Process extends ProcessOrPort {
 
         private final Module module;
         private final int index;
+        private final long activation;
 
-        ResumePoint(Module module, int index) {
+        ResumePoint(Module module, int index, long activation) {
             this.module = module;
             this.index = index;
+            this.activation = activation;
         }
 
         public Module module() {
@@ -604,6 +636,15 @@ public class Process extends ProcessOrPort {
             return index;
         }
 
+        /**
+         * The activation that continues here. A resumed activation runs in a
+         * new Java frame but is still the same Erlang activation, so its try
+         * handlers stay in scope.
+         */
+        public long activation() {
+            return activation;
+        }
+
     }
 
     /**
@@ -611,7 +652,36 @@ public class Process extends ProcessOrPort {
      * another module's code.
      */
     public void pushResumePoint(Module module, int index) {
-        resumePoints.push(new ResumePoint(module, index));
+        resumePoints.push(new ResumePoint(module, index, currentActivation()));
+    }
+
+    /**
+     * Enter an instruction stream and return its activation identifier.
+     */
+    public long enterActivation() {
+        return enterActivation(ACTIVATION_IDS.incrementAndGet());
+    }
+
+    /**
+     * Re-enter an activation that was suspended, keeping its identity.
+     */
+    public long enterActivation(long activation) {
+        activations.push(activation);
+        return activation;
+    }
+
+    public void exitActivation() {
+        if (!activations.isEmpty()) {
+            activations.pop();
+        }
+    }
+
+    /**
+     * The activation currently running, or 0 outside an instruction stream.
+     */
+    public long currentActivation() {
+        Long activation = activations.peek();
+        return activation == null ? 0 : activation;
     }
 
     /**
@@ -632,7 +702,7 @@ public class Process extends ProcessOrPort {
             ResumePoint point = resumePoints.pop();
             // The activation was suspended inside the call instruction.
             setCP(point.index() - 1);
-            Interpreter.continueExecution(point.module(), point.index());
+            Interpreter.continueExecution(point.module(), point.index(), point.activation());
         }
     }
 
@@ -650,9 +720,9 @@ public class Process extends ProcessOrPort {
                 waitLabel = null;
                 setCP(waitIndex);
                 if (label != null) {
-                    Interpreter.continueExecutionAtLabel(waitModule, label);
+                    Interpreter.continueExecutionAtLabel(waitModule, label, waitActivation);
                 } else {
-                    Interpreter.continueExecution(waitModule, waitIndex);
+                    Interpreter.continueExecution(waitModule, waitIndex, waitActivation);
                 }
                 finishResumePoints();
             } else if (waitTimedOut) {
@@ -664,7 +734,7 @@ public class Process extends ProcessOrPort {
                 receivePosition = 0;
                 // The wait instruction is followed by the timeout code.
                 setCP(waitIndex);
-                Interpreter.continueExecution(waitModule, waitIndex + 1);
+                Interpreter.continueExecution(waitModule, waitIndex + 1, waitActivation);
                 finishResumePoints();
             }
             break;
@@ -687,6 +757,14 @@ public class Process extends ProcessOrPort {
 
     public boolean trapExit() {
         return trapExit;
+    }
+
+    public boolean keepLinksOnNormalExit() {
+        return keepLinksOnNormalExit;
+    }
+
+    public void keepLinksOnNormalExit(boolean value) {
+        keepLinksOnNormalExit = value;
     }
 
     /**

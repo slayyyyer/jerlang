@@ -20,6 +20,7 @@ import org.jerlang.type.stack.StackFrame;
 public class Interpreter {
 
     private static final Atom LINE = Atom.of("line");
+    private static final boolean DEBUG_ERRORS = Boolean.getBoolean("jerlang.debug.errors");
 
     public static Term dispatch(List params) {
         // A call to a function defined in a BEAM file
@@ -73,7 +74,24 @@ public class Interpreter {
      */
     public static Term continueExecution(Module m, int start) {
         Process process = (Process) ProcessRegistry.self();
+        return continueExecution(m, start, process.enterActivation());
+    }
 
+    /**
+     * Run an instruction stream as the given activation. A resumed receive
+     * loop passes the identifier it saved when it parked, so the handlers it
+     * installed are still in scope.
+     */
+    public static Term continueExecution(Module m, int start, long activation) {
+        Process process = (Process) ProcessRegistry.self();
+        try {
+            return runUntilDone(process, m, start, activation);
+        } finally {
+            process.exitActivation();
+        }
+    }
+
+    private static Term runUntilDone(Process process, Module m, int start, long activation) {
         CodeChunk code = m.beamData().codeChunk();
         java.util.List<Instruction> instructions = code.instructions();
         Map<Integer, Integer> labels = code.labels();
@@ -136,9 +154,9 @@ public class Interpreter {
             } catch (Error error) {
                 // Capture the stack at the raise, before the handler unwinds it.
                 error.captureStacktrace(process);
-                if (process.exceptionHandler() != null) {
+                ExceptionHandler handler = process.exceptionHandler();
+                if (handler != null && handler.activation() == activation) {
                     // System.err.println(process.exceptionHandler());
-                    ExceptionHandler handler = process.exceptionHandler();
                     int new_index = handler.index();
                     if (new_index >= 0) {
                         index = new_index;
@@ -147,9 +165,16 @@ public class Interpreter {
                     // and restores the enclosing handler.
                     handler.handle(process, error);
                 } else {
-                    // No handler: the process terminates with this reason.
-                    // The scheduler turns it into EXIT signals and DOWN
-                    // messages for its links and monitors.
+                    if (DEBUG_ERRORS) {
+                        System.err.println("RAISE " + m.name() + ":" + process.currentFrame()
+                            + " at " + i + " " + error.exceptionClass() + ":" + error.reason()
+                            + " handler=" + handler + " activation=" + activation);
+                    }
+                    // A handler of another activation, or none: let the
+                    // exception unwind the Java frames until it reaches the
+                    // instruction stream that installed it. The scheduler
+                    // turns an exception nobody caught into the process's
+                    // exit reason.
                     throw error;
                 }
             } catch (Throwable e) {
@@ -199,11 +224,22 @@ public class Interpreter {
      * Resume a module's instruction stream at a label inside it.
      */
     public static Term continueExecutionAtLabel(Module m, Term label) {
+        return continueExecutionAtLabel(m, label, 0);
+    }
+
+    /**
+     * Resume a module's instruction stream at a label inside it, as the
+     * activation that installed its handlers before it parked.
+     */
+    public static Term continueExecutionAtLabel(Module m, Term label, long activation) {
         Integer index = m.beamData().codeChunk().labels().get(label.toRegisterIndex().toInt());
         if (index == null) {
             throw new Error("No instruction for label " + label + " in " + m.name());
         }
-        return continueExecution(m, index);
+        if (activation == 0) {
+            return continueExecution(m, index);
+        }
+        return continueExecution(m, index, activation);
     }
 
     /**

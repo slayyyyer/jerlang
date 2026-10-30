@@ -13,6 +13,7 @@ import org.jerlang.erts.Erpc;
 import org.jerlang.erts.Init;
 import org.jerlang.erts.OtpRing0;
 import org.jerlang.erts.PrimInet;
+import org.jerlang.kernel.ApplicationController;
 import org.jerlang.kernel.File;
 import org.jerlang.kernel.GenTcp;
 import org.jerlang.kernel.GenUdp;
@@ -31,6 +32,7 @@ import org.jerlang.stdlib.IO;
 import org.jerlang.stdlib.IOLib;
 import org.jerlang.stdlib.Java;
 import org.jerlang.stdlib.Lists;
+import org.jerlang.stdlib.Logger;
 import org.jerlang.stdlib.Maps;
 import org.jerlang.stdlib.Math;
 import org.jerlang.stdlib.PersistentTerm;
@@ -63,6 +65,7 @@ public class ModuleRegistry {
 
     private void registerBuiltins() {
         // TODO: Auto-register modules by reflection
+        init(ApplicationController.class).export();
         init(Base64.class).export();
         init(BeamLib.class).export();
         init(Binary.class).export();
@@ -82,6 +85,7 @@ public class ModuleRegistry {
         init(IOLib.class, Atom.of("io_lib")).export();
         init(Java.class).export();
         init(Lists.class).export();
+        init(Logger.class).export();
         init(Maps.class).export();
         init(Math.class).export();
         init(NetAdm.class).export();

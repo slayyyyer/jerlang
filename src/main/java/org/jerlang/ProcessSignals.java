@@ -21,6 +21,7 @@ import org.jerlang.type.Tuple;
 public final class ProcessSignals {
 
     private static final Atom DOWN = Atom.of("DOWN");
+    private static final Atom NORMAL = Atom.of("normal");
     private static final Atom PROCESS = Atom.of("process");
     private static final Atom THROW = Atom.of("throw");
     private static final Atom EXIT = Atom.of("exit");
@@ -65,9 +66,18 @@ public final class ProcessSignals {
                     watchedBy.watcher, monitor.getKey(), termination.reason);
             }
         }
+        boolean keepLinks = process.keepLinksOnNormalExit()
+            && NORMAL.equals(termination.reason);
         for (PID link : termination.links) {
             Process peer = resolve(link);
-            if (peer != null) {
+            if (keepLinks) {
+                // The process finished a job for a tree that outlives it (the
+                // application controller's start call). Drop the link without
+                // the exit signal, which is what lets the tree keep running.
+                if (peer != null) {
+                    peer.removeLink(termination.pid);
+                }
+            } else if (peer != null) {
                 peer.exitSignal(termination.reason, termination.pid);
             } else if (!Process.onThisNode(link)) {
                 Distribution.sendExit(termination.pid, link, termination.reason, false);

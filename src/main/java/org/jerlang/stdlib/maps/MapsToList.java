@@ -14,19 +14,29 @@ public class MapsToList {
     }
 
     /**
+     * The keys of a map in term order, which is the order a small map
+     * iterates in OTP. The built-in map functions that have to visit every
+     * element use this so their behaviour is deterministic.
+     */
+    public static java.util.List<Term> orderedKeys(Map map) {
+        java.util.List<Term> keys = new ArrayList<>();
+        List remaining = map.keys();
+        while (remaining.length() > 0) {
+            keys.add(remaining.head());
+            remaining = remaining.tail();
+        }
+        keys.sort(TermOrder::compare);
+        return keys;
+    }
+
+    /**
      * The key-value pairs of a map, in key order (term order), which is the
      * order a small map iterates in OTP.
      *
      * http://www.erlang.org/doc/man/maps.html#to_list-1
      */
     public static List to_list_1(Map map) {
-        List keys = map.keys();
-        java.util.List<Term> ordered = new ArrayList<>();
-        while (keys.length() > 0) {
-            ordered.add(keys.head());
-            keys = keys.tail();
-        }
-        ordered.sort(TermOrder::compare);
+        java.util.List<Term> ordered = orderedKeys(map);
         List result = List.nil;
         for (int index = ordered.size() - 1; index >= 0; index--) {
             Term key = ordered.get(index);

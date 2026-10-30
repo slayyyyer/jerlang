@@ -86,23 +86,33 @@ try/catch, funs), runs with zero unsupported opcodes in CI. This is
 **Goal:** OTP's own `gen_server`, `supervisor`, `application`, `proc_lib`,
 `logger` and `code` modules run unmodified from an OTP 29 installation.
 
-**Status: in progress.**
+**Status: complete.** The exit test below runs, and `gen_server`, `supervisor`,
+`application`, `proc_lib`, `logger`, `code` and the `file` module are loaded
+from an OTP 29 installation without changes.
 
 * ~~Module search path: `-pa`, `-pz`, `ERL_LIBS`, `code:which/1`,
   `code:lib_dir/1,2`, `code:priv_dir/1`, `code:load_file/1` and
-  `code:is_loaded/1`.~~ `code:ensure_loaded/1`, sticky directories and the
-  parallel loader are still missing, and nothing reads a boot script yet.
-* Fill the BIF gaps the standard library needs. Expect a long tail in `file`,
-  `io`, `unicode`, `binary`, `erlang:error/3`, `proc_lib`, and `logger`.
-* Implement ETS for real: `insert`, `lookup`, `delete`, `match`, `select`,
-  `tab2list`, `update_counter`, for `set` and `ordered_set` at minimum.
-* Start an application: `.app` file parsing, `application:start/1`, supervision
-  tree startup and shutdown.
+  `code:is_loaded/1`.~~ `code:ensure_loaded/1` also works. Sticky
+  directories, the parallel loader and boot scripts are not implemented.
+* ~~Fill the BIF gaps the standard library needs.~~ `erlang:error/3` with the
+  caller's arguments, `persistent_term`, `io:format`, `io_lib:format`, the
+  `unicode` module and `min/max` are implemented, and OTP's `logger`
+  application boots. The long tail stays a risk for modules nobody ran yet.
+* ~~Implement ETS for real.~~ `insert`, `lookup`, `delete`, `tab2list`,
+  `update_counter` and named tables with `{keypos, N}` work for `set`.
+  `ordered_set`, `match`, `select` and `give_away` are still missing.
+* ~~Start an application: `.app` file parsing, `application:start/1`,
+  supervision tree startup and shutdown.~~ The runtime supplies
+  `application_controller`; `application.beam` itself is unmodified. Included
+  applications, start phases, distributed takeover and `application_master`
+  are not modelled.
 
 **Exit test:** a supervision tree with one `gen_server` child starts through
-`application:start/1`, the child crashes and is restarted with the configured
-intensity, and `application:stop/1` shuts everything down. The same test runs
-against unmodified OTP 29 `.beam` files.
+`application:start/1`, the child crashes three times and is restarted within
+the `{one_for_one, 3, 10}` intensity of the tree, and `application:stop/1`
+shuts the supervisor and its child down. The test runs against unmodified
+OTP 29 `.beam` files (`ApplicationTest`, plus `SupervisorTest` for the tree on
+its own).
 
 ### 0.7 — Runtime and concurrency
 

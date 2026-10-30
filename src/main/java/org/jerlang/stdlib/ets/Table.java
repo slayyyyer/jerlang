@@ -2,9 +2,13 @@ package org.jerlang.stdlib.ets;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.jerlang.Process;
+import org.jerlang.ProcessOrPort;
+import org.jerlang.ProcessRegistry;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
+import org.jerlang.type.PID;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 
@@ -22,6 +26,9 @@ public abstract class Table {
     private final boolean named_table;
     private final boolean compressed;
     private final int keypos;
+    // The process that created the table, which is what ets:whereis/1
+    // reports. Null when the table was created outside a process.
+    private final PID owner;
 
     protected Table(Type type, Access access, Atom name, boolean named_table,
                     boolean compressed, int keypos) {
@@ -32,6 +39,8 @@ public abstract class Table {
         this.named_table = named_table;
         this.compressed = compressed;
         this.keypos = keypos;
+        ProcessOrPort self = ProcessRegistry.self();
+        this.owner = self instanceof Process ? ((Process) self).pid() : null;
         TableRegistry.register(this);
     }
 
@@ -93,6 +102,13 @@ public abstract class Table {
 
     public Atom name() {
         return name;
+    }
+
+    /**
+     * The pid of the creating process, or null when there is none.
+     */
+    public PID owner() {
+        return owner;
     }
 
     public boolean named_table() {

@@ -18,6 +18,7 @@ import org.jerlang.erts.erlang.ErlangAtomPlusPlus;
 import org.jerlang.erts.erlang.ErlangBinaryPart;
 import org.jerlang.erts.erlang.ErlangBinaryToTerm;
 import org.jerlang.erts.erlang.ErlangBitstringToList;
+import org.jerlang.erts.erlang.ErlangCancelTimer;
 import org.jerlang.erts.erlang.ErlangByteSize;
 import org.jerlang.erts.erlang.ErlangDemonitor;
 import org.jerlang.erts.erlang.ErlangDisplay;
@@ -43,6 +44,11 @@ import org.jerlang.erts.erlang.ErlangIsInteger;
 import org.jerlang.erts.erlang.ErlangIsAlive;
 import org.jerlang.erts.erlang.ErlangIsList;
 import org.jerlang.erts.erlang.ErlangIsMap;
+import org.jerlang.erts.erlang.ErlangIsMapKey;
+import org.jerlang.erts.erlang.ErlangMapGet;
+import org.jerlang.erts.erlang.ErlangMapSize;
+import org.jerlang.erts.erlang.ErlangMax;
+import org.jerlang.erts.erlang.ErlangMin;
 import org.jerlang.erts.erlang.ErlangIsNumber;
 import org.jerlang.erts.erlang.ErlangIsPid;
 import org.jerlang.erts.erlang.ErlangIsProcessAlive;
@@ -76,6 +82,7 @@ import org.jerlang.erts.erlang.ErlangSend;
 import org.jerlang.erts.erlang.ErlangSetelement;
 import org.jerlang.erts.erlang.ErlangSpawn;
 import org.jerlang.erts.erlang.ErlangSpawnRequest;
+import org.jerlang.erts.erlang.ErlangStartTimer;
 import org.jerlang.erts.erlang.ErlangSpawnRequestAbandon;
 import org.jerlang.erts.erlang.ErlangSystemInfo;
 import org.jerlang.erts.erlang.ErlangTermToBinary;
@@ -161,6 +168,10 @@ public class Erlang {
     }
 
     public static Term apply(Term m, Term f, Term a) throws Error {
+        if (java.lang.Boolean.getBoolean("jerlang.debug.errors")
+            && f.toString().equals("cancel_timer")) {
+            System.err.println("ERLANG_APPLY " + m + ":" + f + " args=" + a);
+        }
         return ErlangApply.apply_3(m, f, a);
     }
 
@@ -298,6 +309,26 @@ public class Erlang {
 
     public static Term is_map(Term term) {
         return ErlangIsMap.is_map_1(term);
+    }
+
+    public static Term is_map_key(Term key, org.jerlang.type.Map map) {
+        return ErlangIsMapKey.is_map_key_2(key, map);
+    }
+
+    public static Term map_get(Term key, org.jerlang.type.Map map) {
+        return ErlangMapGet.map_get_2(key, map);
+    }
+
+    public static Term min(Term a, Term b) {
+        return ErlangMin.min_2(a, b);
+    }
+
+    public static Term max(Term a, Term b) {
+        return ErlangMax.max_2(a, b);
+    }
+
+    public static org.jerlang.type.Integer map_size(org.jerlang.type.Map map) {
+        return ErlangMapSize.map_size_1(map);
     }
 
     public static Term is_number(Term term) {
@@ -490,6 +521,33 @@ public class Erlang {
 
     public static TimerReference send_after(Integer time, PID pid, Term msg) {
         return ErlangSendAfter.send_after_3(time, pid, msg);
+    }
+
+    public static Term cancel_timer(Term timer) {
+        if (java.lang.Boolean.getBoolean("jerlang.debug.errors")) {
+            System.err.println("CANCEL_TIMER/1 " + timer.getClass().getSimpleName() + " " + timer);
+        }
+        return ErlangCancelTimer.cancel_timer_1(timer);
+    }
+
+    public static Term cancel_timer(Term timer, List options) {
+        if (java.lang.Boolean.getBoolean("jerlang.debug.errors")) {
+            System.err.println("CANCEL_TIMER/2 " + timer.getClass().getSimpleName() + " " + timer);
+        }
+        return ErlangCancelTimer.cancel_timer_2(timer, options);
+    }
+
+    public static Term read_timer(Term timer) {
+        return ErlangCancelTimer.read_timer_1(timer);
+    }
+
+    public static TimerReference start_timer(Integer time, Term destination, Term message) {
+        return ErlangStartTimer.start_timer_3(time, destination, message);
+    }
+
+    public static TimerReference start_timer(Integer time, Term destination, Term message,
+        Term timeUnit) {
+        return ErlangStartTimer.start_timer_4(time, destination, message, timeUnit);
     }
 
     public static Tuple setelement(Integer index, Tuple tuple, Term value) {

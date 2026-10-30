@@ -30,7 +30,9 @@ public class PutMapAssoc {
         Term destination = i.arg(2);
         List updates = i.arg(4).toList();
         while (updates.length() > 0) {
-            Term key = updates.head();
+            // Both the key and the value may be register operands: the
+            // compiler emits {x,N} for a key it keeps in a register.
+            Term key = updates.head().toArg(proc);
             updates = updates.tail();
             Term val = updates.head().toArg(proc);
             updates = updates.tail();

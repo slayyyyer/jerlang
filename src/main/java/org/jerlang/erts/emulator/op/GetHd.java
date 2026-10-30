@@ -22,10 +22,16 @@ public class GetHd {
     public static Term execute(Process proc, Module m, Instruction i, List params) {
         Term source = i.arg(0).toArg(proc);
         Term destination = i.arg(1);
-        if (!source.isList() || source.toList().length() == 0) {
+        Term head;
+        if (source instanceof org.jerlang.type.ImproperList) {
+            // A cons cell with a non-list tail is still matched by [H|T].
+            // gen_server builds its timer list this way: [TRef | TimeoutMsg].
+            head = ((org.jerlang.type.ImproperList) source).head();
+        } else if (source.isList() && source.toList().length() > 0) {
+            head = source.toList().head();
+        } else {
             throw Error.badarg;
         }
-        Term head = source.toList().head();
         if (destination.isXRegister()) {
             proc.setX(destination.toRegisterIndex(), head);
         } else if (destination.isYRegister()) {

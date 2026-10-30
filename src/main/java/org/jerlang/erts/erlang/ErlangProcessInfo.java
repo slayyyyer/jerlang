@@ -105,9 +105,13 @@ public class ErlangProcessInfo {
             throw badarg;
         }
         Tuple entry = entry(process, item);
-        if (REGISTERED_NAME.equals(item) && ((List) entry.element(2)).length() == 0) {
-            // OTP answers a nameless process with the empty list here only.
-            return List.nil;
+        if (REGISTERED_NAME.equals(item)) {
+            // OTP answers a nameless process with the empty list here only;
+            // a named one answers the atom, so the value is not always a list.
+            Term value = entry.element(2);
+            if (value instanceof List && ((List) value).length() == 0) {
+                return List.nil;
+            }
         }
         return entry;
     }

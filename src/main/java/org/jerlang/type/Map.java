@@ -44,6 +44,10 @@ public class Map extends Term {
         map.put(key, value);
     }
 
+    public void remove(Term key) {
+        map.remove(key);
+    }
+
     public Integer size() {
         return Integer.of(map.size());
     }

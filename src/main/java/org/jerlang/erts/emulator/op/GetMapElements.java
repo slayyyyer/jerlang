@@ -31,8 +31,17 @@ public class GetMapElements {
             Term dst = list.head();
             list = list.tail();
             Term val = map.get(key);
+            if (val == null) {
+                // A missing key is not a null value: the instruction jumps to
+                // its failure label, where the caller has a default. Storing
+                // null left an uninitialized term in the register, which
+                // surfaced later as a Java NullPointerException.
+                return i.arg(0);
+            }
             if (dst.isXRegister()) {
                 proc.setX(dst.toRegisterIndex(), val);
+            } else if (dst.isYRegister()) {
+                proc.setY(dst.toRegisterIndex(), val);
             } else {
                 throw new Error("Not implemented dst: " + i);
             }

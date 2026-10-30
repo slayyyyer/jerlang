@@ -138,7 +138,29 @@ public class VirtualMachine {
                     resolve(pid).send(message);
                 }
 
-            }, time, TimeUnit.MILLISECONDS));
+            }, time, TimeUnit.MILLISECONDS), System.currentTimeMillis() + time);
+    }
+
+    /**
+     * erlang:start_timer/3,4: the receiver gets {timeout, TRef, Message}. The
+     * reference has to exist before the timer is scheduled, because it is part
+     * of the message, so it is created around the scheduled task.
+     */
+    public TimerReference start_timer(int time, Term message, PID pid) {
+        final TimerReference[] reference = new TimerReference[1];
+        reference[0] = new TimerReference(timerExecutor.schedule(
+            new Runnable() {
+
+                @Override
+                public void run() {
+                    Process target = resolve(pid);
+                    if (target != null) {
+                        target.send(Tuple.of(Atom.of("timeout"), reference[0], message));
+                    }
+                }
+
+            }, time, TimeUnit.MILLISECONDS), System.currentTimeMillis() + time);
+        return reference[0];
     }
 
     public Process spawn(Fun fun) {
