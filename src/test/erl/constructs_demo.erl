@@ -4,7 +4,8 @@
 -module(constructs_demo).
 
 -export([bin/2, nums/2, utf/1, build/2, rec/2, update/2, field/1,
-         heads/1, tails/1, bad/1, catch_update/2, catch_field/1,
+         heads/1, tails/1, heads_improper/1, tails_improper/1,
+         bif_head/1, bif_tail/1, bad/1, catch_update/2, catch_field/1,
          catch_heads/1, catch_tails/1, run/0]).
 
 -record(r, {a, b = 2, c}).
@@ -35,6 +36,23 @@ heads([H|_]) ->
 
 tails([_|T]) ->
     T.
+
+%% The same patterns, exercised with a tail that is not a list. gen_server
+%% keeps its time-out state as [TRef | TimeoutMsg] and matches it this way.
+heads_improper([H|_]) ->
+    H.
+
+tails_improper([_|T]) ->
+    T.
+
+%% The hd/1 and tl/1 BIFs, called as expressions rather than through a
+%% pattern. gen_server's decode_msg guard calls hd/1 on the same improper
+%% timer list, so this is the path that used to raise badarg.
+bif_head(L) ->
+    erlang:hd(L).
+
+bif_tail(L) ->
+    erlang:tl(L).
 
 bad(X) ->
     X#r.a.

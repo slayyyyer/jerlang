@@ -12,6 +12,7 @@ import org.jerlang.type.Atom;
 import org.jerlang.type.Binary;
 import org.jerlang.type.BitString;
 import org.jerlang.type.Float;
+import org.jerlang.type.ImproperList;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
@@ -102,6 +103,18 @@ public class ConstructsTest {
         assertEquals(List.of(Integer.of(2)),
             apply("tails", List.of(Integer.of(1), Integer.of(2))));
         assertEquals(List.nil, apply("tails", List.of(Integer.of(1))));
+    }
+
+    @Test
+    public void testHdAndTlAcceptAnImproperList() throws Throwable {
+        // gen_server stores its timeout state as [TRef | TimeoutMsg] and
+        // calls hd/1 and tl/1 on it, so both the BIFs and the list-matching
+        // instructions must accept a non-list tail.
+        ImproperList improper = new ImproperList(Atom.of("a"), Atom.of("b"));
+        assertEquals(Atom.of("a"), apply("bif_head", improper));
+        assertEquals(Atom.of("b"), apply("bif_tail", improper));
+        assertEquals(Atom.of("a"), apply("heads_improper", improper));
+        assertEquals(Atom.of("b"), apply("tails_improper", improper));
     }
 
     @Test
