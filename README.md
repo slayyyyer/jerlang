@@ -53,8 +53,8 @@ What works today:
   `code:load_file/1`, `code:is_loaded/1`, `code:get_path/0`,
   `code:add_patha/1`, `code:add_pathz/1` and `code:del_path/1` report and use
   it. Modules load from any directory on the path, not just the working one.
-* A 466-test suite. The unit tests need no Erlang and run on every push and
-  pull request. Nine tests drive OTP's own modules and run in a separate CI job
+* A 467-test suite. The unit tests need no Erlang and run on every push and
+  pull request. Ten tests drive OTP's own modules and run in a separate CI job
   with an OTP 29 installation; a further 15 are opt-in external or machine
   tests (the live peer suite, the pass-rate run and the benchmarks).
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP

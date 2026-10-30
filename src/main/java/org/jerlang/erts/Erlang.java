@@ -33,6 +33,7 @@ import org.jerlang.erts.erlang.ErlangGetKeys;
 import org.jerlang.erts.erlang.ErlangGetModuleInfo;
 import org.jerlang.erts.erlang.ErlangHalt;
 import org.jerlang.erts.erlang.ErlangHd;
+import org.jerlang.erts.erlang.ErlangHibernate;
 import org.jerlang.erts.erlang.ErlangIntegerToBinary;
 import org.jerlang.erts.erlang.ErlangIntegerToList;
 import org.jerlang.erts.erlang.ErlangIsAtom;
@@ -253,6 +254,10 @@ public class Erlang {
 
     public static Term hd(List list) {
         return ErlangHd.hd_1(list);
+    }
+
+    public static Term hibernate() {
+        return ErlangHibernate.hibernate_0();
     }
 
     public static Binary integer_to_binary(Integer integer) {

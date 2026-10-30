@@ -75,6 +75,17 @@ public class GenServerTest extends AbstractVirtualMachineTest {
         assertEquals(Atom.of("ok"), call("stop", Atom.of("gen_server_demo")));
     }
 
+    @Test
+    public void testHibernateAfterWakesOnTheNextCall() throws Throwable {
+        // With hibernate_after set, an idle gen_server calls erlang:hibernate/0.
+        // The runtime has no hibernated state, so the BIF must still exist and
+        // let the receive in loop_wakeup wait for the next request.
+        assertEquals(Atom.of("ok"), call("start_hibernating", Integer.of(0)));
+        Thread.sleep(100);
+        assertEquals(Integer.of(7), call("add", Atom.of("gen_server_demo"), Integer.of(7)));
+        assertEquals(Atom.of("ok"), call("stop", Atom.of("gen_server_demo")));
+    }
+
     /**
      * The ebin directory of an application in an OTP installation.
      */

@@ -6,7 +6,7 @@
 
 -behaviour(gen_server).
 
--export([ping/0, start/1, add/2, get/1, bump/1, stop/1]).
+-export([ping/0, start/1, start_hibernating/1, add/2, get/1, bump/1, stop/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 ping() ->
@@ -17,6 +17,13 @@ ping() ->
 %% builds that callback as an external fun.
 start(Initial) ->
     {ok, _Pid} = gen_server:start_link({local, ?MODULE}, ?MODULE, Initial, []),
+    ok.
+
+%% Start with hibernate_after so an idle server reaches erlang:hibernate/0.
+%% The next call wakes it and must be handled normally.
+start_hibernating(Initial) ->
+    {ok, _Pid} = gen_server:start_link({local, ?MODULE}, ?MODULE, Initial,
+                                       [{hibernate_after, 10}]),
     ok.
 
 add(Server, N) ->
