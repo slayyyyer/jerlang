@@ -32,6 +32,7 @@ import org.jerlang.stdlib.Java;
 import org.jerlang.stdlib.Lists;
 import org.jerlang.stdlib.Maps;
 import org.jerlang.stdlib.Math;
+import org.jerlang.stdlib.PersistentTerm;
 import org.jerlang.stdlib.Shell;
 import org.jerlang.type.Atom;
 
@@ -83,6 +84,7 @@ public class ModuleRegistry {
         init(OS.class).export();
         init(Rpc.class).export();
         init(OtpRing0.class).export();
+        init(PersistentTerm.class).export();
         init(PrimInet.class).export();
         init(Shell.class).export();
     }

@@ -23,6 +23,7 @@ import org.jerlang.erts.erlang.ErlangDisplay;
 import org.jerlang.erts.erlang.ErlangError;
 import org.jerlang.erts.erlang.ErlangExit;
 import org.jerlang.erts.erlang.ErlangFunctionExported;
+import org.jerlang.erts.erlang.ErlangFunInfoMfa;
 import org.jerlang.erts.erlang.ErlangGet;
 import org.jerlang.erts.erlang.ErlangGetKeys;
 import org.jerlang.erts.erlang.ErlangGetModuleInfo;
@@ -58,6 +59,7 @@ import org.jerlang.erts.erlang.ErlangNodes;
 import org.jerlang.erts.erlang.ErlangOpenPort;
 import org.jerlang.erts.erlang.ErlangPortClose;
 import org.jerlang.erts.erlang.ErlangPortControl;
+import org.jerlang.erts.erlang.ErlangProcessInfo;
 import org.jerlang.erts.erlang.ErlangProcessFlag;
 import org.jerlang.erts.erlang.ErlangPut;
 import org.jerlang.erts.erlang.ErlangRegister;
@@ -185,12 +187,20 @@ public class Erlang {
         ErlangError.error_1(reason);
     }
 
-    public static void error(Term reason, List where) {
+    public static void error(Term reason, Term where) {
         ErlangError.error_2(reason, where);
+    }
+
+    public static void error(Term reason, Term where, Term options) {
+        ErlangError.error_3(reason, where, options);
     }
 
     public static Term function_exported(Atom module, Atom function, Integer arity) {
         return ErlangFunctionExported.function_exported_3(module, function, arity);
+    }
+
+    public static Term fun_info_mfa(Fun fun) {
+        return ErlangFunInfoMfa.fun_info_mfa_1(fun);
     }
 
     public static List get() {
@@ -355,6 +365,14 @@ public class Erlang {
 
     public static Term process_flag(Atom flag, Term value) {
         return ErlangProcessFlag.process_flag_2(flag, value);
+    }
+
+    public static Term process_info(PID pid) {
+        return ErlangProcessInfo.process_info_1(pid);
+    }
+
+    public static Term process_info(PID pid, Term item) {
+        return ErlangProcessInfo.process_info_2(pid, item);
     }
 
     public static Term put(Term key, Term val) {

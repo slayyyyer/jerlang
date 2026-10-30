@@ -57,14 +57,27 @@ public class Interpreter {
             return res;
         }
 
+        if (start == -1) {
+            start = find_start(signature, m.beamData());
+        }
+
+        return continueExecution(m, start);
+    }
+
+    /**
+     * Run the instruction stream of a module from the given index.
+     *
+     * The index belongs to the module's code, which is what lets a resumed
+     * activation, or a call from a different module, start here without a
+     * signature to look the module up.
+     */
+    public static Term continueExecution(Module m, int start) {
+        Process process = (Process) ProcessRegistry.self();
+
         CodeChunk code = m.beamData().codeChunk();
         java.util.List<Instruction> instructions = code.instructions();
         Map<Integer, Integer> labels = code.labels();
         int maxInstructions = instructions.size();
-
-        if (start == -1) {
-            start = find_start(process.signature(), m.beamData());
-        }
 
         Term result = List.nil;
         Term params = List.nil; // TODO: is this correct?
@@ -179,12 +192,18 @@ public class Interpreter {
      * receive loop is woken by a message.
      */
     public static Term continueExecutionAtLabel(FunctionSignature signature, Term label) {
-        Module m = ModuleRegistry.get(signature.module());
+        return continueExecutionAtLabel(ModuleRegistry.get(signature.module()), label);
+    }
+
+    /**
+     * Resume a module's instruction stream at a label inside it.
+     */
+    public static Term continueExecutionAtLabel(Module m, Term label) {
         Integer index = m.beamData().codeChunk().labels().get(label.toRegisterIndex().toInt());
         if (index == null) {
-            throw new Error("No instruction for label " + label + " in " + signature.module());
+            throw new Error("No instruction for label " + label + " in " + m.name());
         }
-        return continueExecution(signature, index);
+        return continueExecution(m, index);
     }
 
     /**

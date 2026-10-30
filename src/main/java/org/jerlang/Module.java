@@ -121,17 +121,28 @@ public class Module {
             }
         } else {
             process.pushSignature(signature);
-            if (!isInternal()) {
+            boolean beamCode = !isInternal();
+            if (beamCode) {
                 process.pushFrame(new StackFrame(signature.module(), signature.function(),
                     signature.fun_arity().toInt()));
             }
             Fun fun = exported_functions.get(signature);
-            process.enterApply();
+            // The callee runs as its own activation, so its continuation
+            // pointer is empty: a `return` ends its instruction stream instead
+            // of jumping to an index that belongs to the caller's module. The
+            // caller's pointer is put back afterwards so its own tail calls
+            // still know where they return to.
+            int callerCP = process.getCP();
+            if (beamCode) {
+                process.setCP(0);
+            }
             try {
                 return fun.apply(params);
             } finally {
-                process.leaveApply();
                 process.popSignature();
+                if (beamCode) {
+                    process.setCP(callerCP);
+                }
             }
         }
     }

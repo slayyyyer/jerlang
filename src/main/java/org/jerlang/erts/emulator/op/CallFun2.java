@@ -38,6 +38,10 @@ public class CallFun2 {
             proc.setX(registerIndex + index, fun.savedRegisters()[index]);
         }
 
+        if (!FunCall.isLocal(m, fun)) {
+            return FunCall.call(proc, m, i, fun);
+        }
+
         proc.pushFrame(new StackFrame(fun.signature().module(), fun.signature().function(),
             fun.signature().fun_arity().toInt()));
         // In this interpreter the continuation pointer is the index of the

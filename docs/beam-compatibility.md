@@ -268,18 +268,41 @@ it has loaded and rejects a mismatch with `badfun`, so a node that holds
 an older compile of a module can not run a fun that was built from a
 newer one.
 
-## Tail calls
+## Cross-module calls and tail calls
 
-`call_ext_only` and `call_ext_last` used to end the process with their result,
-so a function that ended in a tail call never returned to its caller. They now
-return to the caller's continuation pointer. Functions applied synchronously
-from Java (`Module.apply`, which runs in the same process without sharing its
-instruction stream) keep the old behaviour, tracked by `Process.applyDepth()`;
-returning a continuation pointer into an instruction stream the callee does not
-belong to is what broke `apply:test/1`.
+A cross-module call runs the callee's instruction stream as a nested
+activation: `Module.apply` pushes the callee's frame, clears the continuation
+pointer, and puts the caller's pointer back when the callee returns. Clearing
+it is what makes a `return` end the callee's own stream instead of jumping to
+an index that belongs to another module.
+
+`call_ext_last` and `call_ext_only` replace their activation. They pop its
+frame and, when the instruction carries a deallocate operand, restore the
+caller's continuation pointer and release the activation's stack words. Both
+happen after the callee ran, so a raise inside a tail-called function still
+captures the tail-calling frame in its stacktrace; doing them first is what
+broke the crash report and monitor reason tests. `call_last` follows the same
+rule inside one module.
 
 `apply_last` still ends the invocation: it tears down its own frame, and
 returning to the continuation pointer double-deallocates.
+
+A fun whose lambda lives in another module cannot be reached by jumping to a
+label, because a label is resolved in the stream that runs it. `call_fun` and
+`call_fun2` run such a fun as its own activation; a fun from the current module
+remains a label jump, which is what `funs_demo` exercises.
+
+## Suspension
+
+A parked process loses the Java frames of the activations it was running in,
+so a `wait` records the module and the index of the wait instruction, and every
+activation that makes a non-tail cross-module call pushes a resume point: the
+module and the index after the call. On wakeup `execute()` resumes the parked
+stream first, then re-enters the recorded activations innermost first, with the
+callee's result in X0, until one of them parks again or the process ends. This
+is what lets `proc_lib:start/3` wait in its own module while its caller sits
+above it, and what keeps OTP's `proc_lib` running once `erlang:apply/3` has
+entered the behaviour's `init` function.
 
 ## Exceptions
 
