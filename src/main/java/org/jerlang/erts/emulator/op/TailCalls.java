@@ -4,6 +4,7 @@ import org.jerlang.FunctionSignature;
 import org.jerlang.Interpreter;
 import org.jerlang.Module;
 import org.jerlang.Process;
+import org.jerlang.Tracing;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Str;
 import org.jerlang.type.stack.StackFrame;
@@ -50,6 +51,8 @@ final class TailCalls {
             // chain that starts here ends.
             process.pushTailTarget(current, returnCP);
         }
+        Tracing.beforeCall(process, signature,
+            CallExt.parameters(process, signature.fun_arity()));
         process.setCP(0);
         process.popFrame();
         process.pushFrame(new StackFrame(signature.module(), signature.function(),

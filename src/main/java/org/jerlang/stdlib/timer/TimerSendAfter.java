@@ -23,8 +23,9 @@ public class TimerSendAfter {
         case 3:
             Integer time3 = params.head().toInteger();
             params = params.tail();
+            PID pid3 = params.head().toPID();
+            params = params.tail();
             Term message3 = params.head();
-            PID pid3 = ProcessRegistry.self().pid();
             return send_after_3(time3, pid3, message3);
         default:
             throw Error.badarg;

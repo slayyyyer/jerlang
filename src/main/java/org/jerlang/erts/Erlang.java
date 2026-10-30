@@ -89,6 +89,8 @@ import org.jerlang.erts.erlang.ErlangSpawnRequestAbandon;
 import org.jerlang.erts.erlang.ErlangSystemInfo;
 import org.jerlang.erts.erlang.ErlangTermToBinary;
 import org.jerlang.erts.erlang.ErlangThrow;
+import org.jerlang.erts.erlang.ErlangTrace;
+import org.jerlang.erts.erlang.ErlangTracePattern;
 import org.jerlang.erts.erlang.ErlangTl;
 import org.jerlang.erts.erlang.ErlangTupleSize;
 import org.jerlang.erts.erlang.ErlangTupleToList;
@@ -419,6 +421,14 @@ public class Erlang {
 
     public static Term process_info(PID pid, Term item) {
         return ErlangProcessInfo.process_info_2(pid, item);
+    }
+
+    public static Term trace(Term target, Term how, List flags) {
+        return ErlangTrace.trace_3(target, how, flags);
+    }
+
+    public static Term trace_pattern(Term target, Term matchSpec, List flags) {
+        return ErlangTracePattern.trace_pattern_3(target, matchSpec, flags);
     }
 
     public static Term put(Term key, Term val) {

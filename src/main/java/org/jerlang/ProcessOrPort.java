@@ -48,8 +48,17 @@ public abstract class ProcessOrPort {
         return priority;
     }
 
+    /**
+     * Change the priority. If the process is already on a run queue, move it
+     * to the queue for the new priority instead of leaving it where it was
+     * queued.
+     */
     public void setPriority(ProcessPriority priority) {
+        ProcessPriority previous = this.priority;
         this.priority = Objects.requireNonNull(priority);
+        if (previous != this.priority && scheduler != null) {
+            scheduler.reprioritize(this, previous);
+        }
     }
 
     public void setScheduler(Scheduler scheduler) {

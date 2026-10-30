@@ -3,6 +3,7 @@ package org.jerlang.erts.emulator.op;
 import org.jerlang.FunctionSignature;
 import org.jerlang.Module;
 import org.jerlang.Process;
+import org.jerlang.Tracing;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
@@ -20,6 +21,10 @@ public class CallOnly {
 
     public static Term execute(Process process, Module m, Instruction i, List params) {
         FunctionSignature callee = m.functionAtLabel(i.arg(1).toRegisterIndex().toInt());
+        if (callee != null) {
+            Tracing.beforeCall(process, callee,
+                CallExt.parameters(process, i.arg(0).toInteger()));
+        }
         // A tail call replaces the current activation.
         process.popFrame();
         if (callee != null) {

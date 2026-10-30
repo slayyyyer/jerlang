@@ -4,6 +4,7 @@ import java.util.HashSet;
 
 import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
+import org.jerlang.ProcessPriority;
 import org.jerlang.ProcessRegistry;
 import org.jerlang.ProcessSignals;
 import org.jerlang.ProcessState;
@@ -78,24 +79,41 @@ public class Scheduler extends Thread {
         ids.add(p.id());
 
         p.setScheduler(this);
-        switch (p.priority()) {
-        case MAX:
-            runQueueMax.push(p);
-            break;
-        case HIGH:
-            runQueueHigh.push(p);
-            break;
-        case NORMAL:
-            runQueueNormal.push(p);
-            break;
-        case LOW:
-            runQueueLow.push(p);
-            break;
-        }
+        queue(p.priority()).push(p);
         // Signal only after the process is on a queue, so a woken scheduler
         // can not poll an empty queue and park again while work sits unseen.
         wakeup();
         return p;
+    }
+
+    /**
+     * Move a process that is still queued to the queue for its new priority.
+     * A process whose `process_flag(priority, ...)` call is running has
+     * already been polled, and `remove` returns false: it finishes the slice
+     * and is pushed to the new queue by the scheduler loop.
+     */
+    public void reprioritize(ProcessOrPort p, ProcessPriority previous) {
+        if (previous == p.priority()) {
+            return;
+        }
+        if (queue(previous).remove(p)) {
+            queue(p.priority()).push(p);
+            wakeup();
+        }
+    }
+
+    private RunQueue<ProcessOrPort> queue(ProcessPriority priority) {
+        switch (priority) {
+        case MAX:
+            return runQueueMax;
+        case HIGH:
+            return runQueueHigh;
+        case NORMAL:
+            return runQueueNormal;
+        case LOW:
+        default:
+            return runQueueLow;
+        }
     }
 
     /**

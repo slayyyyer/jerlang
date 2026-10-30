@@ -20,4 +20,12 @@ public class RunQueue<T extends ProcessOrPort> {
         queue.add(processOrPort);
     }
 
+    /**
+     * Remove a queued process or port, if it is still in this queue. A
+     * process that was already polled is executing and must not be moved.
+     */
+    public boolean remove(T processOrPort) {
+        return queue.remove(processOrPort);
+    }
+
 }

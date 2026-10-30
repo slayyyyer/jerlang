@@ -38,7 +38,7 @@ public class ErlangCancelTimer {
      */
     public static Term cancel_timer_1(Term timer) {
         TimerReference reference = timer(timer);
-        if (!reference.future().cancel(false)) {
+        if (reference.handle() == null || !reference.handle().cancel()) {
             return Boolean.am_false;
         }
         return remaining(reference);
@@ -71,7 +71,7 @@ public class ErlangCancelTimer {
             }
             options = options.tail();
         }
-        boolean cancelled = reference.future().cancel(false);
+        boolean cancelled = reference.handle() != null && reference.handle().cancel();
         if (asynchronous || !info) {
             return org.jerlang.type.Atom.of("ok");
         }
@@ -84,7 +84,7 @@ public class ErlangCancelTimer {
      */
     public static Term read_timer_1(Term timer) {
         TimerReference reference = timer(timer);
-        if (reference.future().isDone()) {
+        if (reference.handle() == null || reference.handle().isDone()) {
             return Boolean.am_false;
         }
         return remaining(reference);
@@ -98,8 +98,7 @@ public class ErlangCancelTimer {
     }
 
     private static Integer remaining(TimerReference reference) {
-        long left = reference.deadline() - System.currentTimeMillis();
-        return Integer.of((int) Math.max(0, left));
+        return Integer.of((int) reference.remaining());
     }
 
 }

@@ -37,6 +37,7 @@ import org.jerlang.stdlib.Maps;
 import org.jerlang.stdlib.Math;
 import org.jerlang.stdlib.PersistentTerm;
 import org.jerlang.stdlib.Shell;
+import org.jerlang.stdlib.Timer;
 import org.jerlang.stdlib.Unicode;
 import org.jerlang.type.Atom;
 
@@ -96,6 +97,7 @@ public class ModuleRegistry {
         init(PersistentTerm.class).export();
         init(PrimInet.class).export();
         init(Shell.class).export();
+        init(Timer.class).export();
         init(Unicode.class).export();
     }
 

@@ -11,9 +11,6 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.jerlang.erts.dist.Distribution;
@@ -34,6 +31,7 @@ import org.jerlang.type.Tuple;
 import org.jerlang.type.stack.ExceptionHandler;
 import org.jerlang.type.stack.StackFrame;
 import org.jerlang.vm.Scheduler;
+import org.jerlang.vm.TimerWheel;
 import org.jerlang.vm.VirtualMachine;
 
 /**
@@ -46,16 +44,6 @@ import org.jerlang.vm.VirtualMachine;
  * http://www.erlang.org/doc/reference_manual/processes.html
  */
 public class Process extends ProcessOrPort {
-
-    /**
-     * Fires the timers of `receive ... after Timeout` expressions. Daemon
-     * threads, so a waiting process never keeps the VM alive.
-     */
-    private static final ScheduledThreadPoolExecutor WAIT_TIMERS = new ScheduledThreadPoolExecutor(1, runnable -> {
-        Thread thread = new Thread(runnable, "jerlang-wait-timer");
-        thread.setDaemon(true);
-        return thread;
-    });
 
     // See "erts/emulator/beam/erl_vm.h":
     private final int MAX_REG = 1024;
@@ -157,7 +145,7 @@ public class Process extends ProcessOrPort {
     // this position did not match the clauses already tried and stay in
     // the mailbox for later receives, as Erlang/OTP requires.
     private int receivePosition = 0;
-    private ScheduledFuture<?> waitTimer = null;
+    private TimerWheel.Handle waitTimer = null;
 
     private static final Atom DOWN = Atom.of("DOWN");
     private static final Atom PROCESS = Atom.of("process");
@@ -193,6 +181,13 @@ public class Process extends ProcessOrPort {
 
     private volatile boolean trapExit = false;
 
+    // process_flag(max_heap_size, #{...}) and process_flag(message_queue_data,
+    // ...). The runtime has no per-process heap of its own, so the heap limit
+    // is kept for process_info and for a future allocator; it does not kill
+    // anything yet. The queue mode is likewise reported, not enforced.
+    private volatile Term maxHeapSize = defaultMaxHeapSize();
+    private volatile Atom messageQueueData = Atom.of("on_heap");
+
     /**
      * Whether a normal exit must leave this process' links alone.
      *
@@ -205,6 +200,11 @@ public class Process extends ProcessOrPort {
     private volatile boolean keepLinksOnNormalExit = false;
     private volatile Term pendingExit = null;
     private volatile boolean terminated = false;
+
+    // erlang:trace/3 flags and the tracer they report to. A process with no
+    // flags has an empty set, so the interpreter's hot path is one map check.
+    private final Set<Atom> traceFlags = ConcurrentHashMap.newKeySet();
+    private volatile PID traceTracer = null;
 
     public Process(PID pid) {
         super(pid);
@@ -463,7 +463,7 @@ public class Process extends ProcessOrPort {
         waitGeneration++;
         waitTimedOut = false;
         if (waitTimer != null) {
-            waitTimer.cancel(false);
+            waitTimer.cancel();
             waitTimer = null;
         }
         // Stay WAITING: execute() dispatches a wakeup by resuming the
@@ -490,7 +490,7 @@ public class Process extends ProcessOrPort {
         waitTimedOut = false;
         waitGeneration++;
         if (waitTimer != null) {
-            waitTimer.cancel(false);
+            waitTimer.cancel();
             waitTimer = null;
         }
         setState(ProcessState.WAITING);
@@ -499,8 +499,8 @@ public class Process extends ProcessOrPort {
                 waitTimedOut = true;
             } else {
                 long generation = waitGeneration;
-                waitTimer = WAIT_TIMERS.schedule(() -> timeout(generation),
-                    timeoutMillis, TimeUnit.MILLISECONDS);
+                waitTimer = VirtualMachine.instance().timerWheel()
+                    .schedule(() -> timeout(generation), timeoutMillis);
             }
         }
         // A message or an exit signal can land between the receive scanning
@@ -851,6 +851,83 @@ public class Process extends ProcessOrPort {
 
     public long reductions() {
         return reductions;
+    }
+
+    /**
+     * The value erlang:process_info(Pid, memory) reports. A JVM object graph
+     * has no word count, so this is a stable estimate of the runtime's own
+     * arrays and the mailbox, not a measured heap size.
+     */
+    public long memory() {
+        int registerCount = registers == null ? 0 : registers.length;
+        return 8L * (stack.length + registerCount + mailboxSize() + framesDepth() * 4 + 16);
+    }
+
+    public boolean traceFlag(Atom flag) {
+        return !traceFlags.isEmpty() && traceFlags.contains(flag);
+    }
+
+    public void setTraceFlag(Atom flag, boolean enabled) {
+        if (enabled) {
+            traceFlags.add(flag);
+        } else {
+            traceFlags.remove(flag);
+        }
+    }
+
+    public void clearTraceFlags() {
+        traceFlags.clear();
+    }
+
+    public void setTraceTracer(PID tracer) {
+        traceTracer = tracer;
+    }
+
+    public PID traceTracer() {
+        return traceTracer;
+    }
+
+    /**
+     * Deliver one trace event to the tracer. The tracer is a normal process,
+     * so this is an ordinary message send and does not wait for it.
+     */
+    public void trace(Term event) {
+        PID tracer = traceTracer;
+        if (tracer == null) {
+            return;
+        }
+        ProcessOrPort target = ProcessRegistry.resolve(tracer);
+        if (target instanceof Process) {
+            ((Process) target).send(event);
+        }
+    }
+
+    public Term maxHeapSize() {
+        return maxHeapSize;
+    }
+
+    public Term setMaxHeapSize(Term value) {
+        Term previous = maxHeapSize;
+        maxHeapSize = value;
+        return previous;
+    }
+
+    public Atom messageQueueData() {
+        return messageQueueData;
+    }
+
+    public Atom setMessageQueueData(Atom value) {
+        Atom previous = messageQueueData;
+        messageQueueData = value;
+        return previous;
+    }
+
+    private static Term defaultMaxHeapSize() {
+        org.jerlang.type.Map map = new org.jerlang.type.Map();
+        map.set(Atom.of("size"), Integer.ZERO);
+        map.set(Atom.of("kill"), org.jerlang.type.Boolean.am_true);
+        map.set(Atom.of("error_logger"), org.jerlang.type.Boolean.am_true);
+        return map;
     }
 
     /**
@@ -1542,7 +1619,7 @@ public class Process extends ProcessOrPort {
         // the DOWN and restarts the child already finds the name free.
         TableRegistry.deleteOwnedBy(pid());
         if (waitTimer != null) {
-            waitTimer.cancel(false);
+            waitTimer.cancel();
             waitTimer = null;
         }
         Termination termination = new Termination(pid(), reason,
@@ -1659,18 +1736,29 @@ public class Process extends ProcessOrPort {
      * Remove the message the receive loop is looking at. Like the BEAM
      * instruction, this does not touch any register.
      */
-    public void removeMessage() {
+    public synchronized void removeMessage() {
         Iterator<Term> iterator = mailbox.iterator();
         int index = 0;
+        Term selected = null;
         while (iterator.hasNext()) {
-            iterator.next();
+            Term message = iterator.next();
             if (index++ == receivePosition) {
+                selected = message;
                 iterator.remove();
                 break;
             }
         }
         receivePosition = 0;
-        // TODO: remove timer
+        // A message that was already in the mailbox when the receive parked
+        // still armed a timeout. Matching it ends the receive, so the timeout
+        // must not fire for a later receive expression.
+        if (waitTimer != null) {
+            waitTimer.cancel();
+            waitTimer = null;
+        }
+        if (selected != null) {
+            Tracing.receive(this, selected);
+        }
     }
 
     public void popSignature() {

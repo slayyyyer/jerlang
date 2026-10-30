@@ -144,9 +144,11 @@ public class Module {
             if (instructionStream) {
                 process.setCP(0);
             }
+            Tracing.Pattern tracePattern = Tracing.beforeCall(process, signature, params);
             try {
                 return fun.apply(params);
             } finally {
+                Tracing.afterCall(process, signature, tracePattern);
                 process.popSignature();
                 if (instructionStream) {
                     process.setCP(callerCP);

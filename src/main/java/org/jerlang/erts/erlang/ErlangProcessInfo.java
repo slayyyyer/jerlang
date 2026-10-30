@@ -40,8 +40,11 @@ public class ErlangProcessInfo {
     private static final Atom STATUS = Atom.of("status");
     private static final Atom CURRENT_FUNCTION = Atom.of("current_function");
     private static final Atom REDUCTIONS = Atom.of("reductions");
+    private static final Atom MEMORY = Atom.of("memory");
     private static final Atom HEAP_SIZE = Atom.of("heap_size");
     private static final Atom STACK_SIZE = Atom.of("stack_size");
+    private static final Atom MAX_HEAP_SIZE = Atom.of("max_heap_size");
+    private static final Atom MESSAGE_QUEUE_DATA = Atom.of("message_queue_data");
     private static final Atom CURRENT_STACKTRACE = Atom.of("current_stacktrace");
 
     private ErlangProcessInfo() {
@@ -73,7 +76,8 @@ public class ErlangProcessInfo {
         }
         Term[] items = { REGISTERED_NAME, DICTIONARY, MESSAGE_QUEUE_LEN, MESSAGES,
                          LINKS, TRAP_EXIT, STATUS, CURRENT_FUNCTION, REDUCTIONS,
-                         HEAP_SIZE, STACK_SIZE };
+                         MEMORY, HEAP_SIZE, STACK_SIZE, MAX_HEAP_SIZE,
+                         MESSAGE_QUEUE_DATA };
         List info = List.nil;
         for (Term item : items) {
             info = new List(entry(process, item), info);
@@ -169,8 +173,14 @@ public class ErlangProcessInfo {
             return process.stacktrace();
         } else if (item.equals(REDUCTIONS)) {
             return new Integer(java.math.BigInteger.valueOf(process.reductions()));
+        } else if (item.equals(MEMORY)) {
+            return new Integer(java.math.BigInteger.valueOf(process.memory()));
         } else if (item.equals(HEAP_SIZE) || item.equals(STACK_SIZE)) {
             return Integer.of(0);
+        } else if (item.equals(MAX_HEAP_SIZE)) {
+            return process.maxHeapSize();
+        } else if (item.equals(MESSAGE_QUEUE_DATA)) {
+            return process.messageQueueData();
         }
         throw badarg;
     }

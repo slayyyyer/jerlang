@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.jerlang.Aliases;
 import org.jerlang.Process;
+import org.jerlang.Tracing;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
 import org.jerlang.erts.erlang.Error;
@@ -168,6 +169,7 @@ public final class Distribution {
      * or a {Name, Node} tuple, as the send operator accepts it.
      */
     public static void send(Term target, PID from, Term message) {
+        Tracing.send(from, message, target);
         if (target instanceof Reference) {
             // A reference is only a destination while it is an active alias.
             // A send to any other reference is dropped, not an error.
