@@ -49,6 +49,11 @@ public final class ProcessSignals {
         if (termination == null) {
             return;
         }
+        // Release the name before any monitor or link hears about the exit.
+        // A supervisor waits for its child's DOWN and only then exits itself;
+        // if the child's name were released after that DOWN, application:stop
+        // could return with whereis/1 still answering for the dead child.
+        ProcessRegistry.remove(termination.pid);
         for (Map.Entry<Reference, Process.Monitor> monitor : termination.monitoredBy.entrySet()) {
             Process.Monitor watchedBy = monitor.getValue();
             if (Process.onThisNode(watchedBy.watcher)) {
@@ -101,7 +106,6 @@ public final class ProcessSignals {
                 }
             }
         }
-        ProcessRegistry.remove(termination.pid);
     }
 
     /**

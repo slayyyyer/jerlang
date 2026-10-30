@@ -340,24 +340,37 @@ public class Process extends ProcessOrPort {
      * inside a BIF, such as a remote RPC. It returns null on timeout.
      */
     public Term awaitMessage(java.util.function.Predicate<Term> predicate, long timeoutMillis) {
-        long deadline = timeoutMillis < 0 ? Long.MAX_VALUE
-            : System.currentTimeMillis() + timeoutMillis;
-        while (true) {
-            for (Term message : mailbox) {
-                if (predicate.test(message) && mailbox.remove(message)) {
-                    return message;
+        // This call blocks the scheduler thread. Tell the VM so that a process
+        // this wait depends on is not queued behind the wait, which would
+        // deadlock on a machine with few schedulers (a small CI runner).
+        Scheduler scheduler = scheduler();
+        if (scheduler != null) {
+            scheduler.enterBlockingCall();
+        }
+        try {
+            long deadline = timeoutMillis < 0 ? Long.MAX_VALUE
+                : System.currentTimeMillis() + timeoutMillis;
+            while (true) {
+                for (Term message : mailbox) {
+                    if (predicate.test(message) && mailbox.remove(message)) {
+                        return message;
+                    }
+                }
+                long remaining = deadline == Long.MAX_VALUE ? Long.MAX_VALUE
+                    : deadline - System.currentTimeMillis();
+                if (remaining <= 0) {
+                    return null;
+                }
+                try {
+                    Thread.sleep(Math.min(remaining, 5));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return null;
                 }
             }
-            long remaining = deadline == Long.MAX_VALUE ? Long.MAX_VALUE
-                : deadline - System.currentTimeMillis();
-            if (remaining <= 0) {
-                return null;
-            }
-            try {
-                Thread.sleep(Math.min(remaining, 5));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return null;
+        } finally {
+            if (scheduler != null) {
+                scheduler.exitBlockingCall();
             }
         }
     }

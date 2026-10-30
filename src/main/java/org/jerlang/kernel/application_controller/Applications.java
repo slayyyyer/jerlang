@@ -503,7 +503,10 @@ public final class Applications {
             child.keepLinksOnNormalExit(true);
         }
         Term reference = Erlang.monitor(PROCESS, child.pid());
-        machine.schedule(child);
+        // The caller's scheduler thread is about to poll for the monitor DOWN
+        // message, so the callback has to run somewhere else. Otherwise the
+        // callback, and everything it starts, sits in the blocked queue.
+        machine.schedule(child, caller.scheduler());
         Term down = caller.awaitMessage(message -> isDown(message, reference, child.pid()), timeout);
         if (down == null) {
             Erlang.exit(child.pid(), Atom.of("kill"));

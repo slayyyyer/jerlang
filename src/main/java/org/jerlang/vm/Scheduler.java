@@ -31,12 +31,35 @@ public class Scheduler extends Thread {
     private final Object workLock = new Object();
     private boolean workPending = false;
 
+    /**
+     * Number of blocking calls (BIF waits that poll instead of parking the
+     * process) currently running on this scheduler's thread. New processes
+     * must not be queued here while it is greater than zero: the thread can
+     * not drain its run queue until the call returns, and the call is often
+     * waiting for exactly those new processes.
+     */
+    private int blockingCalls = 0;
+
     public Scheduler() {
         ids = new HashSet<>();
         runQueueMax = new RunQueue<>();
         runQueueHigh = new RunQueue<>();
         runQueueNormal = new RunQueue<>();
         runQueueLow = new RunQueue<>();
+    }
+
+    public synchronized void enterBlockingCall() {
+        blockingCalls++;
+    }
+
+    public synchronized void exitBlockingCall() {
+        if (blockingCalls > 0) {
+            blockingCalls--;
+        }
+    }
+
+    public synchronized boolean isInBlockingCall() {
+        return blockingCalls > 0;
     }
 
     public ProcessOrPort add(ProcessOrPort p) {

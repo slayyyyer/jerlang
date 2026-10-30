@@ -22,7 +22,7 @@ import org.jerlang.type.Tuple;
 public class VirtualMachine {
 
     private Scheduler[] schedulers;
-    private volatile int nextScheduler = 0;
+    private int nextScheduler = 0;
 
     private static final AtomicInteger nextPID = new AtomicInteger();
 
@@ -37,12 +37,21 @@ public class VirtualMachine {
     private static final VirtualMachine VIRTUAL_MACHINE = new VirtualMachine();
 
     private VirtualMachine() {
-        int processors = Runtime.getRuntime().availableProcessors();
-        schedulers = new Scheduler[processors];
-        for (int index = 0; index < processors; index++) {
+        int count = schedulerCount();
+        schedulers = new Scheduler[count];
+        for (int index = 0; index < count; index++) {
             schedulers[index] = new Scheduler();
         }
-        timerExecutor = new ScheduledThreadPoolExecutor(processors);
+        timerExecutor = new ScheduledThreadPoolExecutor(count);
+    }
+
+    /**
+     * At least two schedulers, even in a one-CPU container. A BIF that waits
+     * for another process (application start, RPC) blocks its scheduler
+     * thread; with a single scheduler the process it waits for can never run.
+     */
+    private static int schedulerCount() {
+        return Math.max(2, Runtime.getRuntime().availableProcessors());
     }
 
     public Term cancel(TimerReference timerReference) {
@@ -55,13 +64,13 @@ public class VirtualMachine {
     }
 
     public void start() {
-        int processors = Runtime.getRuntime().availableProcessors();
-        schedulers = new Scheduler[processors];
-        for (int index = 0; index < processors; index++) {
+        int count = schedulerCount();
+        schedulers = new Scheduler[count];
+        for (int index = 0; index < count; index++) {
             schedulers[index] = new Scheduler();
             schedulers[index].start();
         }
-        timerExecutor = new ScheduledThreadPoolExecutor(processors);
+        timerExecutor = new ScheduledThreadPoolExecutor(count);
         ProcessRegistry.instance().cleanup();
         org.jerlang.erts.dist.Distribution.start();
     }
@@ -198,8 +207,34 @@ public class VirtualMachine {
      * Put a prepared process on a run queue.
      */
     public void schedule(Process process) {
-        // Round-robin process assignment
-        schedulers[nextScheduler++ % schedulers.length].add(process);
+        schedule(process, null);
+    }
+
+    /**
+     * Put a prepared process on a run queue, avoiding a scheduler whose thread
+     * is blocked waiting for that process. Callers that block (application
+     * start, RPC, distribution) must schedule the process they wait for away
+     * from their own scheduler.
+     */
+    public void schedule(Process process, Scheduler avoid) {
+        schedulers[nextAvailableScheduler(avoid)].add(process);
+    }
+
+    private synchronized int nextAvailableScheduler(Scheduler avoid) {
+        int count = schedulers.length;
+        for (int offset = 0; offset < count; offset++) {
+            int index = (nextScheduler + offset) % count;
+            Scheduler candidate = schedulers[index];
+            if (candidate != avoid && !candidate.isInBlockingCall()) {
+                nextScheduler = (index + 1) % count;
+                return index;
+            }
+        }
+        // Every scheduler is blocked. Round-robin anyway: the process has to
+        // have a queue, and one of the waiting calls may return without it.
+        int index = nextScheduler % count;
+        nextScheduler = (index + 1) % count;
+        return index;
     }
 
     /**
