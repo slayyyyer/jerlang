@@ -64,7 +64,18 @@ public class VirtualMachine {
     }
 
     public void start() {
-        int count = schedulerCount();
+        start(schedulerCount());
+    }
+
+    /**
+     * Start with an explicit number of schedulers. The default follows the
+     * host's processor count; an embedding deployment may want a fixed pool,
+     * and a scheduling test needs a deterministic one.
+     */
+    public void start(int count) {
+        if (count < 1) {
+            throw new IllegalArgumentException("scheduler count must be positive");
+        }
         schedulers = new Scheduler[count];
         for (int index = 0; index < count; index++) {
             schedulers[index] = new Scheduler();

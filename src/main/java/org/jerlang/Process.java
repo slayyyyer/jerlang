@@ -116,6 +116,19 @@ public class Process extends ProcessOrPort {
     // are still in scope when it is resumed.
     private volatile long waitActivation = 0;
 
+    // Reduction accounting. Every instruction costs one reduction. A
+    // scheduler starts a time slice with a budget; when the budget is spent
+    // the interpreter saves where to continue and gives the scheduler back
+    // its thread. Inline calls from Java leave the budget at -1, so they run
+    // to completion without a scheduler to return to.
+    private long reductions = 0;
+    private long reductionCredit = -1;
+    private int interpreterFrames = 0;
+    private boolean yielded = false;
+    private Module yieldModule = null;
+    private int yieldIndex = -1;
+    private long yieldActivation = 0;
+
     // The enclosing activations of a suspended nested call, innermost first.
     // A cross-module call runs on the Java stack, which a parked process
     // loses, so each activation records where it continues after the call.
@@ -697,6 +710,66 @@ public class Process extends ProcessOrPort {
     }
 
     /**
+     * Start a scheduler time slice. The interpreter spends this budget one
+     * instruction at a time and yields when it reaches zero.
+     */
+    public void beginTimeSlice(long credit) {
+        reductionCredit = credit;
+    }
+
+    public void spendReduction() {
+        reductions++;
+        if (reductionCredit > 0) {
+            reductionCredit--;
+        }
+    }
+
+    public boolean reductionSliceExhausted() {
+        return reductionCredit == 0;
+    }
+
+    public long reductions() {
+        return reductions;
+    }
+
+    /**
+     * The number of interpreter frames currently on the Java stack. A nested
+     * call has a depth greater than one; yielding there would cut a Java frame
+     * in the middle of a call, so preemption is only taken at the outermost
+     * frame for now. This counts physical frames, not activation identifiers:
+     * a process that parked for a message is resumed without re-pushing its
+     * identifier, but its interpreter frame is still counted.
+     */
+    public int interpreterFrames() {
+        return interpreterFrames;
+    }
+
+    public void enterInterpreterFrame() {
+        interpreterFrames++;
+    }
+
+    public void exitInterpreterFrame() {
+        interpreterFrames--;
+    }
+
+    public boolean hasResumePoints() {
+        return !resumePoints.isEmpty();
+    }
+
+    /**
+     * Save an instruction boundary and make the process runnable again. The
+     * interpreter returns to the scheduler, which puts the process at the
+     * back of its run queue.
+     */
+    public void yieldActivation(Module module, int index, long activation) {
+        yieldModule = module;
+        yieldIndex = index;
+        yieldActivation = activation;
+        yielded = true;
+        setState(ProcessState.RUNNABLE);
+    }
+
+    /**
      * The activation currently running, or 0 outside an instruction stream.
      */
     public long currentActivation() {
@@ -759,7 +832,17 @@ public class Process extends ProcessOrPort {
             }
             break;
         case RUNNABLE:
-            if (funEntry >= 0) {
+            if (yielded) {
+                Module module = yieldModule;
+                int index = yieldIndex;
+                long activation = yieldActivation;
+                yielded = false;
+                yieldModule = null;
+                yieldIndex = -1;
+                setState(ProcessState.RUNNING);
+                Interpreter.resumeExecution(module, index, activation);
+                finishResumePoints();
+            } else if (funEntry >= 0) {
                 int start = funEntry;
                 funEntry = -1;
                 setCP(0);

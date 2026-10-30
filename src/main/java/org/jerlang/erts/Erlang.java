@@ -21,6 +21,7 @@ import org.jerlang.erts.erlang.ErlangBitstringToList;
 import org.jerlang.erts.erlang.ErlangCancelTimer;
 import org.jerlang.erts.erlang.ErlangByteSize;
 import org.jerlang.erts.erlang.ErlangDemonitor;
+import org.jerlang.erts.erlang.ErlangDiv;
 import org.jerlang.erts.erlang.ErlangDisplay;
 import org.jerlang.erts.erlang.ErlangElement;
 import org.jerlang.erts.erlang.ErlangError;
@@ -502,6 +503,10 @@ public class Erlang {
 
     public static Term whereis(Atom name) {
         return ErlangWhereis.whereis_1(name);
+    }
+
+    public static Integer div(Integer a, Integer b) {
+        return ErlangDiv.div_2(a, b);
     }
 
     public static Integer rem(Integer a, Integer b) {

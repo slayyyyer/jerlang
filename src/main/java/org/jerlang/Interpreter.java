@@ -84,9 +84,28 @@ public class Interpreter {
      */
     public static Term continueExecution(Module m, int start, long activation) {
         Process process = (Process) ProcessRegistry.self();
+        process.enterInterpreterFrame();
         try {
             return runUntilDone(process, m, start, activation);
         } finally {
+            process.exitInterpreterFrame();
+            process.exitActivation();
+        }
+    }
+
+    /**
+     * Re-enter an activation that was preempted. Its Java frame was popped
+     * when it yielded, so the activation identifier has to be pushed again
+     * before its instruction stream continues.
+     */
+    public static Term resumeExecution(Module m, int start, long activation) {
+        Process process = (Process) ProcessRegistry.self();
+        process.enterActivation(activation);
+        process.enterInterpreterFrame();
+        try {
+            return runUntilDone(process, m, start, activation);
+        } finally {
+            process.exitInterpreterFrame();
             process.exitActivation();
         }
     }
@@ -101,6 +120,16 @@ public class Interpreter {
         Term params = List.nil; // TODO: is this correct?
 
         for (int index = start; index < maxInstructions; index++) {
+            if (process.reductionSliceExhausted()
+                && process.interpreterFrames() == 1
+                && !process.hasResumePoints()) {
+                // The scheduler gave this activation a budget. Stop at an
+                // instruction boundary so another process can run; execute()
+                // resumes here when the scheduler picks this process again.
+                process.yieldActivation(m, index, activation);
+                break;
+            }
+            process.spendReduction();
             if (process.hasPendingExit()) {
                 // An exit signal is not an Erlang exception: it unwinds all
                 // the way out of the process instead of into a catch clause.

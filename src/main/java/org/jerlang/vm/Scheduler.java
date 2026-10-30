@@ -19,6 +19,15 @@ public class Scheduler extends Thread {
 
     private static final boolean DEBUG_EXITS = Boolean.getBoolean("jerlang.debug.errors");
 
+    /**
+     * Instructions a process may execute before it is put back on the run
+     * queue. One instruction is one reduction; the number is deliberately
+     * small enough that a CPU-bound process cannot hide a waking process for
+     * tens of milliseconds, and large enough that the queue traffic stays
+     * low.
+     */
+    private static final long REDUCTIONS_PER_SLICE = 1000;
+
     private final HashSet<PidOrPortId> ids;
 
     private final RunQueue<ProcessOrPort> runQueueMax;
@@ -150,6 +159,9 @@ public class Scheduler extends Thread {
                     p.setState(ProcessState.EXITING);
                 }
                 if (p.state() != ProcessState.EXITING) {
+                    if (process != null) {
+                        process.beginTimeSlice(REDUCTIONS_PER_SLICE);
+                    }
                     p.execute();
                 }
             } catch (Throwable t) {
