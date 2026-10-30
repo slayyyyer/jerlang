@@ -129,6 +129,16 @@ public class Process extends ProcessOrPort {
     private int yieldIndex = -1;
     private long yieldActivation = 0;
 
+    // Tail-call continuations of the activation that is running. A
+    // cross-module tail call replaces the activation instead of nesting a
+    // Java frame, so the place it has to return to is explicit. The stack is
+    // per interpreter frame: a nested call gets its own, empty one.
+    private final java.util.Deque<java.util.Deque<TailTarget>> tailTargetScopes =
+        new java.util.ArrayDeque<>();
+    private java.util.List<TailTarget> waitTailTargets = java.util.Collections.emptyList();
+    private java.util.List<TailTarget> yieldTailTargets = java.util.Collections.emptyList();
+    private TailCall pendingTailCall = null;
+
     // The enclosing activations of a suspended nested call, innermost first.
     // A cross-module call runs on the Java stack, which a parked process
     // loses, so each activation records where it continues after the call.
@@ -475,6 +485,7 @@ public class Process extends ProcessOrPort {
         waitModule = module;
         waitIndex = index;
         waitActivation = currentActivation();
+        waitTailTargets = tailTargetsSnapshot();
         waitLabel = label;
         waitTimedOut = false;
         waitGeneration++;
@@ -654,11 +665,14 @@ public class Process extends ProcessOrPort {
         private final Module module;
         private final int index;
         private final long activation;
+        private final java.util.List<TailTarget> tailTargets;
 
-        ResumePoint(Module module, int index, long activation) {
+        ResumePoint(Module module, int index, long activation,
+            java.util.List<TailTarget> tailTargets) {
             this.module = module;
             this.index = index;
             this.activation = activation;
+            this.tailTargets = tailTargets;
         }
 
         public Module module() {
@@ -678,6 +692,60 @@ public class Process extends ProcessOrPort {
             return activation;
         }
 
+        public java.util.List<TailTarget> tailTargets() {
+            return tailTargets;
+        }
+
+    }
+
+    /**
+     * Where a trampolined cross-module tail call returns: an instruction
+     * index in the module that made the call. The stack of these replaces the
+     * Java frames that tail calls used to nest.
+     */
+    public static final class TailTarget {
+
+        private final Module module;
+        private final int index;
+
+        TailTarget(Module module, int index) {
+            this.module = module;
+            this.index = index;
+        }
+
+        public Module module() {
+            return module;
+        }
+
+        public int index() {
+            return index;
+        }
+
+    }
+
+    /**
+     * An instruction stream the interpreter loop should switch to without a
+     * Java call. The caller has already popped the replaced frame and pushed
+     * the target frame.
+     */
+    public static final class TailCall {
+
+        private final Module module;
+        private final int start;
+
+        TailCall(Module module, int start) {
+            this.module = module;
+            this.start = start;
+        }
+
+        public Module module() {
+            return module;
+        }
+
+        public int start() {
+            return start;
+        }
+
     }
 
     /**
@@ -685,7 +753,60 @@ public class Process extends ProcessOrPort {
      * another module's code.
      */
     public void pushResumePoint(Module module, int index) {
-        resumePoints.push(new ResumePoint(module, index, currentActivation()));
+        resumePoints.push(new ResumePoint(module, index, currentActivation(),
+            tailTargetsSnapshot()));
+    }
+
+    /**
+     * Enter the tail-call continuation scope of a new interpreter frame,
+     * restoring the continuations of a resumed activation.
+     */
+    public java.util.Deque<TailTarget> enterTailTargets(java.util.List<TailTarget> saved) {
+        java.util.Deque<TailTarget> targets = new java.util.ArrayDeque<>();
+        if (saved != null) {
+            targets.addAll(saved);
+        }
+        tailTargetScopes.push(targets);
+        return targets;
+    }
+
+    public void exitTailTargets() {
+        if (!tailTargetScopes.isEmpty()) {
+            tailTargetScopes.pop();
+        }
+    }
+
+    /**
+     * Remember that a tail call from this module has to return to the given
+     * instruction index once the chain it starts ends.
+     */
+    public void pushTailTarget(Module module, int index) {
+        java.util.Deque<TailTarget> targets = tailTargetScopes.peek();
+        if (targets != null) {
+            targets.push(new TailTarget(module, index));
+        }
+    }
+
+    public java.util.List<TailTarget> tailTargetsSnapshot() {
+        java.util.Deque<TailTarget> targets = tailTargetScopes.peek();
+        if (targets == null) {
+            return java.util.Collections.emptyList();
+        }
+        return new java.util.ArrayList<>(targets);
+    }
+
+    /**
+     * Ask the interpreter loop to continue at another module's instruction
+     * stream after the current instruction.
+     */
+    public void requestTailCall(Module module, int start) {
+        pendingTailCall = new TailCall(module, start);
+    }
+
+    public TailCall takeTailCall() {
+        TailCall call = pendingTailCall;
+        pendingTailCall = null;
+        return call;
     }
 
     /**
@@ -765,6 +886,7 @@ public class Process extends ProcessOrPort {
         yieldModule = module;
         yieldIndex = index;
         yieldActivation = activation;
+        yieldTailTargets = tailTargetsSnapshot();
         yielded = true;
         setState(ProcessState.RUNNABLE);
     }
@@ -795,7 +917,8 @@ public class Process extends ProcessOrPort {
             ResumePoint point = resumePoints.pop();
             // The activation was suspended inside the call instruction.
             setCP(point.index() - 1);
-            Interpreter.continueExecution(point.module(), point.index(), point.activation());
+            Interpreter.continueExecution(point.module(), point.index(), point.activation(),
+                point.tailTargets());
         }
     }
 
@@ -813,9 +936,11 @@ public class Process extends ProcessOrPort {
                 waitLabel = null;
                 setCP(waitIndex);
                 if (label != null) {
-                    Interpreter.continueExecutionAtLabel(waitModule, label, waitActivation);
+                    Interpreter.continueExecutionAtLabel(waitModule, label, waitActivation,
+                        waitTailTargets);
                 } else {
-                    Interpreter.continueExecution(waitModule, waitIndex, waitActivation);
+                    Interpreter.continueExecution(waitModule, waitIndex, waitActivation,
+                        waitTailTargets);
                 }
                 finishResumePoints();
             } else if (waitTimedOut) {
@@ -827,7 +952,8 @@ public class Process extends ProcessOrPort {
                 receivePosition = 0;
                 // The wait instruction is followed by the timeout code.
                 setCP(waitIndex);
-                Interpreter.continueExecution(waitModule, waitIndex + 1, waitActivation);
+                Interpreter.continueExecution(waitModule, waitIndex + 1, waitActivation,
+                    waitTailTargets);
                 finishResumePoints();
             }
             break;
@@ -840,7 +966,7 @@ public class Process extends ProcessOrPort {
                 yieldModule = null;
                 yieldIndex = -1;
                 setState(ProcessState.RUNNING);
-                Interpreter.resumeExecution(module, index, activation);
+                Interpreter.resumeExecution(module, index, activation, yieldTailTargets);
                 finishResumePoints();
             } else if (funEntry >= 0) {
                 int start = funEntry;

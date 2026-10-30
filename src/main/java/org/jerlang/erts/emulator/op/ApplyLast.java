@@ -38,6 +38,16 @@ public class ApplyLast {
         Module module = ModuleRegistry.get(mod);
         FunctionSignature fs = new FunctionSignature(mod, fun, arity);
 
+        // With no local continuation, the applied function can continue in
+        // this interpreter loop instead of nesting a Java call. A non-zero
+        // continuation pointer is left to the old path: apply_last does not
+        // restore it, so it is not a safe return address to record.
+        if (proc.getCP() == 0 && TailCalls.canSwitch(proc, module, fs)
+            && module.hasFunction(fs)) {
+            TailCalls.switchTo(proc, m, module, fs, 0);
+            return null;
+        }
+
         List args = List.nil;
         for (int index = arity.toInt() - 1; index >= 0; index--) {
             args = new List(proc.getX(index), args);

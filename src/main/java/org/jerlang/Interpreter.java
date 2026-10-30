@@ -1,5 +1,6 @@
 package org.jerlang;
 
+import java.util.Deque;
 import java.util.Map;
 
 import org.jerlang.erts.emulator.Instruction;
@@ -60,6 +61,10 @@ public class Interpreter {
 
         if (start == -1) {
             start = find_start(signature, m.beamData());
+            // A process started from a module has no continuation in this
+            // instruction stream. -1 is only the entry marker; leaving it in
+            // the CP register would record it as a tail-call return target.
+            process.setCP(0);
         }
 
         return continueExecution(m, start);
@@ -83,12 +88,23 @@ public class Interpreter {
      * installed are still in scope.
      */
     public static Term continueExecution(Module m, int start, long activation) {
+        return continueExecution(m, start, activation, null);
+    }
+
+    /**
+     * Continue an activation with the tail-call continuations it had when it
+     * was suspended. A plain entry starts with an empty stack.
+     */
+    public static Term continueExecution(Module m, int start, long activation,
+        java.util.List<Process.TailTarget> savedTailTargets) {
         Process process = (Process) ProcessRegistry.self();
+        Deque<Process.TailTarget> tailTargets = process.enterTailTargets(savedTailTargets);
         process.enterInterpreterFrame();
         try {
-            return runUntilDone(process, m, start, activation);
+            return runUntilDone(process, m, start, activation, tailTargets);
         } finally {
             process.exitInterpreterFrame();
+            process.exitTailTargets();
             process.exitActivation();
         }
     }
@@ -99,18 +115,26 @@ public class Interpreter {
      * before its instruction stream continues.
      */
     public static Term resumeExecution(Module m, int start, long activation) {
+        return resumeExecution(m, start, activation, null);
+    }
+
+    public static Term resumeExecution(Module m, int start, long activation,
+        java.util.List<Process.TailTarget> savedTailTargets) {
         Process process = (Process) ProcessRegistry.self();
         process.enterActivation(activation);
+        Deque<Process.TailTarget> tailTargets = process.enterTailTargets(savedTailTargets);
         process.enterInterpreterFrame();
         try {
-            return runUntilDone(process, m, start, activation);
+            return runUntilDone(process, m, start, activation, tailTargets);
         } finally {
             process.exitInterpreterFrame();
+            process.exitTailTargets();
             process.exitActivation();
         }
     }
 
-    private static Term runUntilDone(Process process, Module m, int start, long activation) {
+    private static Term runUntilDone(Process process, Module m, int start, long activation,
+        Deque<Process.TailTarget> tailTargets) {
         CodeChunk code = m.beamData().codeChunk();
         java.util.List<Instruction> instructions = code.instructions();
         Map<Integer, Integer> labels = code.labels();
@@ -216,6 +240,21 @@ public class Interpreter {
                 throw new Error(Str.of(String.valueOf(e)));
             }
 
+            Process.TailCall tailCall = process.takeTailCall();
+            if (tailCall != null) {
+                // A cross-module tail call replaces the activation. Continue
+                // in the target's stream instead of nesting a Java call; the
+                // loop's increment lands on the function's first instruction.
+                m = tailCall.module();
+                CodeChunk next = m.beamData().codeChunk();
+                code = next;
+                instructions = next.instructions();
+                labels = next.labels();
+                maxInstructions = instructions.size();
+                index = tailCall.start() - 1;
+                continue;
+            }
+
             if (process.state() == ProcessState.WAITING) {
                 // Set process was set to waiting mode.
                 process.setCP(index);
@@ -231,6 +270,21 @@ public class Interpreter {
                 || ((opcode == Opcode.call_ext_last
                     || opcode == Opcode.call_ext_only
                     || opcode == Opcode._return) && index <= 0)) {
+                if (!tailTargets.isEmpty()) {
+                    // The tail chain ended at this stream's boundary; resume
+                    // the local caller the replaced activation had to return
+                    // to, at the instruction after its call.
+                    Process.TailTarget target = tailTargets.pop();
+                    m = target.module();
+                    CodeChunk next = m.beamData().codeChunk();
+                    code = next;
+                    instructions = next.instructions();
+                    labels = next.labels();
+                    maxInstructions = instructions.size();
+                    index = target.index();
+                    process.setCP(0);
+                    continue;
+                }
                 // The result of the call or return
                 // is stored in the x0 register
                 result = process.registers()[0];
@@ -261,14 +315,27 @@ public class Interpreter {
      * activation that installed its handlers before it parked.
      */
     public static Term continueExecutionAtLabel(Module m, Term label, long activation) {
+        return continueExecutionAtLabel(m, label, activation, null);
+    }
+
+    public static Term continueExecutionAtLabel(Module m, Term label, long activation,
+        java.util.List<Process.TailTarget> savedTailTargets) {
         Integer index = m.beamData().codeChunk().labels().get(label.toRegisterIndex().toInt());
         if (index == null) {
             throw new Error("No instruction for label " + label + " in " + m.name());
         }
         if (activation == 0) {
-            return continueExecution(m, index);
+            Process process = (Process) ProcessRegistry.self();
+            return continueExecution(m, index, process.enterActivation(), savedTailTargets);
         }
-        return continueExecution(m, index, activation);
+        return continueExecution(m, index, activation, savedTailTargets);
+    }
+
+    /**
+     * The first instruction of an exported function, for a trampolined call.
+     */
+    public static int functionStart(Module m, FunctionSignature signature) {
+        return find_start(signature, m.beamData());
     }
 
     /**

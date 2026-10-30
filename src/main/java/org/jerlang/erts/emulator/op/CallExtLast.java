@@ -53,6 +53,12 @@ public class CallExtLast {
         FunctionSignature signature = CallExt.resolve(m, i.arg(1).toInteger());
         Module target = ModuleRegistry.get(signature.module());
         boolean instructionStream = target != null && target.hasInstructionStream(signature);
+        if (instructionStream && process.exceptionHandler() == null) {
+            // A tail call replaces this activation. Continue in the target's
+            // stream instead of nesting another interpreter frame.
+            TailCalls.switchTo(process, m, target, signature, process.getCP());
+            return null;
+        }
         if (instructionStream) {
             process.popFrame();
         }

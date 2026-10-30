@@ -271,22 +271,31 @@ newer one.
 
 ## Cross-module calls and tail calls
 
-A cross-module call runs the callee's instruction stream as a nested
+A cross-module non-tail call runs the callee's instruction stream as a nested
 activation: `Module.apply` pushes the callee's frame, clears the continuation
 pointer, and puts the caller's pointer back when the callee returns. Clearing
 it is what makes a `return` end the callee's own stream instead of jumping to
 an index that belongs to another module.
 
-`call_ext_last` and `call_ext_only` replace their activation. They pop its
-frame and, when the instruction carries a deallocate operand, restore the
-caller's continuation pointer and release the activation's stack words. Both
-happen after the callee ran, so a raise inside a tail-called function still
-captures the tail-calling frame in its stacktrace; doing them first is what
-broke the crash report and monitor reason tests. `call_last` follows the same
-rule inside one module.
+`call_ext_last` and `call_ext_only` replace their activation. When the target
+is BEAM code and no catch frame is active, the interpreter does not nest a
+Java call: it restores the continuation pointer, releases the activation's
+stack words, records where the replaced activation has to return inside its
+caller, replaces the stack frame, and continues at the target's first
+instruction in the same loop. The recorded continuations belong to their
+interpreter frame and are carried across a wait or a yield, so a tail chain
+that parks is resumed at the right place. This trampoline is what lets an
+alternating cross-module tail loop yield instead of growing the JVM stack.
 
-`apply_last` still ends the invocation: it tears down its own frame, and
-returning to the continuation pointer double-deallocates.
+When the target is a built-in, or an exception handler is active, the old
+nested path runs instead. There the callee runs first and the frame and stack
+cleanup happens afterwards, so a raise inside it still reports the tail-calling
+frame; doing the cleanup first is what broke the crash report and monitor
+reason tests. `call_last` is a local tail call and stays a label jump.
+
+`apply_last` with no continuation pointer can use the same trampoline. With a
+non-zero continuation pointer it still ends the invocation: it tears down its
+own frame, and returning to the pointer double-deallocates.
 
 A fun whose lambda lives in another module cannot be reached by jumping to a
 label, because a label is resolved in the stream that runs it. `call_fun` and
