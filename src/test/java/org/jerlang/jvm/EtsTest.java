@@ -188,6 +188,66 @@ public class EtsTest {
         assertEquals(Atom.of("ok"), apply("update_counter_badarg"));
     }
 
+    @Test
+    public void testOrderedSetIsSorted() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("ordered_set_is_sorted"));
+    }
+
+    @Test
+    public void testOrderedSetUsesTermOrder() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("ordered_set_uses_term_order"));
+    }
+
+    @Test
+    public void testMatchReturnsBoundVariables() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("match_returns_bound_variables"));
+    }
+
+    @Test
+    public void testMatchObjectReturnsObjects() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("match_object_returns_objects"));
+    }
+
+    @Test
+    public void testMatchHonoursLimit() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("match_honours_limit"));
+    }
+
+    @Test
+    public void testSelectProjectsTheBody() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("select_projects_the_body"));
+    }
+
+    @Test
+    public void testSelectGuards() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("select_guards"));
+    }
+
+    @Test
+    public void testSelectMultipleClauses() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("select_multiple_clauses"));
+    }
+
+    @Test
+    public void testSelectBadSpecification() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("select_bad_specification"));
+    }
+
+    @Test
+    public void testGiveAwayTransfersOwnership() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("give_away_transfers_ownership"));
+    }
+
+    @Test
+    public void testGiveAwayToSelfIsBadarg() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("give_away_to_self_is_badarg"));
+    }
+
+    @Test
+    public void testGiveAwayRequiresTheOwner() throws Throwable {
+        assertEquals(Atom.of("ok"), apply("give_away_requires_the_owner"));
+    }
+
     /**
      * The same insert and lookup, called from Java, so a failure points at
      * the table and not at the interpreter path that reaches it.

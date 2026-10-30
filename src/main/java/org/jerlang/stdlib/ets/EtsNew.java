@@ -87,15 +87,20 @@ public class EtsNew {
             throw Error.badarg;
         }
 
+        Table table;
         switch (type) {
         case SET:
-            Set table = new Set(access, name, is_named_table, is_compressed, key_position);
-            // A named table is addressed by its name, so that is what OTP
-            // returns. An unnamed one returns its identifier.
-            return is_named_table ? name : table.id();
+            table = new Set(access, name, is_named_table, is_compressed, key_position);
+            break;
+        case ORDERED_SET:
+            table = new OrderedSet(access, name, is_named_table, is_compressed, key_position);
+            break;
         default:
             throw new Error("not implemented yet");
         }
+        // A named table is addressed by its name, so that is what OTP
+        // returns. An unnamed one returns its identifier.
+        return is_named_table ? name : table.id();
     }
 
     private static int keypos(Term option) {

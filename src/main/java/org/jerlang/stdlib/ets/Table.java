@@ -27,8 +27,9 @@ public abstract class Table {
     private final boolean compressed;
     private final int keypos;
     // The process that created the table, which is what ets:whereis/1
-    // reports. Null when the table was created outside a process.
-    private final PID owner;
+    // reports. Null when the table was created outside a process. It moves
+    // with ets:give_away/3.
+    private volatile PID owner;
 
     protected Table(Type type, Access access, Atom name, boolean named_table,
                     boolean compressed, int keypos) {
@@ -100,6 +101,12 @@ public abstract class Table {
      */
     public abstract List tab2list();
 
+    /**
+     * Every object in the table in table order. A set has no order; an
+     * ordered_set returns them by key.
+     */
+    public abstract java.util.List<Tuple> objects();
+
     public Atom name() {
         return name;
     }
@@ -113,6 +120,14 @@ public abstract class Table {
 
     public boolean named_table() {
         return named_table;
+    }
+
+    /**
+     * Hand the table to another process, for ets:give_away/3. The caller has
+     * already checked that it owns the table and that the target is alive.
+     */
+    public void giveAway(PID newOwner) {
+        this.owner = newOwner;
     }
 
     public Type type() {

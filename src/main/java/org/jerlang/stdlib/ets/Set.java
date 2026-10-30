@@ -72,6 +72,15 @@ public class Set extends Table {
     }
 
     @Override
+    public java.util.List<Tuple> objects() {
+        java.util.List<Tuple> result = new java.util.ArrayList<>();
+        for (Term element : elements.values()) {
+            result.add((Tuple) element);
+        }
+        return result;
+    }
+
+    @Override
     public List tab2list() {
         // Descending iteration with a prepend builds an ascending list, which
         // is the order a sorted set already implies in this implementation.

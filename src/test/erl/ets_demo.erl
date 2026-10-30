@@ -15,7 +15,14 @@
          update_counter_increments/0, update_counter_default/0,
          update_counter_thresholds/0, update_counter_multiple/0,
          update_counter_keypos/0, update_counter_empty_ops/0,
-         update_counter_badarg/0]).
+         update_counter_badarg/0, ordered_set_is_sorted/0,
+         ordered_set_uses_term_order/0, match_returns_bound_variables/0,
+         match_object_returns_objects/0, match_honours_limit/0,
+         select_projects_the_body/0, select_guards/0,
+         select_multiple_clauses/0, select_bad_specification/0,
+         give_away_transfers_ownership/0, give_away_to_self_is_badarg/0,
+         give_away_requires_the_owner/0, holder/1,
+         give_away_from_other/2]).
 
 %% A table created with ets:new/2 holds an object after insert, and lookup
 %% finds it by its first element.
@@ -351,3 +358,148 @@ member(Object, [Object | _]) ->
     true;
 member(Object, [_ | Rest]) ->
     member(Object, Rest).
+
+%% ordered_set keeps its objects in key order, which a set does not promise.
+ordered_set_is_sorted() ->
+    Tab = ets:new(ets_demo_ordered, [ordered_set]),
+    true = ets:insert(Tab, [{b, 2}, {a, 1}, {c, 3}]),
+    [{a, 1}, {b, 2}, {c, 3}] = ets:tab2list(Tab),
+    ok.
+
+%% ordered_set keys compare with term order, so 1 and 1.0 are one key and
+%% the later object replaces the earlier one. A set keeps both.
+ordered_set_uses_term_order() ->
+    Tab = ets:new(ets_demo_ordered_keys, [ordered_set]),
+    true = ets:insert(Tab, [{1, integer_key}, {1.0, float_key}]),
+    [{1.0, float_key}] = ets:lookup(Tab, 1),
+    [{1.0, float_key}] = ets:lookup(Tab, 1.0),
+    1 = length(ets:tab2list(Tab)),
+    Set = ets:new(ets_demo_set_keys, []),
+    true = ets:insert(Set, [{1, integer_key}, {1.0, float_key}]),
+    2 = length(ets:tab2list(Set)),
+    ok.
+
+%% ets:match/2 returns the values bound to the pattern variables.
+match_returns_bound_variables() ->
+    Tab = table_with_letters(),
+    Pair = ets:match(Tab, {'$1', '$2'}),
+    3 = length(Pair),
+    true = all_members([[a, 1], [b, 2], [c, 3]], Pair),
+    Single = ets:match(Tab, {'_', '$1'}),
+    3 = length(Single),
+    true = all_members([[1], [2], [3]], Single),
+    [[]] = ets:match(Tab, {a, 1}),
+    ok.
+
+%% ets:match_object/2 returns the objects themselves.
+match_object_returns_objects() ->
+    Tab = table_with_letters(),
+    [{a, 1}] = ets:match_object(Tab, {'$1', 1}),
+    [{c, 3}] = ets:match_object(Tab, {'$1', 3}),
+    Every = ets:match_object(Tab, {'_', '_'}),
+    3 = length(Every),
+    true = all_members([{a, 1}, {b, 2}, {c, 3}], Every),
+    ok.
+
+%% Both match functions stop after the requested number of results.
+match_honours_limit() ->
+    Tab = table_with_letters(),
+    2 = length(ets:match(Tab, {'$1', '_'}, 2)),
+    1 = length(ets:match_object(Tab, {'_', '_'}, 1)),
+    [] = ets:match(Tab, {'$1', '_'}, 0),
+    [] = ets:match(Tab, {'$1', 9}),
+    ok.
+
+%% A select body is evaluated with the pattern variables substituted.
+select_projects_the_body() ->
+    Tab = table_with_letters(),
+    Results = ets:select(Tab, [{{'$1', '$2'}, [], [{'$2', '$1'}]}]),
+    [[{1, a}], [{2, b}], [{3, c}]] = Results,
+    ok.
+
+%% A guard filters the objects the clause matches.
+select_guards() ->
+    Tab = table_with_letters(),
+    Above = ets:select(Tab, [{{'_', '$1'}, [{'>', '$1', 1}], ['$1']}]),
+    [[2], [3]] = Above,
+    [[1]] = ets:select(Tab,
+        [{{'_', '$1'}, [{'==', '$1', 1}], ['$1']}]),
+    [] = ets:select(Tab,
+        [{{'_', '$1'}, [{'is_atom', '$1'}], ['$1']}]),
+    ok.
+
+%% The first matching clause decides the result, so a fallback clause sees
+%% only the objects the earlier ones did not match.
+select_multiple_clauses() ->
+    Tab = table_with_letters(),
+    Results = ets:select(Tab,
+        [{{a, '$1'}, [], ['$1']},
+         {'_', [], [default]}]),
+    [[1], [default], [default]] = Results,
+    ok.
+
+%% A specification that is not a list of three-tuples is badarg.
+select_bad_specification() ->
+    Tab = table_with_letters(),
+    try ets:select(Tab, not_a_specification) of
+        _ -> error(accepted_bad_specification)
+    catch
+        error:badarg -> ok
+    end,
+    try ets:select(Tab, [{'_', [], []} | improper]) of
+        _ -> error(accepted_improper_specification)
+    catch
+        error:badarg -> ok
+    end.
+
+%% The table moves to the receiving process, and whereis reports the new
+%% owner.
+give_away_transfers_ownership() ->
+    Tab = ets:new(ets_demo_give_away, []),
+    true = ets:insert(Tab, {key, value}),
+    Self = self(),
+    Pid = spawn(ets_demo, holder, [Self]),
+    receive {holder, Pid} -> ok after 2000 -> error(holder_did_not_start) end,
+    true = ets:give_away(Tab, Pid, gift),
+    Pid = ets:whereis(Tab),
+    Pid ! stop,
+    ok.
+
+%% Giving a table away to yourself is badarg.
+give_away_to_self_is_badarg() ->
+    Tab = ets:new(ets_demo_give_away_self, []),
+    try ets:give_away(Tab, self(), gift) of
+        _ -> error(gave_a_table_to_itself)
+    catch
+        error:badarg -> ok
+    end.
+
+%% Only the owner can give the table away.
+give_away_requires_the_owner() ->
+    Tab = ets:new(ets_demo_give_away_owner, []),
+    Self = self(),
+    spawn(ets_demo, give_away_from_other, [Tab, Self]),
+    receive
+        {give_away_result, Result} ->
+            {'EXIT', {badarg, _}} = Result
+    after 2000 ->
+        error(no_result_from_other_process)
+    end,
+    ok.
+
+give_away_from_other(Tab, Owner) ->
+    Result = try ets:give_away(Tab, Owner, gift) of
+                 Value -> Value
+             catch
+                 error:Reason -> {'EXIT', {Reason, []}}
+             end,
+    Owner ! {give_away_result, Result}.
+
+holder(Parent) ->
+    Parent ! {holder, self()},
+    receive stop -> ok end.
+
+table_with_letters() ->
+    Tab = ets:new(ets_demo_match, []),
+    true = ets:insert(Tab, [{a, 1}, {b, 2}, {c, 3}]),
+    Tab.
