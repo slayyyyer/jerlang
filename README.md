@@ -48,9 +48,15 @@ What works today:
 * `gen_tcp`, `gen_udp` and `inet`, including IPv6 and multicast.
 * A reflective Java bridge (`java:new`, `java:call`, fields, release) and an
   embedding entry point for Java calling Erlang.
-* A 390-test suite, of which 15 are opt-in: a live OTP node, a pass-rate run
-  over an OTP installation, and the benchmarks. GitHub Actions runs the rest on
-  every push and pull request.
+* A code server. `-pa`, `-pz` and `ERL_LIBS` build a search path, and
+  `code:which/1`, `code:lib_dir/1,2`, `code:priv_dir/1`, `code:root_dir/0`,
+  `code:load_file/1`, `code:is_loaded/1`, `code:get_path/0`,
+  `code:add_patha/1`, `code:add_pathz/1` and `code:del_path/1` report and use
+  it. Modules load from any directory on the path, not just the working one.
+* A 467-test suite. The unit tests need no Erlang and run on every push and
+  pull request. Ten tests drive OTP's own modules and run in a separate CI job
+  with an OTP 29 installation; a further 15 are opt-in external or machine
+  tests (the live peer suite, the pass-rate run and the benchmarks).
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP
   29.1.2 load, and every instruction in them has a handler. A separate CI job
   measures that rate, so the number is checked, not claimed.
@@ -60,15 +66,27 @@ What does not work yet:
 * Native records, the experimental OTP 29 data type declared as
   `-record #name{...}`. Type tests always fail and construction raises a named
   error; ordinary tuple records are fully supported.
-* ETS is limited to `set` tables. `new`, `insert`, `lookup`, `delete`,
-  `tab2list`, `update_counter` and `all` work, with named tables,
-  `{keypos, N}`, and exact key equality, so `1` and `1.0` are different keys,
-  but there is no `match`, `select`, `ordered_set`, `bag` or `duplicate_bag`.
-* The OTP behaviours and most of the standard library: there is no `gen_server`,
-  `supervisor`, `application`, `logger` or `code` module.
+* ETS has `set` and `ordered_set` tables. `new`, `insert`, `lookup`, `delete`,
+  `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`,
+  `select` and `give_away` work, with named tables and `{keypos, N}`. A table
+  is destroyed when its owner terminates, `give_away` moves the ownership
+  first, and `update_counter` is atomic across processes. Match specs support
+  the whole pattern language, bodies and the common guards; `is_map_key` and
+  arithmetic guards are not implemented, and there is no `bag`,
+  `duplicate_bag`, `match_delete`, `select_delete` or heir support.
+* OTP's `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and
+  `code` run unmodified from an OTP 29 installation. `gen_statem` and the wider
+  standard library are not covered. Included applications, start phases and
+  dead-tree bookkeeping work in the application controller, including stopping
+  an included application when its parent's tree dies on its own, but
+  `application_master` itself is not modelled: distributed takeover and
+  automatic restart of a crashed permanent application are missing.
 * Fair scheduling. There are no reductions, so a CPU-bound loop can hold a
   scheduler while other processes wait.
-* A module search path. Modules are loaded from the working directory only.
+* The rest of the `code` module: sticky directories, `code:replace_path/2` and
+  `code:ensure_modules_loaded/1` work; the loader is sequential because the
+  atom table and module registry are not thread safe, and OTP boot scripts are
+  not interpreted.
 
 [docs/beam-compatibility.md](docs/beam-compatibility.md) keeps the per-opcode
 notes and documents the one remaining language-feature gap.
@@ -82,7 +100,7 @@ notes and documents the one remaining language-feature gap.
 |0.3    |Language                  |Most BEAM opcodes are implemented                                |Done   |
 |0.4    |Network                   |Distribution and sockets work against OTP 29                     |Done   |
 |0.5    |Language completeness     |A corpus of constructs runs with no unsupported opcode           |Done   |
-|0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |Planned|
+|0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |Done   |
 |0.7    |Runtime and concurrency   |Preemption, timer bounds, no leaked processes under stress       |Planned|
 |0.8    |Interop and embedding     |Java↔Erlang examples in CI and a frozen API                      |Planned|
 |0.9    |Cluster and operations    |Metrics, reconnection and graceful shutdown under load           |Planned|
@@ -131,7 +149,8 @@ The bridge's type mapping and handle lifetime are not frozen yet; that is the
 ## Compiled Erlang
 
 JErlang does not compile Erlang source. Compile it with `erlc` and load the
-resulting `.beam` from the working directory:
+resulting `.beam` from the working directory or from a directory that `-pa`,
+`-pz` or `ERL_LIBS` puts on the code path:
 
 ```
 erlc -o src/test/resources src/test/erl/bridge_demo.erl
@@ -142,8 +161,11 @@ Modules built by current OTP releases need the loader support described in
 
 ## Build and test
 
-JErlang builds with Maven and JDK 21, the version CI uses. The bytecode target
-is still Java 8. The unit tests need no installed Erlang.
+JErlang builds with Maven. CI runs it on JDK 25; the compiler targets Java 21,
+so any JDK from 21 up can build it and the jar runs on 21 and newer. Building
+with `--release` means an accidental use of a newer JDK's API is a compile error
+instead of a `NoSuchMethodError` at run time. The unit tests need no installed
+Erlang.
 
 ```
 mvn test
@@ -164,6 +186,20 @@ build:
 
 ```
 mvn -Dtest=BenchTest -Djerlang.bench=true test
+```
+
+Coverage and mutation testing are opt-in as well:
+
+```
+mvn jacoco:prepare-agent test jacoco:report
+mvn pitest:mutationCoverage
+```
+
+`mvn pitest:mutationCoverage` mutates every class under `org.jerlang` and takes
+a long time, so point it at the package under change while iterating:
+
+```
+mvn pitest:mutationCoverage -DtargetClasses=org.jerlang.type.Nil -DtargetTests=org.jerlang.type.ListTest
 ```
 
 ## Documentation

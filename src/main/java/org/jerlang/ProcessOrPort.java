@@ -91,7 +91,7 @@ public abstract class ProcessOrPort {
         }
     }
 
-    protected Scheduler scheduler() {
+    public Scheduler scheduler() {
         return scheduler;
     }
 

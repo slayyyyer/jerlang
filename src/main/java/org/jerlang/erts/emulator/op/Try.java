@@ -29,7 +29,7 @@ public class Try {
             int index = labels.get(label.toRegisterIndex().toInt());
 
             ExceptionHandler eh = new ExceptionHandler(label, index, proc.exceptionHandler(),
-                proc.stackDepth(), proc.callsDepth(), proc.framesDepth());
+                proc.stackDepth(), proc.callsDepth(), proc.framesDepth(), proc.currentActivation());
             proc.setY(destination.toRegisterIndex(), eh);
             proc.setExceptionHandler(eh);
             return null;

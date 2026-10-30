@@ -13,22 +13,35 @@ public class ExceptionHandler extends Term {
     private final int cpDepth;
     private final int frameDepth;
 
+    // The activation that installed this handler. Its catch label belongs to
+    // that activation's instruction stream, so only that activation may use
+    // it; every other Java frame has to let the exception unwind through.
+    private final long activation;
+
     public ExceptionHandler(Term label, int index) {
-        this(label, index, null, -1, -1, -1);
+        this(label, index, null, -1, -1, -1, 0);
     }
 
     public ExceptionHandler(Term label, int index, ExceptionHandler previous) {
-        this(label, index, previous, -1, -1, -1);
+        this(label, index, previous, -1, -1, -1, 0);
     }
 
     public ExceptionHandler(Term label, int index, ExceptionHandler previous,
-        int stackDepth, int cpDepth, int frameDepth) {
+        int stackDepth, int cpDepth, int frameDepth, long activation) {
         this.label = label;
         this.index = index;
         this.previous = previous;
         this.stackDepth = stackDepth;
         this.cpDepth = cpDepth;
         this.frameDepth = frameDepth;
+        this.activation = activation;
+    }
+
+    /**
+     * The activation identifier this handler was installed by.
+     */
+    public long activation() {
+        return activation;
     }
 
     public void handle(Process process, Error error) {

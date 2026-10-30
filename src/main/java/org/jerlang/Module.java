@@ -1,5 +1,6 @@
 package org.jerlang;
 
+import java.io.File;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -57,6 +58,7 @@ public class Module {
     private final java.util.Set<FunctionSignature> native_functions;
     private Map<java.lang.Integer, FunctionSignature> functionsByLabel;
     private final Map<FunctionSignature, Integer> labels;
+    private File beamFile;
     private byte[] md5;
 
     public Module(BeamData beamData, Atom name) {
@@ -79,7 +81,9 @@ public class Module {
 
     public Term apply(FunctionSignature signature, Term params) throws Error {
         if (!hasFunction(signature)) {
-            throw new Error("Unknown function: " + signature);
+            // A call to a function the module does not export, or does not
+            // have at all, is what OTP reports as undef.
+            throw new Error(Atom.of("undef"));
         }
         Process process = VirtualMachine.self();
         if (process == null) {
@@ -99,9 +103,11 @@ public class Module {
             try {
                 // The scheduler thread finishes the process and counts the
                 // latch down. Polling every 10 ms instead put a floor of one
-                // scheduler wakeup under every call made from Java.
-                while (process.state() != ProcessState.EXITING) {
-                    process.awaitExit(1000);
+                // scheduler wakeup under every call made from Java. The state
+                // is not the signal: EXITING is reached inside nested calls
+                // too, before the outer activation has produced its result.
+                while (!process.awaitExit(1000)) {
+                    // The process is still running.
                 }
                 Throwable failure = process.failure();
                 if (failure != null) {
@@ -119,23 +125,50 @@ public class Module {
             }
         } else {
             process.pushSignature(signature);
-            if (!isInternal()) {
+            // A function adopted from the built-in implementation (OTP ships
+            // BIFs and NIFs as nif_error stubs in its own modules) runs Java
+            // code, which never executes a `return`. It must not get a stack
+            // frame, because nothing would ever pop it.
+            boolean instructionStream = !isInternal() && !native_functions.contains(signature);
+            if (instructionStream) {
                 process.pushFrame(new StackFrame(signature.module(), signature.function(),
                     signature.fun_arity().toInt()));
             }
             Fun fun = exported_functions.get(signature);
-            process.enterApply();
+            // The callee runs as its own activation, so its continuation
+            // pointer is empty: a `return` ends its instruction stream instead
+            // of jumping to an index that belongs to the caller's module. The
+            // caller's pointer is put back afterwards so its own tail calls
+            // still know where they return to.
+            int callerCP = process.getCP();
+            if (instructionStream) {
+                process.setCP(0);
+            }
             try {
                 return fun.apply(params);
             } finally {
-                process.leaveApply();
                 process.popSignature();
+                if (instructionStream) {
+                    process.setCP(callerCP);
+                }
             }
         }
     }
 
     public BeamData beamData() {
         return beamData;
+    }
+
+    /**
+     * The BEAM file this module was loaded from, or null when it is
+     * implemented by the runtime.
+     */
+    public File beamFile() {
+        return beamFile;
+    }
+
+    public void setBeamFile(File beamFile) {
+        this.beamFile = beamFile;
     }
 
     /**
@@ -152,7 +185,7 @@ public class Module {
             return md5;
         }
         try {
-            Term result = BeamLibMD5.md5_1(Str.of(name.toString() + ".beam"));
+            Term result = BeamLibMD5.md5_1(Str.of(beamPath()));
             if (result instanceof Tuple && ((Tuple) result).arity() == 2
                 && Atom.of("ok").equals(((Tuple) result).element(1))) {
                 Tuple info = ((Tuple) result).element(2).toTuple();
@@ -190,6 +223,17 @@ public class Module {
     }
 
     /**
+     * The file the module digest is read from. The code path decides where a
+     * module was found, so the digest must follow the same file.
+     */
+    private String beamPath() {
+        if (beamFile != null) {
+            return beamFile.getPath();
+        }
+        return name.toString() + ".beam";
+    }
+
+    /**
      * The function whose body starts at the given label, or null if no
      * function starts there.
      */
@@ -221,6 +265,23 @@ public class Module {
             }
         }
         return functionsByLabel.get(label);
+    }
+
+    /**
+     * The label of an exported function, or null when the module does not
+     * export it. erlang:make_fun/3 uses this to turn M:F/A into a fun.
+     */
+    public Integer exportLabel(FunctionSignature signature) {
+        return labels.get(signature);
+    }
+
+    /**
+     * Whether calling this function runs a BEAM instruction stream, as opposed
+     * to a built-in implementation adopted by the module. Only a BEAM callee
+     * is an activation of its own; a builtin runs inside its caller's frame.
+     */
+    public boolean hasInstructionStream(FunctionSignature signature) {
+        return !isInternal() && !native_functions.contains(signature);
     }
 
     public void export() {

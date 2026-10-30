@@ -20,6 +20,7 @@ import org.jerlang.type.stack.StackFrame;
 public class Interpreter {
 
     private static final Atom LINE = Atom.of("line");
+    private static final boolean DEBUG_ERRORS = Boolean.getBoolean("jerlang.debug.errors");
 
     public static Term dispatch(List params) {
         // A call to a function defined in a BEAM file
@@ -57,14 +58,44 @@ public class Interpreter {
             return res;
         }
 
+        if (start == -1) {
+            start = find_start(signature, m.beamData());
+        }
+
+        return continueExecution(m, start);
+    }
+
+    /**
+     * Run the instruction stream of a module from the given index.
+     *
+     * The index belongs to the module's code, which is what lets a resumed
+     * activation, or a call from a different module, start here without a
+     * signature to look the module up.
+     */
+    public static Term continueExecution(Module m, int start) {
+        Process process = (Process) ProcessRegistry.self();
+        return continueExecution(m, start, process.enterActivation());
+    }
+
+    /**
+     * Run an instruction stream as the given activation. A resumed receive
+     * loop passes the identifier it saved when it parked, so the handlers it
+     * installed are still in scope.
+     */
+    public static Term continueExecution(Module m, int start, long activation) {
+        Process process = (Process) ProcessRegistry.self();
+        try {
+            return runUntilDone(process, m, start, activation);
+        } finally {
+            process.exitActivation();
+        }
+    }
+
+    private static Term runUntilDone(Process process, Module m, int start, long activation) {
         CodeChunk code = m.beamData().codeChunk();
         java.util.List<Instruction> instructions = code.instructions();
         Map<Integer, Integer> labels = code.labels();
         int maxInstructions = instructions.size();
-
-        if (start == -1) {
-            start = find_start(process.signature(), m.beamData());
-        }
 
         Term result = List.nil;
         Term params = List.nil; // TODO: is this correct?
@@ -123,9 +154,9 @@ public class Interpreter {
             } catch (Error error) {
                 // Capture the stack at the raise, before the handler unwinds it.
                 error.captureStacktrace(process);
-                if (process.exceptionHandler() != null) {
+                ExceptionHandler handler = process.exceptionHandler();
+                if (handler != null && handler.activation() == activation) {
                     // System.err.println(process.exceptionHandler());
-                    ExceptionHandler handler = process.exceptionHandler();
                     int new_index = handler.index();
                     if (new_index >= 0) {
                         index = new_index;
@@ -134,9 +165,16 @@ public class Interpreter {
                     // and restores the enclosing handler.
                     handler.handle(process, error);
                 } else {
-                    // No handler: the process terminates with this reason.
-                    // The scheduler turns it into EXIT signals and DOWN
-                    // messages for its links and monitors.
+                    if (DEBUG_ERRORS) {
+                        System.err.println("RAISE " + m.name() + ":" + process.currentFrame()
+                            + " at " + i + " " + error.exceptionClass() + ":" + error.reason()
+                            + " handler=" + handler + " activation=" + activation);
+                    }
+                    // A handler of another activation, or none: let the
+                    // exception unwind the Java frames until it reaches the
+                    // instruction stream that installed it. The scheduler
+                    // turns an exception nobody caught into the process's
+                    // exit reason.
                     throw error;
                 }
             } catch (Throwable e) {
@@ -179,12 +217,29 @@ public class Interpreter {
      * receive loop is woken by a message.
      */
     public static Term continueExecutionAtLabel(FunctionSignature signature, Term label) {
-        Module m = ModuleRegistry.get(signature.module());
+        return continueExecutionAtLabel(ModuleRegistry.get(signature.module()), label);
+    }
+
+    /**
+     * Resume a module's instruction stream at a label inside it.
+     */
+    public static Term continueExecutionAtLabel(Module m, Term label) {
+        return continueExecutionAtLabel(m, label, 0);
+    }
+
+    /**
+     * Resume a module's instruction stream at a label inside it, as the
+     * activation that installed its handlers before it parked.
+     */
+    public static Term continueExecutionAtLabel(Module m, Term label, long activation) {
         Integer index = m.beamData().codeChunk().labels().get(label.toRegisterIndex().toInt());
         if (index == null) {
-            throw new Error("No instruction for label " + label + " in " + signature.module());
+            throw new Error("No instruction for label " + label + " in " + m.name());
         }
-        return continueExecution(signature, index);
+        if (activation == 0) {
+            return continueExecution(m, index);
+        }
+        return continueExecution(m, index, activation);
     }
 
     /**

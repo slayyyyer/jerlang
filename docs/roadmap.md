@@ -7,17 +7,17 @@ what the code does today, not against the original intent.
 
 | Area | State |
 |------|-------|
-| BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` loads `<module>.beam` from the working directory only; `-pa` and `ERL_LIBS` have flag entries but no code path uses them. |
+| BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` searches a code path built from the working directory, `-pa`, `-pz` and `ERL_LIBS`, and `code:which/1`, `lib_dir/1,2`, `priv_dir/1`, `root_dir/0`, `load_file/1`, `ensure_loaded/1`, `ensure_modules_loaded/1`, `is_loaded/1`, `get_path/0`, `add_patha/1`, `add_pathz/1`, `del_path/1`, `replace_path/2`, `stick_dir/1`, `unstick_dir/1` and `is_sticky/1` report and change it. `ensure_modules_loaded/1` loads sequentially: the atom table and module registry are not thread safe. OTP boot scripts are not interpreted. |
 | Interpreter | 161 opcode handlers; 191 opcodes known, 30 of them deprecated. Binary matching and construction, records and record updates, `get_hd`/`get_tl`, `bif3`, the coverage line opcodes and the native-record opcodes all have handlers. Native records as a data type are not implemented: constructing one raises a named error. |
 | BIFs | 75 `erlang` BIF modules. `lists`, `maps`, `binary`, `string`, `unicode`-adjacent helpers, `base64`, `math`, `timer`, `beam_lib` exist. |
 | Kernel | `gen_tcp`, `gen_udp`, `inet`, `net_adm`, `net_kernel`, `rpc`, `os`, and a `file` module with three functions. |
 | Distribution | OTP handshake, ETF (including funs, ports, compressed terms), links, monitors, remote spawn, `erpc`/`rpc`, node monitors. No `rex`, no `global`, no TLS distribution, no atom cache. |
-| ETS | `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all` for `set` tables, with named tables, `{keypos, N}` and exact key equality. No `match`, `select`, and no `ordered_set`, `bag` or `duplicate_bag`. |
-| OTP behaviours | None. There is no `gen_server`, `supervisor`, `application`, `proc_lib`, `logger`, `code`, or `gen_statem`. |
+| ETS | `set` and `ordered_set`, with named tables and `{keypos, N}`. `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work. A table is destroyed with its owner, `give_away` moves ownership, table operations are locked, and `update_counter` is atomic across processes. Match specs support patterns, bodies, comparisons, boolean guards and the common type tests; `is_map_key` and arithmetic guards are missing, as are `bag`, `duplicate_bag`, `match_delete`, `select_delete` and heirs. |
+| OTP behaviours | OTP's unmodified `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and `code` run from an OTP installation. `gen_statem` is not verified. The application controller models `.app` loading, dependencies, included applications, start phases, environment and key bookkeeping; `application_master` itself, distributed takeover and automatic restart of a crashed permanent application are not modelled. A dead tree is reaped when the controller is queried, and its included applications are stopped with it. |
 | Scheduler | One scheduler thread per processor with no balancing. There are no reductions: a function activation runs to `return` or `wait`, and an intra-module tail call jumps labels without yielding, so a CPU-bound loop can hold a scheduler indefinitely. Cross-module tail calls nest JVM frames. |
-| Tests | 390 unit/integration tests; 15 opt-in tests that need an external system or measure the machine (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Tests | 467 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 15 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
-| CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, plus a `conformance` job that installs OTP and records the pass rate. |
+| CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, an `otp` job that runs the OTP-backed behaviour tests, and a `conformance` job that installs OTP and enforces the pass-rate floor. |
 | Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
 
 The 0.4 claim — "multi-node applications can be interpreted" — is true for
@@ -86,19 +86,41 @@ try/catch, funs), runs with zero unsupported opcodes in CI. This is
 **Goal:** OTP's own `gen_server`, `supervisor`, `application`, `proc_lib`,
 `logger` and `code` modules run unmodified from an OTP 29 installation.
 
-* Module search path: `-pa`, `ERL_LIBS`, `code:which/1`, `code:lib_dir/1`,
-  `code:priv_dir/1`, `code:load_file/1`.
-* Fill the BIF gaps the standard library needs. Expect a long tail in `file`,
-  `io`, `unicode`, `binary`, `erlang:error/3`, `proc_lib`, and `logger`.
-* Implement ETS for real: `insert`, `lookup`, `delete`, `match`, `select`,
-  `tab2list`, `update_counter`, for `set` and `ordered_set` at minimum.
-* Start an application: `.app` file parsing, `application:start/1`, supervision
-  tree startup and shutdown.
+**Status: complete.** The exit test below runs, and `gen_server`, `supervisor`,
+`application`, `proc_lib`, `logger`, `code` and the `file` module are loaded
+from an OTP 29 installation without changes.
+
+* ~~Module search path: `-pa`, `-pz`, `ERL_LIBS`, `code:which/1`,
+  `code:lib_dir/1,2`, `code:priv_dir/1`, `code:load_file/1` and
+  `code:is_loaded/1`.~~ `code:ensure_loaded/1`, `code:ensure_modules_loaded/1`,
+  `code:replace_path/2`, the sticky directory functions (`stick_dir/1`,
+  `unstick_dir/1`, `is_sticky/1`) also work. The loader is sequential because
+  module loading is not thread safe, and OTP boot scripts are not interpreted.
+* ~~Fill the BIF gaps the standard library needs.~~ `erlang:error/3` with the
+  caller's arguments, `persistent_term`, `io:format`, `io_lib:format`, the
+  `unicode` module and `min/max` are implemented, and OTP's `logger`
+  application boots. The long tail stays a risk for modules nobody ran yet.
+* ~~Implement ETS for real.~~ `insert`, `lookup`, `delete`, `tab2list`,
+  `update_counter`, `match`, `match_object`, `select`, `give_away` and named
+  tables with `{keypos, N}` work for `set` and `ordered_set`. Match specs cover
+  the pattern language, bodies and the common guards; `bag`, `duplicate_bag`,
+  `match_delete`, `select_delete` and heirs are still missing.
+* ~~Start an application: `.app` file parsing, `application:start/1`,
+  supervision tree startup and shutdown.~~ The runtime supplies
+  `application_controller`; `application.beam` itself is unmodified. Included
+  applications are started and stopped with their parent, start phases run in
+  order, and a tree that dies on its own leaves `which_applications/0`.
+  `application_master` itself, distributed takeover and automatic restart of a
+  crashed permanent application are not modelled.
 
 **Exit test:** a supervision tree with one `gen_server` child starts through
-`application:start/1`, the child crashes and is restarted with the configured
-intensity, and `application:stop/1` shuts everything down. The same test runs
-against unmodified OTP 29 `.beam` files.
+`application:start/1`, the child crashes three times and is restarted within
+the `{one_for_one, 3, 10}` intensity of the tree, and `application:stop/1`
+shuts the supervisor and its child down. The test runs against unmodified
+OTP 29 `.beam` files (`ApplicationTest`, plus `SupervisorTest` for the tree on
+its own). The `otp` CI job installs OTP 29 and runs this class together with
+`GenServerTest`, `ProcLibTest` and `LoggerTest`, so the exit test is enforced
+on every push and pull request.
 
 ### 0.7 — Runtime and concurrency
 
@@ -184,9 +206,10 @@ These are not milestones. They start now and continue through 1.0.
 
 * **Conformance corpus and pass-rate metric.** The 0.5 corpus is checked in
   and runs in CI, and the pass rate over a larger corpus is measured in the
-  `conformance` job against the OTP installation it sets up. At 0.5 the larger
-  corpus is 1366 modules from OTP 29.1.2, all loading and all opcode-clean.
-  Opcode counts are not the metric. What the number can not say yet is how
+  `conformance` job against the OTP installation it sets up, with a 0.99 floor
+  so a regression fails the build. At 0.5 the larger corpus is 1366 modules
+  from OTP 29.1.2, all loading and all opcode-clean. Opcode counts are not the
+  metric. What the number can not say yet is how
   much of that code *runs*: execution needs the standard library, which is
   0.6, and the metric has to grow a run column once it exists.
 * **Benchmarks from 0.5.** A number recorded at every milestone makes the 1.0
@@ -221,12 +244,13 @@ In order, each one a small pull request with a test. Steps 1 and 2 are done
 2. ~~`bs_get_tail`, `bs_get_position`, `bs_set_position`.~~
 3. ~~`bs_create_bin`, then `update_record`, `badrecord`, `get_hd`, `get_tl`,
    `bif3`.~~
-4. Module search path: `-pa`, `ERL_LIBS`, `code:which/1`, `code:lib_dir/1`.
+4. ~~Module search path: `-pa`, `-pz`, `ERL_LIBS`, `code:which/1`,
+   `code:lib_dir/1`, `code:priv_dir/1`, `code:load_file/1`.~~
 5. Boot OTP's `gen_server` with a minimal callback module; write down every gap
    it hits as the first conformance report.
 6. ~~ETS `insert`/`lookup`/`delete`/`tab2list`/`update_counter` for `set`,
    with the `Set` stub replaced; named tables and `{keypos, N}`.~~
-   `ordered_set`, then `match`/`select`.
+   ~~`ordered_set`, then `match`/`select`.~~
 
 Step 5 is the milestone in miniature: if `gen_server` starts, the project has a
 credible story; if it does not, the gaps are known and finite.

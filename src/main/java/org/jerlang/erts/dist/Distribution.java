@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.jerlang.Aliases;
 import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
@@ -167,6 +168,13 @@ public final class Distribution {
      * or a {Name, Node} tuple, as the send operator accepts it.
      */
     public static void send(Term target, PID from, Term message) {
+        if (target instanceof Reference) {
+            // A reference is only a destination while it is an active alias.
+            // A send to any other reference is dropped, not an error.
+            Aliases.deliver((Reference) target, message);
+            return;
+        }
+
         if (target instanceof PID) {
             PID pid = (PID) target;
             if (pid.isLocal()) {

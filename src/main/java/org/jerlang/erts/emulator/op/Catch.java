@@ -24,7 +24,7 @@ public class Catch {
         if (destination.isYRegister()) {
             Term label = i.arg(1);
             ExceptionHandler eh = new CatchExceptionHandler(label, proc.exceptionHandler(),
-                proc.stackDepth(), proc.callsDepth(), proc.framesDepth());
+                proc.stackDepth(), proc.callsDepth(), proc.framesDepth(), proc.currentActivation());
             proc.setY(destination.toRegisterIndex(), eh);
             proc.setExceptionHandler(eh);
             return null;

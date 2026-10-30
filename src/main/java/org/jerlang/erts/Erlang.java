@@ -1,6 +1,7 @@
 package org.jerlang.erts;
 
 import org.jerlang.erts.erlang.ErlangAbs;
+import org.jerlang.erts.erlang.ErlangAlias;
 import org.jerlang.erts.erlang.ErlangApply;
 import org.jerlang.erts.erlang.ErlangAtomEq;
 import org.jerlang.erts.erlang.ErlangAtomEqExact;
@@ -17,17 +18,22 @@ import org.jerlang.erts.erlang.ErlangAtomPlusPlus;
 import org.jerlang.erts.erlang.ErlangBinaryPart;
 import org.jerlang.erts.erlang.ErlangBinaryToTerm;
 import org.jerlang.erts.erlang.ErlangBitstringToList;
+import org.jerlang.erts.erlang.ErlangCancelTimer;
 import org.jerlang.erts.erlang.ErlangByteSize;
 import org.jerlang.erts.erlang.ErlangDemonitor;
 import org.jerlang.erts.erlang.ErlangDisplay;
+import org.jerlang.erts.erlang.ErlangElement;
 import org.jerlang.erts.erlang.ErlangError;
 import org.jerlang.erts.erlang.ErlangExit;
 import org.jerlang.erts.erlang.ErlangFunctionExported;
+import org.jerlang.erts.erlang.ErlangFunInfoMfa;
 import org.jerlang.erts.erlang.ErlangGet;
+import org.jerlang.erts.erlang.ErlangMakeFun;
 import org.jerlang.erts.erlang.ErlangGetKeys;
 import org.jerlang.erts.erlang.ErlangGetModuleInfo;
 import org.jerlang.erts.erlang.ErlangHalt;
 import org.jerlang.erts.erlang.ErlangHd;
+import org.jerlang.erts.erlang.ErlangHibernate;
 import org.jerlang.erts.erlang.ErlangIntegerToBinary;
 import org.jerlang.erts.erlang.ErlangIntegerToList;
 import org.jerlang.erts.erlang.ErlangIsAtom;
@@ -39,6 +45,11 @@ import org.jerlang.erts.erlang.ErlangIsInteger;
 import org.jerlang.erts.erlang.ErlangIsAlive;
 import org.jerlang.erts.erlang.ErlangIsList;
 import org.jerlang.erts.erlang.ErlangIsMap;
+import org.jerlang.erts.erlang.ErlangIsMapKey;
+import org.jerlang.erts.erlang.ErlangMapGet;
+import org.jerlang.erts.erlang.ErlangMapSize;
+import org.jerlang.erts.erlang.ErlangMax;
+import org.jerlang.erts.erlang.ErlangMin;
 import org.jerlang.erts.erlang.ErlangIsNumber;
 import org.jerlang.erts.erlang.ErlangIsPid;
 import org.jerlang.erts.erlang.ErlangIsProcessAlive;
@@ -53,13 +64,16 @@ import org.jerlang.erts.erlang.ErlangListToInteger;
 import org.jerlang.erts.erlang.ErlangMakeRef;
 import org.jerlang.erts.erlang.ErlangMonitor;
 import org.jerlang.erts.erlang.ErlangMonitorNode;
+import org.jerlang.erts.erlang.ErlangMonotonicTime;
 import org.jerlang.erts.erlang.ErlangNode;
 import org.jerlang.erts.erlang.ErlangNodes;
 import org.jerlang.erts.erlang.ErlangOpenPort;
 import org.jerlang.erts.erlang.ErlangPortClose;
 import org.jerlang.erts.erlang.ErlangPortControl;
+import org.jerlang.erts.erlang.ErlangProcessInfo;
 import org.jerlang.erts.erlang.ErlangProcessFlag;
 import org.jerlang.erts.erlang.ErlangPut;
+import org.jerlang.erts.erlang.ErlangRaise;
 import org.jerlang.erts.erlang.ErlangRegister;
 import org.jerlang.erts.erlang.ErlangRegistered;
 import org.jerlang.erts.erlang.ErlangRem;
@@ -69,6 +83,7 @@ import org.jerlang.erts.erlang.ErlangSend;
 import org.jerlang.erts.erlang.ErlangSetelement;
 import org.jerlang.erts.erlang.ErlangSpawn;
 import org.jerlang.erts.erlang.ErlangSpawnRequest;
+import org.jerlang.erts.erlang.ErlangStartTimer;
 import org.jerlang.erts.erlang.ErlangSpawnRequestAbandon;
 import org.jerlang.erts.erlang.ErlangSystemInfo;
 import org.jerlang.erts.erlang.ErlangTermToBinary;
@@ -185,12 +200,24 @@ public class Erlang {
         ErlangError.error_1(reason);
     }
 
-    public static void error(Term reason, List where) {
+    public static void error(Term reason, Term where) {
         ErlangError.error_2(reason, where);
+    }
+
+    public static void error(Term reason, Term where, Term options) {
+        ErlangError.error_3(reason, where, options);
     }
 
     public static Term function_exported(Atom module, Atom function, Integer arity) {
         return ErlangFunctionExported.function_exported_3(module, function, arity);
+    }
+
+    public static Term fun_info_mfa(Fun fun) {
+        return ErlangFunInfoMfa.fun_info_mfa_1(fun);
+    }
+
+    public static Fun make_fun(Atom module, Atom function, Integer arity) {
+        return ErlangMakeFun.make_fun_3(module, function, arity);
     }
 
     public static List get() {
@@ -227,6 +254,10 @@ public class Erlang {
 
     public static Term hd(List list) {
         return ErlangHd.hd_1(list);
+    }
+
+    public static Term hibernate() {
+        return ErlangHibernate.hibernate_0();
     }
 
     public static Binary integer_to_binary(Integer integer) {
@@ -281,6 +312,26 @@ public class Erlang {
         return ErlangIsMap.is_map_1(term);
     }
 
+    public static Term is_map_key(Term key, org.jerlang.type.Map map) {
+        return ErlangIsMapKey.is_map_key_2(key, map);
+    }
+
+    public static Term map_get(Term key, org.jerlang.type.Map map) {
+        return ErlangMapGet.map_get_2(key, map);
+    }
+
+    public static Term min(Term a, Term b) {
+        return ErlangMin.min_2(a, b);
+    }
+
+    public static Term max(Term a, Term b) {
+        return ErlangMax.max_2(a, b);
+    }
+
+    public static org.jerlang.type.Integer map_size(org.jerlang.type.Map map) {
+        return ErlangMapSize.map_size_1(map);
+    }
+
     public static Term is_number(Term term) {
         return ErlangIsNumber.is_number_1(term);
     }
@@ -325,6 +376,10 @@ public class Erlang {
         return ErlangMakeRef.make_ref_0();
     }
 
+    public static Term raise(Atom exceptionClass, Term reason, Term stacktrace) {
+        return ErlangRaise.raise_3(exceptionClass, reason, stacktrace);
+    }
+
     public static Atom node() {
         return ErlangNode.node_0();
     }
@@ -357,8 +412,20 @@ public class Erlang {
         return ErlangProcessFlag.process_flag_2(flag, value);
     }
 
+    public static Term process_info(PID pid) {
+        return ErlangProcessInfo.process_info_1(pid);
+    }
+
+    public static Term process_info(PID pid, Term item) {
+        return ErlangProcessInfo.process_info_2(pid, item);
+    }
+
     public static Term put(Term key, Term val) {
         return ErlangPut.put_2(key, val);
+    }
+
+    public static Term element(Integer index, Tuple tuple) {
+        return ErlangElement.element_2(index, tuple);
     }
 
     public static Term register(Atom regName, PID pid) {
@@ -389,8 +456,28 @@ public class Erlang {
         return ErlangLink.link_1(pid);
     }
 
+    public static Term monotonic_time() {
+        return ErlangMonotonicTime.monotonic_time_0();
+    }
+
+    public static Term monotonic_time(Term unit) {
+        return ErlangMonotonicTime.monotonic_time_1(unit);
+    }
+
     public static Term monitor(Atom type, Term target) {
         return ErlangMonitor.monitor_2(type, target);
+    }
+
+    public static Term monitor(Atom type, Term target, List options) {
+        return ErlangMonitor.monitor_3(type, target, options);
+    }
+
+    public static Reference alias() {
+        return ErlangAlias.alias_0();
+    }
+
+    public static Term unalias(Reference reference) {
+        return ErlangAlias.unalias_1(reference);
     }
 
     public static Term monitor_node(Term node, Term flag) {
@@ -429,8 +516,33 @@ public class Erlang {
         return ErlangSend.send_2(target, message);
     }
 
+    public static Term send(Term target, Term message, List options) {
+        return ErlangSend.send_3(target, message, options);
+    }
+
     public static TimerReference send_after(Integer time, PID pid, Term msg) {
         return ErlangSendAfter.send_after_3(time, pid, msg);
+    }
+
+    public static Term cancel_timer(Term timer) {
+        return ErlangCancelTimer.cancel_timer_1(timer);
+    }
+
+    public static Term cancel_timer(Term timer, List options) {
+        return ErlangCancelTimer.cancel_timer_2(timer, options);
+    }
+
+    public static Term read_timer(Term timer) {
+        return ErlangCancelTimer.read_timer_1(timer);
+    }
+
+    public static TimerReference start_timer(Integer time, Term destination, Term message) {
+        return ErlangStartTimer.start_timer_3(time, destination, message);
+    }
+
+    public static TimerReference start_timer(Integer time, Term destination, Term message,
+        Term timeUnit) {
+        return ErlangStartTimer.start_timer_4(time, destination, message, timeUnit);
     }
 
     public static Tuple setelement(Integer index, Tuple tuple, Term value) {

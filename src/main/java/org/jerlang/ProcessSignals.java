@@ -21,6 +21,7 @@ import org.jerlang.type.Tuple;
 public final class ProcessSignals {
 
     private static final Atom DOWN = Atom.of("DOWN");
+    private static final Atom NORMAL = Atom.of("normal");
     private static final Atom PROCESS = Atom.of("process");
     private static final Atom THROW = Atom.of("throw");
     private static final Atom EXIT = Atom.of("exit");
@@ -48,6 +49,11 @@ public final class ProcessSignals {
         if (termination == null) {
             return;
         }
+        // Release the name before any monitor or link hears about the exit.
+        // A supervisor waits for its child's DOWN and only then exits itself;
+        // if the child's name were released after that DOWN, application:stop
+        // could return with whereis/1 still answering for the dead child.
+        ProcessRegistry.remove(termination.pid);
         for (Map.Entry<Reference, Process.Monitor> monitor : termination.monitoredBy.entrySet()) {
             Process.Monitor watchedBy = monitor.getValue();
             if (Process.onThisNode(watchedBy.watcher)) {
@@ -65,9 +71,18 @@ public final class ProcessSignals {
                     watchedBy.watcher, monitor.getKey(), termination.reason);
             }
         }
+        boolean keepLinks = process.keepLinksOnNormalExit()
+            && NORMAL.equals(termination.reason);
         for (PID link : termination.links) {
             Process peer = resolve(link);
-            if (peer != null) {
+            if (keepLinks) {
+                // The process finished a job for a tree that outlives it (the
+                // application controller's start call). Drop the link without
+                // the exit signal, which is what lets the tree keep running.
+                if (peer != null) {
+                    peer.removeLink(termination.pid);
+                }
+            } else if (peer != null) {
                 peer.exitSignal(termination.reason, termination.pid);
             } else if (!Process.onThisNode(link)) {
                 Distribution.sendExit(termination.pid, link, termination.reason, false);
@@ -91,7 +106,6 @@ public final class ProcessSignals {
                 }
             }
         }
-        ProcessRegistry.remove(termination.pid);
     }
 
     /**

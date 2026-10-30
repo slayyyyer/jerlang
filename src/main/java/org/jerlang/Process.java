@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.jerlang.erts.dist.Distribution;
 import org.jerlang.erts.dist.NodeMonitorOptions;
 import org.jerlang.erts.erlang.Error;
+import org.jerlang.stdlib.ets.TableRegistry;
 import org.jerlang.type.Atom;
 import org.jerlang.type.BitString;
 import org.jerlang.type.Float;
@@ -69,6 +70,11 @@ public class Process extends ProcessOrPort {
     private int cp = -1;
     private Stack<java.lang.Integer> cpStack = new Stack<>();
 
+    // Entry point of a process started from a fun. It is consumed by the
+    // first run and then cleared: the fun has no caller, so its return must
+    // end the process with cp = 0 instead of re-entering the lambda.
+    private int funEntry = -1;
+
     // Stack / Y register
     private Term[] stack = new Term[16];
     private int sp = 0;
@@ -93,10 +99,6 @@ public class Process extends ProcessOrPort {
     // Set when an uncaught Throwable terminated this process
     private volatile Throwable failure = null;
 
-    // Number of function applications that run synchronously on this process
-    // without sharing its instruction stream, see Module.apply.
-    private int applyDepth = 0;
-
     // Timeout
     private long timeout = 0;
 
@@ -104,6 +106,29 @@ public class Process extends ProcessOrPort {
     private volatile Term waitLabel = null;
     private volatile boolean waitTimedOut = false;
     private long waitGeneration = 0;
+
+    // The instruction stream the suspended receive belongs to. A label is
+    // only meaningful in its own module, and the activation may have been
+    // entered from another module.
+    private volatile Module waitModule = null;
+    private volatile int waitIndex = -1;
+    // The activation the receive loop belongs to, so handlers it installed
+    // are still in scope when it is resumed.
+    private volatile long waitActivation = 0;
+
+    // The enclosing activations of a suspended nested call, innermost first.
+    // A cross-module call runs on the Java stack, which a parked process
+    // loses, so each activation records where it continues after the call.
+    private final java.util.Deque<ResumePoint> resumePoints = new java.util.ArrayDeque<>();
+
+    // One identifier per running process activation. An instruction stream
+    // runs as a Java frame, and a cross-module call nests another one, so a
+    // try handler belongs to exactly one of them: a raise from a callee must
+    // unwind to the activation that installed the handler, not be caught by
+    // the first Java frame that happens to see a handler on the process.
+    private static final boolean DEBUG_ERRORS = Boolean.getBoolean("jerlang.debug.errors");
+    private static final AtomicLong ACTIVATION_IDS = new AtomicLong();
+    private final java.util.Deque<Long> activations = new java.util.ArrayDeque<>();
 
     // The mailbox position of the current receive loop. Messages before
     // this position did not match the clauses already tried and stay in
@@ -144,6 +169,17 @@ public class Process extends ProcessOrPort {
         new ConcurrentHashMap<>();
 
     private volatile boolean trapExit = false;
+
+    /**
+     * Whether a normal exit must leave this process' links alone.
+     *
+     * The application controller starts an application's tree from a process
+     * whose only job is to call the callback and collect its return value.
+     * That process is not the owner of the tree - OTP's application_master
+     * never returns - so its normal exit must not take the tree down with it.
+     * An abnormal exit still signals the links.
+     */
+    private volatile boolean keepLinksOnNormalExit = false;
     private volatile Term pendingExit = null;
     private volatile boolean terminated = false;
 
@@ -173,6 +209,7 @@ public class Process extends ProcessOrPort {
             throw new Error("No instruction for fun label " + label);
         }
         cp = start;
+        funEntry = start;
     }
 
     public Process(PID pid, Atom module, Atom fun, List args) {
@@ -254,6 +291,29 @@ public class Process extends ProcessOrPort {
         return mailbox.size();
     }
 
+    /**
+     * The messages in the mailbox, oldest first, for process_info/2.
+     */
+    public List messages() {
+        List list = List.nil;
+        java.util.List<Term> snapshot = new java.util.ArrayList<>(mailbox);
+        for (int index = snapshot.size() - 1; index >= 0; index--) {
+            list = new List(snapshot.get(index), list);
+        }
+        return list;
+    }
+
+    /**
+     * The processes this one is linked to, for process_info/2.
+     */
+    public List links() {
+        List list = List.nil;
+        for (PID pid : links) {
+            list = new List(pid, list);
+        }
+        return list;
+    }
+
     public int getCP() {
         return cp;
     }
@@ -280,24 +340,37 @@ public class Process extends ProcessOrPort {
      * inside a BIF, such as a remote RPC. It returns null on timeout.
      */
     public Term awaitMessage(java.util.function.Predicate<Term> predicate, long timeoutMillis) {
-        long deadline = timeoutMillis < 0 ? Long.MAX_VALUE
-            : System.currentTimeMillis() + timeoutMillis;
-        while (true) {
-            for (Term message : mailbox) {
-                if (predicate.test(message) && mailbox.remove(message)) {
-                    return message;
+        // This call blocks the scheduler thread. Tell the VM so that a process
+        // this wait depends on is not queued behind the wait, which would
+        // deadlock on a machine with few schedulers (a small CI runner).
+        Scheduler scheduler = scheduler();
+        if (scheduler != null) {
+            scheduler.enterBlockingCall();
+        }
+        try {
+            long deadline = timeoutMillis < 0 ? Long.MAX_VALUE
+                : System.currentTimeMillis() + timeoutMillis;
+            while (true) {
+                for (Term message : mailbox) {
+                    if (predicate.test(message) && mailbox.remove(message)) {
+                        return message;
+                    }
+                }
+                long remaining = deadline == Long.MAX_VALUE ? Long.MAX_VALUE
+                    : deadline - System.currentTimeMillis();
+                if (remaining <= 0) {
+                    return null;
+                }
+                try {
+                    Thread.sleep(Math.min(remaining, 5));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return null;
                 }
             }
-            long remaining = deadline == Long.MAX_VALUE ? Long.MAX_VALUE
-                : deadline - System.currentTimeMillis();
-            if (remaining <= 0) {
-                return null;
-            }
-            try {
-                Thread.sleep(Math.min(remaining, 5));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return null;
+        } finally {
+            if (scheduler != null) {
+                scheduler.exitBlockingCall();
             }
         }
     }
@@ -319,6 +392,12 @@ public class Process extends ProcessOrPort {
     }
 
     public Term getY(int index) {
+        if (DEBUG_ERRORS && (sp - index < 0 || sp - index >= stack.length
+            || stack[sp - index] == null)) {
+            System.err.println("BAD_Y " + index + " sp=" + sp + " len=" + stack.length
+                + " frame=" + frames.peek() + " value=" + (sp - index >= 0 && sp - index < stack.length
+                    ? stack[sp - index] : "out of range"));
+        }
         return stack[sp - index];
     }
 
@@ -374,8 +453,15 @@ public class Process extends ProcessOrPort {
      * TimeoutMillis elapses first, execution resumes after the wait
      * instruction that saved the continuation pointer. A negative timeout
      * waits forever.
+     *
+     * Module and Index identify the instruction stream that has to be
+     * resumed. It is the module the label belongs to, which for a receive
+     * inside a cross-module call is not the process's entry module.
      */
-    public synchronized void waitForMessage(Term label, long timeoutMillis) {
+    public synchronized void waitForMessage(Module module, int index, Term label, long timeoutMillis) {
+        waitModule = module;
+        waitIndex = index;
+        waitActivation = currentActivation();
         waitLabel = label;
         waitTimedOut = false;
         waitGeneration++;
@@ -520,10 +606,25 @@ public class Process extends ProcessOrPort {
      * {Module, Function, Arity, Location}.
      */
     public List stacktrace() {
+        return stacktrace(null);
+    }
+
+    /**
+     * The stacktrace at this point, with the youngest frame reporting the
+     * given argument list instead of its arity. erlang:error/2,3 passes the
+     * caller's arguments here; every other raise passes null.
+     */
+    public List stacktrace(List args) {
         List trace = List.nil;
+        boolean youngest = true;
         Iterator<StackFrame> iterator = frames.descendingIterator();
         while (iterator.hasNext()) {
-            trace = new List(iterator.next().toTerm(), trace);
+            StackFrame frame = iterator.next();
+            if (youngest && args != null) {
+                frame = frame.withArgs(args);
+            }
+            youngest = false;
+            trace = new List(frame.toTerm(), trace);
         }
         return trace;
     }
@@ -532,16 +633,97 @@ public class Process extends ProcessOrPort {
         return failure;
     }
 
-    public int applyDepth() {
-        return applyDepth;
+    /**
+     * Where an enclosing activation continues after the call it made.
+     */
+    public static final class ResumePoint {
+
+        private final Module module;
+        private final int index;
+        private final long activation;
+
+        ResumePoint(Module module, int index, long activation) {
+            this.module = module;
+            this.index = index;
+            this.activation = activation;
+        }
+
+        public Module module() {
+            return module;
+        }
+
+        public int index() {
+            return index;
+        }
+
+        /**
+         * The activation that continues here. A resumed activation runs in a
+         * new Java frame but is still the same Erlang activation, so its try
+         * handlers stay in scope.
+         */
+        public long activation() {
+            return activation;
+        }
+
     }
 
-    public void enterApply() {
-        applyDepth++;
+    /**
+     * Remember where this activation continues, before a call that runs
+     * another module's code.
+     */
+    public void pushResumePoint(Module module, int index) {
+        resumePoints.push(new ResumePoint(module, index, currentActivation()));
     }
 
-    public void leaveApply() {
-        applyDepth--;
+    /**
+     * Enter an instruction stream and return its activation identifier.
+     */
+    public long enterActivation() {
+        return enterActivation(ACTIVATION_IDS.incrementAndGet());
+    }
+
+    /**
+     * Re-enter an activation that was suspended, keeping its identity.
+     */
+    public long enterActivation(long activation) {
+        activations.push(activation);
+        return activation;
+    }
+
+    public void exitActivation() {
+        if (!activations.isEmpty()) {
+            activations.pop();
+        }
+    }
+
+    /**
+     * The activation currently running, or 0 outside an instruction stream.
+     */
+    public long currentActivation() {
+        Long activation = activations.peek();
+        return activation == null ? 0 : activation;
+    }
+
+    /**
+     * The called code returned: this activation is running again.
+     */
+    public void popResumePoint() {
+        if (!resumePoints.isEmpty()) {
+            resumePoints.pop();
+        }
+    }
+
+    /**
+     * Run the activations that were waiting for the resumed one, innermost
+     * first, until one of them parks again or the process finishes.
+     */
+    private void finishResumePoints() {
+        while (!resumePoints.isEmpty() && state() != ProcessState.WAITING) {
+            ResumePoint point = resumePoints.pop();
+            // The activation was suspended inside the call instruction.
+            setCP(point.index() - 1);
+            Interpreter.continueExecution(point.module(), point.index(), point.activation());
+        }
     }
 
     public void setFailure(Throwable failure) {
@@ -556,11 +738,13 @@ public class Process extends ProcessOrPort {
                 setState(ProcessState.RUNNING);
                 Term label = waitLabel;
                 waitLabel = null;
+                setCP(waitIndex);
                 if (label != null) {
-                    Interpreter.continueExecutionAtLabel(signatures.peek(), label);
+                    Interpreter.continueExecutionAtLabel(waitModule, label, waitActivation);
                 } else {
-                    Interpreter.continueExecution(signatures.peek(), cp);
+                    Interpreter.continueExecution(waitModule, waitIndex, waitActivation);
                 }
+                finishResumePoints();
             } else if (waitTimedOut) {
                 setState(ProcessState.RUNNING);
                 waitTimedOut = false;
@@ -568,12 +752,21 @@ public class Process extends ProcessOrPort {
                 // A timed-out receive leaves its scan position behind; the
                 // next receive starts again at the head of the mailbox.
                 receivePosition = 0;
-                // cp points at wait_timeout: resume with the timeout code.
-                Interpreter.continueExecution(signatures.peek(), cp + 1);
+                // The wait instruction is followed by the timeout code.
+                setCP(waitIndex);
+                Interpreter.continueExecution(waitModule, waitIndex + 1, waitActivation);
+                finishResumePoints();
             }
             break;
         case RUNNABLE:
-            Interpreter.continueExecution(signatures.peek(), cp);
+            if (funEntry >= 0) {
+                int start = funEntry;
+                funEntry = -1;
+                setCP(0);
+                Interpreter.continueExecution(signatures.peek(), start);
+            } else {
+                Interpreter.continueExecution(signatures.peek(), cp);
+            }
             break;
         default:
             System.out.println("Skipping process " + pid() + " in state " + state());
@@ -591,6 +784,14 @@ public class Process extends ProcessOrPort {
 
     public boolean trapExit() {
         return trapExit;
+    }
+
+    public boolean keepLinksOnNormalExit() {
+        return keepLinksOnNormalExit;
+    }
+
+    public void keepLinksOnNormalExit(boolean value) {
+        keepLinksOnNormalExit = value;
     }
 
     /**
@@ -1127,6 +1328,10 @@ public class Process extends ProcessOrPort {
         }
         terminated = true;
         setState(ProcessState.EXITING);
+        // A table lives only as long as the process that owns it. Doing this
+        // here, before the peers are notified, means a supervisor that hears
+        // the DOWN and restarts the child already finds the name free.
+        TableRegistry.deleteOwnedBy(pid());
         if (waitTimer != null) {
             waitTimer.cancel(false);
             waitTimer = null;

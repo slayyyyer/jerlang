@@ -13,7 +13,7 @@ import org.jerlang.type.Term;
 public class Wait {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
-        proc.waitForMessage(i.arg(0), -1);
+        proc.waitForMessage(m, i.index(), i.arg(0), -1);
         return null;
     }
 

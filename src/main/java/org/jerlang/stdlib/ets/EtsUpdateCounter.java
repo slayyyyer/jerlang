@@ -65,53 +65,58 @@ public class EtsUpdateCounter {
         List<Operation> operations = parse(asList
             ? updateOp.toList() : org.jerlang.type.List.of(updateOp), table.keypos());
 
-        Tuple stored = table.objectOf(key);
-        Tuple object;
-        if (stored == null) {
-            if (defaultValue == null) {
-                // OTP refuses to invent an object without a Default.
-                throw badarg;
-            }
-            object = fromDefault(table.keypos(), key, defaultValue, operations);
-        } else {
-            object = new Tuple(stored);
-        }
-
-        List<Term> values = new ArrayList<>();
-        for (Operation operation : operations) {
-            if (operation.position > object.arity()) {
-                throw badarg;
-            }
-            Term counter = object.element(operation.position);
-            if (!(counter instanceof Integer)) {
-                throw badarg;
-            }
-            BigInteger next = ((Integer) counter).toBigInteger().add(operation.increment);
-            if (operation.bounded) {
-                boolean over = operation.increment.signum() < 0
-                    ? next.compareTo(operation.threshold) < 0
-                    : next.compareTo(operation.threshold) > 0;
-                if (over) {
-                    next = operation.setValue;
+        // Read, modify and write under the table lock. Without it two
+        // processes incrementing the same key could both read the old value
+        // and one increment would be lost, which OTP does not allow.
+        synchronized (table.lock()) {
+            Tuple stored = table.objectOf(key);
+            Tuple object;
+            if (stored == null) {
+                if (defaultValue == null) {
+                    // OTP refuses to invent an object without a Default.
+                    throw badarg;
                 }
+                object = fromDefault(table.keypos(), key, defaultValue, operations);
+            } else {
+                object = new Tuple(stored);
             }
-            Integer value = new Integer(next);
-            object.set(operation.position, value);
-            values.add(value);
-        }
 
-        // The object was built from a copy, so a failed operation above leaves
-        // the table untouched.
-        table.insert(object);
+            List<Term> values = new ArrayList<>();
+            for (Operation operation : operations) {
+                if (operation.position > object.arity()) {
+                    throw badarg;
+                }
+                Term counter = object.element(operation.position);
+                if (!(counter instanceof Integer)) {
+                    throw badarg;
+                }
+                BigInteger next = ((Integer) counter).toBigInteger().add(operation.increment);
+                if (operation.bounded) {
+                    boolean over = operation.increment.signum() < 0
+                        ? next.compareTo(operation.threshold) < 0
+                        : next.compareTo(operation.threshold) > 0;
+                    if (over) {
+                        next = operation.setValue;
+                    }
+                }
+                Integer value = new Integer(next);
+                object.set(operation.position, value);
+                values.add(value);
+            }
 
-        if (!asList) {
-            return values.get(0);
+            // The object was built from a copy, so a failed operation above
+            // leaves the table untouched.
+            table.insert(object);
+
+            if (!asList) {
+                return values.get(0);
+            }
+            org.jerlang.type.List result = org.jerlang.type.List.nil;
+            for (int index = values.size() - 1; index >= 0; index--) {
+                result = new org.jerlang.type.List(values.get(index), result);
+            }
+            return result;
         }
-        org.jerlang.type.List result = org.jerlang.type.List.nil;
-        for (int index = values.size() - 1; index >= 0; index--) {
-            result = new org.jerlang.type.List(values.get(index), result);
-        }
-        return result;
     }
 
     /**

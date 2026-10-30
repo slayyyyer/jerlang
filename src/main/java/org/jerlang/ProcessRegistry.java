@@ -63,6 +63,19 @@ public class ProcessRegistry {
     }
 
     /**
+     * The name a process or port is registered under, or null when it has
+     * none. Registration goes the other way, so this is a scan of the names.
+     */
+    public static Atom registeredName(PidOrPortId id) {
+        for (Map.Entry<Atom, PidOrPortId> entry : instance.processes.entrySet()) {
+            if (entry.getValue().equals(id)) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    /**
      * Every registered name, in no particular order.
      */
     public static List registered() {

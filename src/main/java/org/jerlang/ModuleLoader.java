@@ -51,14 +51,18 @@ import org.jerlang.util.ByteUtil;
 public class ModuleLoader {
 
     /**
-     * Try to load the module from the working directory.
+     * Try to load the module from the code path.
      *
-     * Returns null when there is no BEAM file in the working directory or the
-     * file can not be loaded. The caller decides whether the module replaces a
-     * built-in one, and registers it.
+     * Returns null when no directory on the code path has a BEAM file for the
+     * module, or the file can not be loaded. The caller decides whether the
+     * module replaces a built-in one, and registers it.
      */
     public static Module load(Atom module) {
-        return load(module, new File(module.toString() + ".beam"));
+        String path = CodePaths.find(module.toString());
+        if (path == null) {
+            return null;
+        }
+        return load(module, new File(path));
     }
 
     /**
@@ -86,6 +90,7 @@ public class ModuleLoader {
             }
             Module m = new Module(beamData, module);
             m.export();
+            m.setBeamFile(file);
             return m;
         } catch (Throwable e) {
             System.err.println("Can not load module " + filename + ": " + e);

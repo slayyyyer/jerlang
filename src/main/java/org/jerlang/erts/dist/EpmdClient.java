@@ -91,8 +91,8 @@ public final class EpmdClient {
     /**
      * Ask the EPMD on host for the distribution port of nodeName.
      *
-     * The node name in EPMD is the part of a full node name before the
-     * @ sign.
+     * The node name in EPMD is the part of a full node name before the at
+     * sign.
      */
     public static int port(String host, String nodeName) throws IOException {
         int epmdPort = Integer.getInteger("jerlang.epmd.port", DEFAULT_PORT);

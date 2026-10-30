@@ -1,5 +1,6 @@
 package org.jerlang.erts.erlang;
 
+import org.jerlang.Aliases;
 import org.jerlang.ProcessRegistry;
 import org.jerlang.ProcessSignals;
 import org.jerlang.type.Atom;
@@ -16,10 +17,69 @@ public class ErlangMonitor {
     }
 
     public static Term dispatch(List params) {
-        if (params.length() != 2) {
+        switch (params.length()) {
+        case 2:
+            return monitor_2(params.head().toAtom(), params.tail().head());
+        case 3:
+            return monitor_3(params.head().toAtom(), params.tail().head(),
+                params.tail().tail().head().toList());
+        default:
             throw Error.badarg;
         }
-        return monitor_2(params.head().toAtom(), params.tail().head());
+    }
+
+    /**
+     * monitor(process, Target, Options). The `{alias, Mode}` option makes the
+     * monitor reference an alias as well, so the monitored process can reply
+     * to the reference instead of to the monitoring pid; gen_server:call
+     * relies on that to hide the caller.
+     *
+     * http://www.erlang.org/doc/man/erlang.html#monitor-3
+     */
+    public static Term monitor_3(Atom type, Term target, List options) {
+        boolean alias = false;
+        while (options.length() > 0) {
+            Term option = options.head();
+            options = options.tail();
+            if (!(option instanceof Tuple) || ((Tuple) option).arity() != 2) {
+                throw Error.badarg;
+            }
+            Term key = ((Tuple) option).element(1);
+            Term value = ((Tuple) option).element(2);
+            if (!(key instanceof Atom) || !(value instanceof Atom)) {
+                throw Error.badarg;
+            }
+            switch (key.toString()) {
+            case "alias":
+                switch (value.toString()) {
+                case "demonitor":
+                    // The alias ends with the monitor.
+                    alias = true;
+                    break;
+                case "reply_demonitor":
+                    // OTP also ends the alias on the first reply. The monitor
+                    // is removed either way, so treating both the same only
+                    // means a second reply is still delivered.
+                    alias = true;
+                    break;
+                case "none":
+                    break;
+                default:
+                    throw Error.badarg;
+                }
+                break;
+            default:
+                throw Error.badarg;
+            }
+        }
+        Term reference = monitor_2(type, target);
+        if (alias) {
+            if (!(reference instanceof Reference)) {
+                throw Error.badarg;
+            }
+            Aliases.register((Reference) reference, ProcessSignals.self().pid());
+        }
+        return reference;
     }
 
     /**

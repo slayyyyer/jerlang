@@ -1,9 +1,14 @@
 package org.jerlang.erts.erlang;
 
+import org.jerlang.type.Atom;
 import org.jerlang.type.List;
+import org.jerlang.type.Map;
 import org.jerlang.type.Term;
+import org.jerlang.type.Tuple;
 
 public class ErlangError {
+
+    private static final Atom ERROR_INFO = Atom.of("error_info");
 
     private ErlangError() {
     }
@@ -16,8 +21,13 @@ public class ErlangError {
         case 2:
             Term reason = params.head();
             params = params.tail();
-            List where = params.head().toList();
-            error_2(reason, where);
+            error_2(reason, params.head());
+            return null;
+        case 3:
+            Term failed = params.head();
+            params = params.tail();
+            Term args = params.head();
+            error_3(failed, args, params.tail().head());
             return null;
         default:
             throw Error.badarg;
@@ -49,8 +59,52 @@ public class ErlangError {
      *
      * http://www.erlang.org/doc/man/erlang.html#error-2
      */
-    public static void error_2(Term reason, List args) {
-        throw new Error(reason, args);
+    public static void error_2(Term reason, Term args) {
+        throw new Error(reason, list(args));
+    }
+
+    /**
+     * Like error/2, but takes an options list. The only option is
+     * `{error_info, #{...}}`, a map that is attached to the exception for the
+     * crash report instead of being a part of the reason.
+     *
+     * http://www.erlang.org/doc/man/erlang.html#error-3
+     */
+    public static void error_3(Term reason, Term args, Term options) {
+        throw new Error(reason, list(args), errorInfo(list(options)));
+    }
+
+    /**
+     * The argument list and the options of error/2,3 have to be lists; anything
+     * else is a badarg, as in OTP.
+     */
+    private static List list(Term term) {
+        if (!term.isList()) {
+            throw Error.badarg;
+        }
+        return term.toList();
+    }
+
+    /**
+     * The map of the `error_info` option, or null when the options list is
+     * empty. Anything else is a badarg, as in OTP.
+     */
+    private static Term errorInfo(List options) {
+        Term info = null;
+        while (options.length() > 0) {
+            Term option = options.head();
+            if (!(option instanceof Tuple)) {
+                throw Error.badarg;
+            }
+            Tuple tuple = (Tuple) option;
+            if (tuple.arity() != 2 || !ERROR_INFO.equals(tuple.element(1))
+                || !(tuple.element(2) instanceof Map)) {
+                throw Error.badarg;
+            }
+            info = tuple.element(2);
+            options = options.tail();
+        }
+        return info;
     }
 
 }

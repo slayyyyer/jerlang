@@ -4,6 +4,7 @@ import org.jerlang.FunctionSignature;
 import org.jerlang.Module;
 import org.jerlang.ModuleRegistry;
 import org.jerlang.Process;
+import org.jerlang.ProcessState;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
@@ -15,8 +16,7 @@ import org.jerlang.type.Term;
  * Function module is stored in X(Arity).
  * Function name is stored in X(Arity+1).
  * Function arguments are stored in X0 ... X(Arity-1).
- * Set CP to next instruction.
- *
+
  * Arguments:
  * 1. Arity
  *
@@ -38,8 +38,17 @@ public class Apply {
             args = new List(proc.getX(index), args);
         }
 
-        proc.setCP(i.index() + 1);
-        Term result = module.apply(fs, args);
+        // A normal call: the loop continues with the next instruction, so the
+        // caller's continuation pointer is left alone.
+        proc.pushResumePoint(m, i.index() + 1);
+        Term result;
+        try {
+            result = module.apply(fs, args);
+        } finally {
+            if (proc.state() != ProcessState.WAITING) {
+                proc.popResumePoint();
+            }
+        }
         proc.setX(0, result);
         return null;
     }

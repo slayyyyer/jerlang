@@ -1,7 +1,6 @@
 package org.jerlang.erts.erlang;
 
-import org.jerlang.erts.Erlang;
-import org.jerlang.type.Atom;
+import org.jerlang.type.ImproperList;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
 
@@ -13,7 +12,7 @@ public class ErlangTl {
     public static Term dispatch(List params) {
         switch (params.length()) {
         case 1:
-            return tl_1(params.head().toList());
+            return tl_1(params.head());
         default:
             throw Error.badarg;
         }
@@ -26,11 +25,14 @@ public class ErlangTl {
      *
      * http://www.erlang.org/doc/man/erlang.html#tl-1
      */
-    public static Term tl_1(List list) {
-        if (list.equals(List.nil)) {
-            Erlang.error(Atom.of("badarg"));
+    public static Term tl_1(Term list) {
+        if (list instanceof ImproperList) {
+            return ((ImproperList) list).tail();
         }
-        return list.tail();
+        if (!(list instanceof List) || list.equals(List.nil)) {
+            throw Error.badarg;
+        }
+        return list.toList().tail();
     }
 
 }

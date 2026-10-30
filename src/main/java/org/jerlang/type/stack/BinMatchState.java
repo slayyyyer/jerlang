@@ -59,7 +59,7 @@ public class BinMatchState extends Term {
      * `ensure_at_least` checks both the number of bits left and that the
      * remainder is a whole number of units. A binary tail (unit 8) can not
      * start in the middle of a byte, which is why a 12 bit input does not
-     * match `<<A:8, B/binary>>`.
+     * match {@code <<A:8, B/binary>>}.
      */
     public boolean ensureAtLeast(int bits, int unit) {
         int available = tail();

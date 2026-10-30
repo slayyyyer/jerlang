@@ -14,7 +14,12 @@ import org.jerlang.type.Term;
  * Apply a function with arity Arity.
  * Function module is stored in X(Arity).
  * Function name is stored in X(Arity+1).
- * Function arguments are stored in X0 ... X(Arity-1).
+ * Function arguments are stored in X(Arity-1) ... X0.
+ *
+ * This is a tail call, so it replaces the current activation. A BEAM callee
+ * gets the frame dropped first, which keeps it out of a raise inside the
+ * callee; a builtin runs in this frame and a raise from it must still report
+ * this function, so the frame goes afterwards.
  *
  * Arguments:
  * 1. Arity
@@ -38,10 +43,15 @@ public class ApplyLast {
             args = new List(proc.getX(index), args);
         }
 
+        boolean instructionStream = module.hasInstructionStream(fs);
+        if (instructionStream) {
+            proc.popFrame();
+        }
         Term result = module.apply(fs, args);
+        if (!instructionStream) {
+            proc.popFrame();
+        }
         proc.setX(0, result);
-        // apply_last tears down its own frame.
-        proc.popFrame();
         return null;
     }
 

@@ -4,6 +4,7 @@ import org.jerlang.Module;
 import org.jerlang.Process;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.type.Atom;
+import org.jerlang.type.ImproperList;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
@@ -25,6 +26,11 @@ public class IsNonemptyList {
 
         if (arg1 instanceof Tuple && x.equals(arg1.toTuple().element(1))) {
             arg1 = proc.getX(arg1.toTuple().element(2).toInteger());
+        }
+
+        if (arg1 instanceof ImproperList) {
+            // An improper list is still a cons cell, so [H | T] matches it.
+            return null;
         }
 
         if (arg1 instanceof List && arg1.toList().length() > 0) {

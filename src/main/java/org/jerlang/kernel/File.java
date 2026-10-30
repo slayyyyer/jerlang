@@ -1,8 +1,19 @@
 package org.jerlang.kernel;
 
+import org.jerlang.kernel.file.FileClose;
+import org.jerlang.kernel.file.FileConsult;
 import org.jerlang.kernel.file.FileDelete;
+import org.jerlang.kernel.file.FileEof;
 import org.jerlang.kernel.file.FileGetCwd;
+import org.jerlang.kernel.file.FileListDir;
+import org.jerlang.kernel.file.FileOpen;
+import org.jerlang.kernel.file.FilePosition;
+import org.jerlang.kernel.file.FileRead;
+import org.jerlang.kernel.file.FileReadFile;
+import org.jerlang.kernel.file.FileReadLine;
 import org.jerlang.kernel.file.FileRename;
+import org.jerlang.kernel.file.FileWrite;
+import org.jerlang.kernel.file.FileWriteFile;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 
@@ -98,6 +109,62 @@ public class File {
 
     public static Term rename(Str source, Str destination) {
         return FileRename.rename_2(source, destination);
+    }
+
+    public static Term close(Term descriptor) {
+        return FileClose.close_1(descriptor);
+    }
+
+    public static Term consult(Term filename) {
+        return FileConsult.consult_1(filename);
+    }
+
+    public static Term eof(Term descriptor) {
+        return FileEof.eof_1(descriptor);
+    }
+
+    public static Term list_dir(Term directory) {
+        return FileListDir.list_dir_1(directory);
+    }
+
+    public static Term open(Term filename) {
+        return FileOpen.open_1(filename);
+    }
+
+    public static Term open(Term filename, Term modes) {
+        return FileOpen.open_2(filename, modes);
+    }
+
+    public static Term position(Term descriptor) {
+        return FilePosition.position_1(descriptor);
+    }
+
+    public static Term position(Term descriptor, Term location) {
+        return FilePosition.position_2(descriptor, location);
+    }
+
+    public static Term read(Term descriptor, Term number) {
+        return FileRead.read_2(descriptor, number);
+    }
+
+    public static Term read_file(Term filename) {
+        return FileReadFile.read_file_1(filename);
+    }
+
+    public static Term read_line(Term descriptor) {
+        return FileReadLine.read_line_1(descriptor);
+    }
+
+    public static Term write(Term descriptor, Term data) {
+        return FileWrite.write_2(descriptor, data);
+    }
+
+    public static Term write_file(Term filename, Term data) {
+        return FileWriteFile.write_file_2(filename, data);
+    }
+
+    public static Term write_file(Term filename, Term data, Term modes) {
+        return FileWriteFile.write_file_3(filename, data, modes);
     }
 
 }

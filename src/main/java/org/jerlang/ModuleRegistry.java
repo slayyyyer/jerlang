@@ -13,6 +13,7 @@ import org.jerlang.erts.Erpc;
 import org.jerlang.erts.Init;
 import org.jerlang.erts.OtpRing0;
 import org.jerlang.erts.PrimInet;
+import org.jerlang.kernel.ApplicationController;
 import org.jerlang.kernel.File;
 import org.jerlang.kernel.GenTcp;
 import org.jerlang.kernel.GenUdp;
@@ -24,14 +25,19 @@ import org.jerlang.kernel.Rpc;
 import org.jerlang.stdlib.Base64;
 import org.jerlang.stdlib.BeamLib;
 import org.jerlang.stdlib.Binary;
+import org.jerlang.stdlib.Code;
 import org.jerlang.stdlib.ErlInternal;
 import org.jerlang.stdlib.Ets;
 import org.jerlang.stdlib.IO;
+import org.jerlang.stdlib.IOLib;
 import org.jerlang.stdlib.Java;
 import org.jerlang.stdlib.Lists;
+import org.jerlang.stdlib.Logger;
 import org.jerlang.stdlib.Maps;
 import org.jerlang.stdlib.Math;
+import org.jerlang.stdlib.PersistentTerm;
 import org.jerlang.stdlib.Shell;
+import org.jerlang.stdlib.Unicode;
 import org.jerlang.type.Atom;
 
 /**
@@ -54,10 +60,16 @@ public class ModuleRegistry {
 
     public ModuleRegistry() {
         modules = new HashMap<>();
+        registerBuiltins();
+    }
+
+    private void registerBuiltins() {
         // TODO: Auto-register modules by reflection
+        init(ApplicationController.class).export();
         init(Base64.class).export();
         init(BeamLib.class).export();
         init(Binary.class).export();
+        init(Code.class).export();
         init(Erlang.class).export();
         init(Erpc.class).export();
         init(ErlInternal.class).export();
@@ -68,8 +80,12 @@ public class ModuleRegistry {
         init(Inet.class).export();
         init(Init.class).export();
         init(IO.class).export();
+        // The Java class name IOLib does not map to io_lib by the CamelCase
+        // rule, so the module name is given explicitly.
+        init(IOLib.class, Atom.of("io_lib")).export();
         init(Java.class).export();
         init(Lists.class).export();
+        init(Logger.class).export();
         init(Maps.class).export();
         init(Math.class).export();
         init(NetAdm.class).export();
@@ -77,8 +93,10 @@ public class ModuleRegistry {
         init(OS.class).export();
         init(Rpc.class).export();
         init(OtpRing0.class).export();
+        init(PersistentTerm.class).export();
         init(PrimInet.class).export();
         init(Shell.class).export();
+        init(Unicode.class).export();
     }
 
     public static Module get(Atom module) {
@@ -104,6 +122,23 @@ public class ModuleRegistry {
 
     public static ModuleRegistry instance() {
         return instance;
+    }
+
+    /**
+     * The module that is already loaded, without loading anything. This is
+     * what code:which/1 and code:is_loaded/1 report on.
+     */
+    public static Module loaded(Atom module) {
+        return instance.modules.get(module);
+    }
+
+    /**
+     * Drop every loaded module and go back to the built-ins. Used by tests,
+     * which load different BEAM files under the same module names.
+     */
+    public static void reset() {
+        instance.modules.clear();
+        instance.registerBuiltins();
     }
 
     public static void register(Module module) {

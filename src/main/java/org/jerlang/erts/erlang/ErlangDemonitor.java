@@ -1,5 +1,6 @@
 package org.jerlang.erts.erlang;
 
+import org.jerlang.Aliases;
 import org.jerlang.ProcessSignals;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Boolean;
@@ -32,6 +33,7 @@ public class ErlangDemonitor {
      */
     public static Term demonitor_1(Reference reference) {
         ProcessSignals.self().demonitor(reference, false);
+        Aliases.deactivate(reference);
         return Boolean.am_true;
     }
 
@@ -62,6 +64,8 @@ public class ErlangDemonitor {
             }
         }
         boolean found = ProcessSignals.self().demonitor(reference, flush);
+        // An alias that came with the monitor ends with it.
+        Aliases.deactivate(reference);
         return info ? Tuple.of(Atom.of("info"), Boolean.of(found)) : Boolean.am_true;
     }
 
