@@ -8,6 +8,7 @@ import org.jerlang.Process;
 import org.jerlang.ProcessState;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.type.Fun;
+import org.jerlang.type.Integer;
 import org.jerlang.type.Term;
 import org.jerlang.type.stack.StackFrame;
 
@@ -29,7 +30,7 @@ final class FunCall {
     }
 
     static boolean isLocal(Module m, Fun fun) {
-        return fun.signature().module().equals(m.name());
+        return !fun.isExternal() && fun.signature().module().equals(m.name());
     }
 
     static Term call(Process proc, Module m, Instruction i, Fun fun) {
@@ -44,7 +45,14 @@ final class FunCall {
         proc.pushResumePoint(m, i.index() + 1);
         Term result;
         try {
-            result = Interpreter.continueExecutionAtLabel(target, fun.label());
+            if (fun.isExternal()) {
+                // fun M:F/A: there is no label to jump to, so the fun is
+                // applied like a normal call. Module.apply raises undef when
+                // the function does not exist, which is what OTP does.
+                result = target.apply(signature, CallExt.parameters(proc, Integer.of(fun.arity())));
+            } else {
+                result = Interpreter.continueExecutionAtLabel(target, fun.label());
+            }
         } finally {
             if (proc.state() != ProcessState.WAITING) {
                 proc.popResumePoint();

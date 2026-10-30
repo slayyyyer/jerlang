@@ -1,6 +1,8 @@
 package org.jerlang.erts.emulator.op;
 
+import org.jerlang.FunctionSignature;
 import org.jerlang.Module;
+import org.jerlang.ModuleRegistry;
 import org.jerlang.Process;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.exception.ThrowException;
@@ -14,11 +16,18 @@ import org.jerlang.type.Term;
  * Do not update the CP register.
  * Deallocate Deallocate words from the stack before the call.
  *
- * A tail call replaces the current activation, so the words this function
- * allocated have to be released and the continuation pointer of the function
- * it returns to has to be restored. Both happen after the callee ran: the
- * callee's own `return` ended its instruction stream already, and a raise
- * inside it captured a stacktrace that still has to contain this activation.
+ * A tail call replaces the current activation: the words this function
+ * allocated are released, and the continuation pointer of the function it
+ * returns to is restored. The words have to go before the callee runs,
+ * because the callee allocates its own Y registers on top of the stack and
+ * may park in a receive, in which case it is resumed later with exactly those
+ * registers. Releasing them afterwards cut the parked callee's variables away.
+ *
+ * The stack frame itself is different: a BEAM callee is an activation of its
+ * own, so this frame is dropped before it starts and does not appear in a
+ * raise from inside it, as in OTP. A built-in callee runs inside this frame,
+ * so its frame is only dropped afterwards, and a raise from the builtin still
+ * reports this function.
  *
  * Arguments:
  * 1. Arity
@@ -32,18 +41,26 @@ public class CallExtLast {
 
     public static Term execute(Process process, Module m, Instruction i, List params) throws ThrowException {
         Integer deallocate = i.arg(2).toInteger();
-        // A tail call replaces this activation, so it has no continuation to
-        // record: what has to be resumed is this function's own caller.
-        CallExt.execute(process, m, i, params, false);
-        // A tail call replaces the current activation: drop the frame, then
-        // the Y register words, then return to where this function would have
-        // returned. Only a function that allocated saved a continuation
-        // pointer, which is the same rule call_last follows.
-        process.popFrame();
         if (deallocate.toInt() > 0) {
             process.restoreCP();
         }
         process.deallocate(deallocate.toInt());
+
+        FunctionSignature signature = CallExt.resolve(m, i.arg(1).toInteger());
+        Module target = ModuleRegistry.get(signature.module());
+        boolean instructionStream = target != null && target.hasInstructionStream(signature);
+        if (instructionStream) {
+            process.popFrame();
+        }
+
+        // The callee runs its own instruction stream, and this activation has
+        // already been replaced, so there is no continuation to record.
+        CallExt.execute(process, m, i, params, false);
+
+        if (!instructionStream) {
+            process.popFrame();
+        }
+
         // Index 0 means the activation was entered from outside this
         // instruction stream (Java, or the process entry point): there is no
         // continuation to jump to.

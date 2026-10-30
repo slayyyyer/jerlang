@@ -3,6 +3,7 @@ package org.jerlang.erts.emulator.op;
 import org.jerlang.Module;
 import org.jerlang.Process;
 import org.jerlang.erts.emulator.Instruction;
+import org.jerlang.type.ImproperList;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
 
@@ -25,8 +26,12 @@ public class PutList {
         // building an option list); the tail can be a literal list or a
         // register holding one.
         Term head = headArg.toArg(proc);
-        List tail = tailArg.toArg(proc).toList();
-        List list = new List(head, tail);
+        Term tail = tailArg.toArg(proc);
+        // [Head | Tail] where Tail is not a list is an improper list. OTP
+        // uses it, for example gen:do_call tags a reply with [alias | Mref].
+        Term list = tail instanceof List
+            ? new List(head, (List) tail)
+            : new ImproperList(head, tail);
         if (destination.isXRegister()) {
             proc.setX(destination.toRegisterIndex(), list);
         } else if (destination.isYRegister()) {

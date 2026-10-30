@@ -42,6 +42,7 @@ public class ErlangProcessInfo {
     private static final Atom REDUCTIONS = Atom.of("reductions");
     private static final Atom HEAP_SIZE = Atom.of("heap_size");
     private static final Atom STACK_SIZE = Atom.of("stack_size");
+    private static final Atom CURRENT_STACKTRACE = Atom.of("current_stacktrace");
 
     private ErlangProcessInfo() {
     }
@@ -116,7 +117,9 @@ public class ErlangProcessInfo {
             throw badarg;
         }
         ProcessOrPort process = ProcessRegistry.resolve((PID) pid);
-        if (!(process instanceof Process) || process.state() == ProcessState.EXITING) {
+        // EXITING is also set inside a nested activation, so the terminated
+        // flag is what says the process is really gone.
+        if (!(process instanceof Process) || ((Process) process).isTerminated()) {
             return null;
         }
         return (Process) process;
@@ -156,6 +159,10 @@ public class ErlangProcessInfo {
             StackFrame frame = process.currentFrame();
             return frame == null ? Atom.of("undefined")
                 : Tuple.of(frame.module(), frame.func(), Integer.of(frame.arity()));
+        } else if (item.equals(CURRENT_STACKTRACE)) {
+            // gen_server asks for this while terminating a server, to report
+            // where the terminate callback was called from.
+            return process.stacktrace();
         } else if (item.equals(REDUCTIONS) || item.equals(HEAP_SIZE)
             || item.equals(STACK_SIZE)) {
             return Integer.of(0);

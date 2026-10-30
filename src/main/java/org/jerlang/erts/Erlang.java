@@ -1,6 +1,7 @@
 package org.jerlang.erts;
 
 import org.jerlang.erts.erlang.ErlangAbs;
+import org.jerlang.erts.erlang.ErlangAlias;
 import org.jerlang.erts.erlang.ErlangApply;
 import org.jerlang.erts.erlang.ErlangAtomEq;
 import org.jerlang.erts.erlang.ErlangAtomEqExact;
@@ -20,11 +21,13 @@ import org.jerlang.erts.erlang.ErlangBitstringToList;
 import org.jerlang.erts.erlang.ErlangByteSize;
 import org.jerlang.erts.erlang.ErlangDemonitor;
 import org.jerlang.erts.erlang.ErlangDisplay;
+import org.jerlang.erts.erlang.ErlangElement;
 import org.jerlang.erts.erlang.ErlangError;
 import org.jerlang.erts.erlang.ErlangExit;
 import org.jerlang.erts.erlang.ErlangFunctionExported;
 import org.jerlang.erts.erlang.ErlangFunInfoMfa;
 import org.jerlang.erts.erlang.ErlangGet;
+import org.jerlang.erts.erlang.ErlangMakeFun;
 import org.jerlang.erts.erlang.ErlangGetKeys;
 import org.jerlang.erts.erlang.ErlangGetModuleInfo;
 import org.jerlang.erts.erlang.ErlangHalt;
@@ -54,6 +57,7 @@ import org.jerlang.erts.erlang.ErlangListToInteger;
 import org.jerlang.erts.erlang.ErlangMakeRef;
 import org.jerlang.erts.erlang.ErlangMonitor;
 import org.jerlang.erts.erlang.ErlangMonitorNode;
+import org.jerlang.erts.erlang.ErlangMonotonicTime;
 import org.jerlang.erts.erlang.ErlangNode;
 import org.jerlang.erts.erlang.ErlangNodes;
 import org.jerlang.erts.erlang.ErlangOpenPort;
@@ -62,6 +66,7 @@ import org.jerlang.erts.erlang.ErlangPortControl;
 import org.jerlang.erts.erlang.ErlangProcessInfo;
 import org.jerlang.erts.erlang.ErlangProcessFlag;
 import org.jerlang.erts.erlang.ErlangPut;
+import org.jerlang.erts.erlang.ErlangRaise;
 import org.jerlang.erts.erlang.ErlangRegister;
 import org.jerlang.erts.erlang.ErlangRegistered;
 import org.jerlang.erts.erlang.ErlangRem;
@@ -203,6 +208,10 @@ public class Erlang {
         return ErlangFunInfoMfa.fun_info_mfa_1(fun);
     }
 
+    public static Fun make_fun(Atom module, Atom function, Integer arity) {
+        return ErlangMakeFun.make_fun_3(module, function, arity);
+    }
+
     public static List get() {
         return ErlangGet.get_0();
     }
@@ -335,6 +344,10 @@ public class Erlang {
         return ErlangMakeRef.make_ref_0();
     }
 
+    public static Term raise(Atom exceptionClass, Term reason, Term stacktrace) {
+        return ErlangRaise.raise_3(exceptionClass, reason, stacktrace);
+    }
+
     public static Atom node() {
         return ErlangNode.node_0();
     }
@@ -379,6 +392,10 @@ public class Erlang {
         return ErlangPut.put_2(key, val);
     }
 
+    public static Term element(Integer index, Tuple tuple) {
+        return ErlangElement.element_2(index, tuple);
+    }
+
     public static Term register(Atom regName, PID pid) {
         return ErlangRegister.register_2(regName, pid);
     }
@@ -407,8 +424,28 @@ public class Erlang {
         return ErlangLink.link_1(pid);
     }
 
+    public static Term monotonic_time() {
+        return ErlangMonotonicTime.monotonic_time_0();
+    }
+
+    public static Term monotonic_time(Term unit) {
+        return ErlangMonotonicTime.monotonic_time_1(unit);
+    }
+
     public static Term monitor(Atom type, Term target) {
         return ErlangMonitor.monitor_2(type, target);
+    }
+
+    public static Term monitor(Atom type, Term target, List options) {
+        return ErlangMonitor.monitor_3(type, target, options);
+    }
+
+    public static Reference alias() {
+        return ErlangAlias.alias_0();
+    }
+
+    public static Term unalias(Reference reference) {
+        return ErlangAlias.unalias_1(reference);
     }
 
     public static Term monitor_node(Term node, Term flag) {
@@ -445,6 +482,10 @@ public class Erlang {
 
     public static Term send(Term target, Term message) {
         return ErlangSend.send_2(target, message);
+    }
+
+    public static Term send(Term target, Term message, List options) {
+        return ErlangSend.send_3(target, message, options);
     }
 
     public static TimerReference send_after(Integer time, PID pid, Term msg) {

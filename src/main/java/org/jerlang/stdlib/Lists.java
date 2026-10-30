@@ -5,6 +5,9 @@ import org.jerlang.stdlib.lists.ListsConcat;
 import org.jerlang.stdlib.lists.ListsDelete;
 import org.jerlang.stdlib.lists.ListsDuplicate;
 import org.jerlang.stdlib.lists.ListsFlatten;
+import org.jerlang.stdlib.lists.ListsKeyfind;
+import org.jerlang.stdlib.lists.ListsKeymember;
+import org.jerlang.stdlib.lists.ListsKeysearch;
 import org.jerlang.stdlib.lists.ListsMember;
 import org.jerlang.stdlib.lists.ListsReverse;
 import org.jerlang.stdlib.lists.ListsSeq;
@@ -43,6 +46,27 @@ public class Lists {
 
     public static List flatten(List deepList, List tail) {
         return ListsFlatten.flatten_2(deepList, tail);
+    }
+
+    /**
+     * http://www.erlang.org/doc/man/lists.html#keyfind-3
+     */
+    public static Term keyfind(Term key, Integer position, List tuples) {
+        return ListsKeyfind.keyfind_3(key, position, tuples);
+    }
+
+    /**
+     * http://www.erlang.org/doc/man/lists.html#keymember-3
+     */
+    public static Term keymember(Term key, Integer position, List tuples) {
+        return ListsKeymember.keymember_3(key, position, tuples);
+    }
+
+    /**
+     * http://www.erlang.org/doc/man/lists.html#keysearch-3
+     */
+    public static Term keysearch(Term key, Integer position, List tuples) {
+        return ListsKeysearch.keysearch_3(key, position, tuples);
     }
 
     public static List reverse(List list) {

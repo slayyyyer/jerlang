@@ -20,6 +20,7 @@ public class Fun extends Term {
     private PID owner;
     private int explicitLabel = -1;
     private Term[] saved_registers = {};
+    private boolean external;
 
     public Fun(org.jerlang.Process proc, Module module, LambdaInfo lambdaInfo) {
         this(proc, module, lambdaInfo, null);
@@ -72,6 +73,19 @@ public class Fun extends Term {
         this.handle = handle;
     }
 
+    /**
+     * A `fun M:F/A` built by erlang:make_fun/3. It has no lambda table entry,
+     * and the function it names does not have to exist or be exported: calling
+     * it applies M:F/A, which raises undef when there is nothing to run. That
+     * is how OTP lets gen_server build the handle_continue fun of a callback
+     * module that does not implement the optional callback.
+     */
+    public static Fun external(FunctionSignature signature) {
+        Fun fun = new Fun(signature, null);
+        fun.external = true;
+        return fun;
+    }
+
     public Term apply(Term param) throws Error {
         try {
             return (Term) handle.invoke(param);
@@ -117,6 +131,11 @@ public class Fun extends Term {
         return lambdaInfo != null;
     }
 
+    /** Whether this is a `fun M:F/A` with no code of its own. */
+    public boolean isExternal() {
+        return external;
+    }
+
     public Fun toFun() {
         return this;
     }
@@ -127,6 +146,10 @@ public class Fun extends Term {
     }
 
     public Term label() {
+        if (explicitLabel < 0 && lambdaInfo == null) {
+            // An external fun has no label in any module's code.
+            return null;
+        }
         int label = explicitLabel >= 0 ? explicitLabel : lambdaInfo.label().toInt();
         return Tuple.of(Atom.of("label"), Integer.of(label));
     }
