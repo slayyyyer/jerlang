@@ -4,6 +4,7 @@ import java.util.HashSet;
 
 import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
+import org.jerlang.ProcessPriority;
 import org.jerlang.ProcessRegistry;
 import org.jerlang.ProcessSignals;
 import org.jerlang.ProcessState;
@@ -18,6 +19,15 @@ import org.jerlang.type.Term;
 public class Scheduler extends Thread {
 
     private static final boolean DEBUG_EXITS = Boolean.getBoolean("jerlang.debug.errors");
+
+    /**
+     * Instructions a process may execute before it is put back on the run
+     * queue. One instruction is one reduction; the number is deliberately
+     * small enough that a CPU-bound process cannot hide a waking process for
+     * tens of milliseconds, and large enough that the queue traffic stays
+     * low.
+     */
+    private static final long REDUCTIONS_PER_SLICE = 1000;
 
     private final HashSet<PidOrPortId> ids;
 
@@ -69,24 +79,41 @@ public class Scheduler extends Thread {
         ids.add(p.id());
 
         p.setScheduler(this);
-        switch (p.priority()) {
-        case MAX:
-            runQueueMax.push(p);
-            break;
-        case HIGH:
-            runQueueHigh.push(p);
-            break;
-        case NORMAL:
-            runQueueNormal.push(p);
-            break;
-        case LOW:
-            runQueueLow.push(p);
-            break;
-        }
+        queue(p.priority()).push(p);
         // Signal only after the process is on a queue, so a woken scheduler
         // can not poll an empty queue and park again while work sits unseen.
         wakeup();
         return p;
+    }
+
+    /**
+     * Move a process that is still queued to the queue for its new priority.
+     * A process whose `process_flag(priority, ...)` call is running has
+     * already been polled, and `remove` returns false: it finishes the slice
+     * and is pushed to the new queue by the scheduler loop.
+     */
+    public void reprioritize(ProcessOrPort p, ProcessPriority previous) {
+        if (previous == p.priority()) {
+            return;
+        }
+        if (queue(previous).remove(p)) {
+            queue(p.priority()).push(p);
+            wakeup();
+        }
+    }
+
+    private RunQueue<ProcessOrPort> queue(ProcessPriority priority) {
+        switch (priority) {
+        case MAX:
+            return runQueueMax;
+        case HIGH:
+            return runQueueHigh;
+        case NORMAL:
+            return runQueueNormal;
+        case LOW:
+        default:
+            return runQueueLow;
+        }
     }
 
     /**
@@ -150,6 +177,9 @@ public class Scheduler extends Thread {
                     p.setState(ProcessState.EXITING);
                 }
                 if (p.state() != ProcessState.EXITING) {
+                    if (process != null) {
+                        process.beginTimeSlice(REDUCTIONS_PER_SLICE);
+                    }
                     p.execute();
                 }
             } catch (Throwable t) {

@@ -14,8 +14,8 @@ what the code does today, not against the original intent.
 | Distribution | OTP handshake, ETF (including funs, ports, compressed terms), links, monitors, remote spawn, `erpc`/`rpc`, node monitors. No `rex`, no `global`, no TLS distribution, no atom cache. |
 | ETS | `set` and `ordered_set`, with named tables and `{keypos, N}`. `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work. A table is destroyed with its owner, `give_away` moves ownership, table operations are locked, and `update_counter` is atomic across processes. Match specs support patterns, bodies, comparisons, boolean guards and the common type tests; `is_map_key` and arithmetic guards are missing, as are `bag`, `duplicate_bag`, `match_delete`, `select_delete` and heirs. |
 | OTP behaviours | OTP's unmodified `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and `code` run from an OTP installation. `gen_statem` is not verified. The application controller models `.app` loading, dependencies, included applications, start phases, environment and key bookkeeping; `application_master` itself, distributed takeover and automatic restart of a crashed permanent application are not modelled. A dead tree is reaped when the controller is queried, and its included applications are stopped with it. |
-| Scheduler | One scheduler thread per processor with no balancing. There are no reductions: a function activation runs to `return` or `wait`, and an intra-module tail call jumps labels without yielding, so a CPU-bound loop can hold a scheduler indefinitely. Cross-module tail calls nest JVM frames. |
-| Tests | 467 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 15 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Scheduler | One scheduler thread per processor with no balancing. A process gets 1,000 instructions per slice, and a CPU-bound loop in its outermost activation yields at the next instruction boundary; `process_info(reductions)` reports the count. Cross-module tail calls switch instruction streams in place, so a tail loop stays preemptible; a yield inside a nested non-tail call is still deferred until that call returns. Run queues are split by max/high/normal/low priority, and `process_flag(priority, ...)` moves a queued process. All timers use one 512-slot, 1 ms timer wheel. |
+| Tests | 479 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 15 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
 | CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, an `otp` job that runs the OTP-backed behaviour tests, and a `conformance` job that installs OTP and enforces the pass-rate floor. |
 | Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
@@ -126,20 +126,38 @@ on every push and pull request.
 
 **Goal:** scheduling and process behaviour are predictable under load.
 
-* Reduction accounting and preemption, including across module boundaries: the
-  cross-module tail call must become a trampoline instead of Java recursion.
-* Timer wheel for `receive ... after`, `timer:send_after`, `erlang:start_timer`.
-* `process_info/1,2` for the fields an operator needs (status, message queue
-  length, reductions, memory, current function), `max_heap_size`, and
-  `message_queue_data`.
-* Priority scheduling that actually reorders the run queue.
-* Basic tracing: `erlang:trace/3` and `erlang:trace_pattern/3` for call and
-  message events, enough for `dbg` and for tests.
+**Status: complete.**
+
+* [x] Reduction accounting and a 1,000-instruction scheduler quantum. A
+  CPU-bound loop in its outermost activation yields at an instruction boundary,
+  and `process_info(reductions)` reports the count. `SchedulerFairnessTest`
+  runs eight CPU-bound processes on four schedulers and keeps p99 timer wakeup
+  under 50 ms.
+* [x] Preemption across nested tail calls. A cross-module tail call switches
+  module and index in the interpreter loop instead of nesting Java recursion,
+  and its return continuations survive a wait or a yield. A yield inside a
+  nested non-tail call is still deferred until that call returns.
+* [x] Timer wheel for `receive ... after`, `timer:send_after`,
+  `erlang:start_timer`. One 512-slot, 1 ms wheel owns every timer, and
+  `timer:send_after`, `erlang:cancel_timer` and `erlang:read_timer` use it.
+* [x] `process_info/1,2` for the remaining operator fields (status, message
+  queue length, memory, current function), `max_heap_size`, and
+  `message_queue_data`. Reductions are already reported; the heap and queue
+  values are reported and settable, but the runtime does not enforce a heap
+  limit yet.
+* [x] Priority scheduling that actually reorders the run queue. The four
+  queues are strict priority order, and a queued process moves when its
+  priority changes.
+* [x] Basic tracing: `erlang:trace/3` and `erlang:trace_pattern/3` for call,
+  send and receive events, enough for `dbg` and for tests. The match-spec body
+  is not evaluated yet; an enabled function traces every call.
 
 **Exit test:** with twice as many CPU-bound processes as schedulers, a ping
-process keeps p99 wakeup latency under 50 ms; 10k process spawn/exit cycles
-leave no entries in the registry; a timer at 10 ms fires within a stated bound;
-a link/monitor stress test loses no signal.
+process keeps p99 wakeup latency under 50 ms (`SchedulerFairnessTest`, and the
+cross-module variant in `SchedulerTailCallTest`); 10k process spawn/exit cycles
+leave no entries in the registry; a timer at 10 ms fires within 250 ms through
+all four timer entry points; a 500-process link/monitor stress run loses no
+signal (`Milestone7Test`).
 
 ### 0.8 — Java interop and embedding
 

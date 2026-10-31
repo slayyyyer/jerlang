@@ -53,10 +53,24 @@ What works today:
   `code:load_file/1`, `code:is_loaded/1`, `code:get_path/0`,
   `code:add_patha/1`, `code:add_pathz/1` and `code:del_path/1` report and use
   it. Modules load from any directory on the path, not just the working one.
-* A 467-test suite. The unit tests need no Erlang and run on every push and
+* A 479-test suite. The unit tests need no Erlang and run on every push and
   pull request. Ten tests drive OTP's own modules and run in a separate CI job
   with an OTP 29 installation; a further 15 are opt-in external or machine
   tests (the live peer suite, the pass-rate run and the benchmarks).
+* Reduction accounting and preemptive scheduling for CPU-bound Erlang loops in
+  their outermost activation. A process gets 1,000 instructions per scheduler
+  slice, `process_info(reductions)` reports the count, and
+  `SchedulerFairnessTest` keeps p99 timer wakeup under 50 ms with twice as many
+  CPU-bound processes as schedulers. Cross-module tail calls are trampolined
+  through the interpreter loop, so an alternating `A:burn/1`/`B:burn/1` loop
+  yields at instruction boundaries instead of growing the JVM stack.
+* A single timer wheel for `receive ... after`, `erlang:send_after`,
+  `erlang:start_timer` and `timer:send_after`, with `cancel_timer` and
+  `read_timer`. `process_info/1,2` reports the operator fields, including
+  memory, current function, `max_heap_size` and `message_queue_data`, and
+  `process_flag/2` handles priority, heap size and queue data. Priority queues
+  run max, high, normal and low work in that order. `erlang:trace/3` and
+  `erlang:trace_pattern/3` emit call, send and receive events to a tracer.
 * A conformance pass rate over real modules: all 1366 modules shipped with OTP
   29.1.2 load, and every instruction in them has a handler. A separate CI job
   measures that rate, so the number is checked, not claimed.
@@ -81,8 +95,11 @@ What does not work yet:
   an included application when its parent's tree dies on its own, but
   `application_master` itself is not modelled: distributed takeover and
   automatic restart of a crashed permanent application are missing.
-* Fair scheduling. There are no reductions, so a CPU-bound loop can hold a
-  scheduler while other processes wait.
+* Fair scheduling across nested non-tail calls. A CPU-bound loop in a nested
+  cross-module call is not preempted until that call returns; cross-module
+  tail calls are trampolined and do yield. Timers are bounded by the timer
+  wheel's 1 ms tick and the scheduler wakeup, not by an OS timer pool; a 10 ms
+  timer is checked against a 250 ms bound.
 * The rest of the `code` module: sticky directories, `code:replace_path/2` and
   `code:ensure_modules_loaded/1` work; the loader is sequential because the
   atom table and module registry are not thread safe, and OTP boot scripts are
@@ -101,7 +118,7 @@ notes and documents the one remaining language-feature gap.
 |0.4    |Network                   |Distribution and sockets work against OTP 29                     |Done   |
 |0.5    |Language completeness     |A corpus of constructs runs with no unsupported opcode           |Done   |
 |0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |Done   |
-|0.7    |Runtime and concurrency   |Preemption, timer bounds, no leaked processes under stress       |Planned|
+|0.7    |Runtime and concurrency   |Preemption, timer bounds, no leaked processes under stress       |Done   |
 |0.8    |Interop and embedding     |Java↔Erlang examples in CI and a frozen API                      |Planned|
 |0.9    |Cluster and operations    |Metrics, reconnection and graceful shutdown under load           |Planned|
 |1.0    |Release                   |Benchmarks against OTP 29, 24 hour soak, fuzzing, artifact       |Planned|

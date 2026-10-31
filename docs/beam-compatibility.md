@@ -271,22 +271,31 @@ newer one.
 
 ## Cross-module calls and tail calls
 
-A cross-module call runs the callee's instruction stream as a nested
+A cross-module non-tail call runs the callee's instruction stream as a nested
 activation: `Module.apply` pushes the callee's frame, clears the continuation
 pointer, and puts the caller's pointer back when the callee returns. Clearing
 it is what makes a `return` end the callee's own stream instead of jumping to
 an index that belongs to another module.
 
-`call_ext_last` and `call_ext_only` replace their activation. They pop its
-frame and, when the instruction carries a deallocate operand, restore the
-caller's continuation pointer and release the activation's stack words. Both
-happen after the callee ran, so a raise inside a tail-called function still
-captures the tail-calling frame in its stacktrace; doing them first is what
-broke the crash report and monitor reason tests. `call_last` follows the same
-rule inside one module.
+`call_ext_last` and `call_ext_only` replace their activation. When the target
+is BEAM code and no catch frame is active, the interpreter does not nest a
+Java call: it restores the continuation pointer, releases the activation's
+stack words, records where the replaced activation has to return inside its
+caller, replaces the stack frame, and continues at the target's first
+instruction in the same loop. The recorded continuations belong to their
+interpreter frame and are carried across a wait or a yield, so a tail chain
+that parks is resumed at the right place. This trampoline is what lets an
+alternating cross-module tail loop yield instead of growing the JVM stack.
 
-`apply_last` still ends the invocation: it tears down its own frame, and
-returning to the continuation pointer double-deallocates.
+When the target is a built-in, or an exception handler is active, the old
+nested path runs instead. There the callee runs first and the frame and stack
+cleanup happens afterwards, so a raise inside it still reports the tail-calling
+frame; doing the cleanup first is what broke the crash report and monitor
+reason tests. `call_last` is a local tail call and stays a label jump.
+
+`apply_last` with no continuation pointer can use the same trampoline. With a
+non-zero continuation pointer it still ends the invocation: it tears down its
+own frame, and returning to the pointer double-deallocates.
 
 A fun whose lambda lives in another module cannot be reached by jumping to a
 label, because a label is resolved in the stream that runs it. `call_fun` and
@@ -368,6 +377,76 @@ the original raise.
 
 [`try_demo.erl`](../src/test/erl/try_demo.erl) covers all of this, and
 [`TryCatchTest`](../src/test/java/org/jerlang/jvm/TryCatchTest.java) runs it.
+
+## Timers
+
+Every VM timer is scheduled on one hashed timer wheel: 512 one-millisecond
+slots, a single daemon thread and one lock. `receive ... after`,
+`erlang:send_after`, `erlang:start_timer`, `timer:send_after`,
+`erlang:cancel_timer` and `erlang:read_timer` all use it. A
+`TimerReference` wraps the wheel's handle, so a cancelled or already-fired
+timer still answers `cancel` and `read_timer` the way OTP does. The action runs
+outside the wheel lock, which lets a timer callback schedule or cancel another
+timer.
+
+A slot can contain a long timer and a short one whose deadlines share the same
+slot index. The wheel only fires a task whose deadline has arrived; the long
+task stays in its slot and is looked at again one wrap later. The wheel wakes
+at the earliest deadline, with a 100 ms cap so a cancellation or a newly added
+timer is noticed promptly. A 10 ms timer is checked against a 250 ms bound by
+`Milestone7Test`, through all four entry points.
+
+The `timer` module loads OTP's `timer.beam` when it is on the code path, so
+its full API wins over the runtime's fallback. The fallback exports
+`send_after/2,3` and `cancel/1`; `send_after` returns OTP's
+`{ok, {send_local, TRef}}` shape, and `cancel/1` accepts that wrapper.
+`timer:apply_after`, the interval timers and the `{abs, ...}` timer options are
+not implemented by the fallback.
+
+## Process information and flags
+
+`process_info/1,2` reports `registered_name`, `dictionary`,
+`message_queue_len`, `messages`, `links`, `trap_exit`, `status`,
+`current_function`, `reductions`, `memory`, `heap_size`, `stack_size`,
+`max_heap_size` and `message_queue_data`. `memory` is an estimate over the
+runtime's arrays and mailbox, not a measured JVM object graph; `heap_size` and
+`stack_size` stay zero for the same reason. `current_function` is the youngest
+stack frame, or `undefined` outside a function.
+
+`process_flag/2` accepts `trap_exit`, `monitor_nodes`, `priority`,
+`message_queue_data` (`on_heap` or `off_heap`), and `max_heap_size` (a map with
+`size`, `kill` and `error_logger`). The heap limit and the queue mode are
+stored and reported but not enforced yet. The OTP flags `async_dist`,
+`sensitive`, `save_calls`, `min_heap_size`, `min_bin_vheap_size` and
+`error_handler` are accepted as no-ops so a real module that sets one does not
+crash; an unknown flag is a `badarg`.
+
+## Scheduling and priorities
+
+Each scheduler has four run queues, in strict order: max, high, normal and low.
+`spawn_opt(Fun, [{priority, Level}])` sets the priority before the process is
+queued, and `process_flag(priority, Level)` moves a process that is still
+queued to the new queue. A process that is already running finishes its slice
+and is queued at the new priority. There is no load balancing between
+schedulers.
+
+## Tracing
+
+`erlang:trace/3` gives a process the `call`, `send`, `receive` and
+`return_to` flags and a tracer process; the tracer is the caller unless a
+`{tracer, Pid}` option says otherwise. `erlang:trace_pattern/3` installs a
+match spec for an MFA, a module, or `all`. `true` and a non-empty spec list
+enable tracing; `false` and the empty list disable it. The match-spec body is
+not evaluated yet, so every call to an enabled function produces an event.
+
+A call event is `{trace, Pid, call, {Module, Function, Args}}`, a send event
+is `{trace, Pid, send, Message, To}`, and a receive event is
+`{trace, Pid, receive, Message}`. Local tail calls (`call_only`, `call_last`),
+cross-module tail calls that use the trampoline, and calls that run through
+`Module.apply` all report a call event. `return_trace` is emitted for the
+`Module.apply` path only; local returns do not report `return_to` yet. Trace
+messages are never traced themselves, so a tracer that reads them cannot feed
+itself.
 
 ## What still blocks other programs
 

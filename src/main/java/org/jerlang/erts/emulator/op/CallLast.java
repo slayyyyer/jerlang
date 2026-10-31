@@ -3,6 +3,7 @@ package org.jerlang.erts.emulator.op;
 import org.jerlang.FunctionSignature;
 import org.jerlang.Module;
 import org.jerlang.Process;
+import org.jerlang.Tracing;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
@@ -35,6 +36,8 @@ public class CallLast {
         proc.popFrame();
         FunctionSignature callee = m.functionAtLabel(i.arg(1).toRegisterIndex().toInt());
         if (callee != null) {
+            Tracing.beforeCall(proc, callee,
+                CallExt.parameters(proc, i.arg(0).toInteger()));
             proc.pushFrame(new StackFrame(callee.module(), callee.function(),
                 callee.fun_arity().toInt()));
         }

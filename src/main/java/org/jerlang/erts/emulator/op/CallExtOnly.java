@@ -1,6 +1,8 @@
 package org.jerlang.erts.emulator.op;
 
+import org.jerlang.FunctionSignature;
 import org.jerlang.Module;
+import org.jerlang.ModuleRegistry;
 import org.jerlang.Process;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.exception.ThrowException;
@@ -19,6 +21,14 @@ import org.jerlang.type.Term;
 public class CallExtOnly {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) throws ThrowException {
+        FunctionSignature signature = CallExt.resolve(m, i.arg(1).toInteger());
+        Module target = ModuleRegistry.get(signature.module());
+        if (TailCalls.canSwitch(proc, target, signature)) {
+            // A tail call replaces this activation, so it has no continuation
+            // to record, but it does inherit this stream's continuation.
+            TailCalls.switchTo(proc, m, target, signature, proc.getCP());
+            return null;
+        }
         // A tail call replaces this activation, so it has no continuation to
         // record.
         CallExt.execute(proc, m, i, params, false);

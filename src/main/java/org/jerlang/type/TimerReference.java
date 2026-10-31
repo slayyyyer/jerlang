@@ -1,33 +1,43 @@
 package org.jerlang.type;
 
-import java.util.concurrent.ScheduledFuture;
+import org.jerlang.vm.TimerWheel;
 
 /**
  * A timer reference.
+ *
+ * The reference wraps the wheel's handle rather than a
+ * `ScheduledFuture`: every VM timer is owned by the timer wheel, and a
+ * reference has to be cancellable and readable after the timer fired.
  */
 public class TimerReference extends Reference {
 
-    private final ScheduledFuture<?> future;
-    // When the timer is due, in wall-clock milliseconds. erlang:read_timer/1
-    // and the remaining time of erlang:cancel_timer/1 need it.
-    private final long deadline;
+    private TimerWheel.Handle handle;
 
-    public TimerReference(ScheduledFuture<?> future) {
-        this(future, 0);
-    }
-
-    public TimerReference(ScheduledFuture<?> future, long deadline) {
+    public TimerReference(TimerWheel.Handle handle) {
         super();
-        this.future = future;
-        this.deadline = deadline;
+        this.handle = handle;
     }
 
-    public ScheduledFuture<?> future() {
-        return future;
+    /**
+     * erlang:start_timer/3 has to put the reference in the message it sends,
+     * but the reference can only be built around the handle the wheel returns.
+     * The handle is therefore attached after scheduling; the timer action
+     * already holds the reference object, so a very short timer still sends
+     * the right one.
+     */
+    public void setHandle(TimerWheel.Handle handle) {
+        this.handle = handle;
     }
 
-    public long deadline() {
-        return deadline;
+    public TimerWheel.Handle handle() {
+        return handle;
+    }
+
+    /**
+     * Milliseconds left on the timer, or zero when it already fired.
+     */
+    public long remaining() {
+        return handle == null ? 0 : handle.remainingMillis();
     }
 
     public TimerReference toTimerReference() {

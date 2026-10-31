@@ -1,11 +1,11 @@
 package org.jerlang.vm;
 
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jerlang.Process;
+import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
+import org.jerlang.Tracing;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Fun;
@@ -26,7 +26,8 @@ public class VirtualMachine {
 
     private static final AtomicInteger nextPID = new AtomicInteger();
 
-    private ScheduledThreadPoolExecutor timerExecutor;
+    /** One wheel owns every timer in this VM. */
+    private volatile TimerWheel timerWheel;
 
     // Identity of this node. A node starts out unnamed, exactly like an
     // Erlang node that was not started with -name or -sname.
@@ -42,7 +43,7 @@ public class VirtualMachine {
         for (int index = 0; index < count; index++) {
             schedulers[index] = new Scheduler();
         }
-        timerExecutor = new ScheduledThreadPoolExecutor(count);
+        timerWheel = new TimerWheel();
     }
 
     /**
@@ -55,8 +56,18 @@ public class VirtualMachine {
     }
 
     public Term cancel(TimerReference timerReference) {
-        timerReference.future().cancel(false);
+        TimerWheel.Handle handle = timerReference.handle();
+        if (handle != null) {
+            handle.cancel();
+        }
         return Tuple.of(Atom.of("ok"), Atom.of("cancel"));
+    }
+
+    /**
+     * The wheel every timer in this VM is scheduled on.
+     */
+    public TimerWheel timerWheel() {
+        return timerWheel;
     }
 
     public static Process self() {
@@ -64,13 +75,29 @@ public class VirtualMachine {
     }
 
     public void start() {
-        int count = schedulerCount();
+        start(schedulerCount());
+    }
+
+    /**
+     * Start with an explicit number of schedulers. The default follows the
+     * host's processor count; an embedding deployment may want a fixed pool,
+     * and a scheduling test needs a deterministic one.
+     */
+    public void start(int count) {
+        if (count < 1) {
+            throw new IllegalArgumentException("scheduler count must be positive");
+        }
         schedulers = new Scheduler[count];
         for (int index = 0; index < count; index++) {
             schedulers[index] = new Scheduler();
             schedulers[index].start();
         }
-        timerExecutor = new ScheduledThreadPoolExecutor(count);
+        TimerWheel previous = timerWheel;
+        timerWheel = new TimerWheel();
+        if (previous != null) {
+            previous.stop();
+            previous.awaitStop();
+        }
         ProcessRegistry.instance().cleanup();
         org.jerlang.erts.dist.Distribution.start();
     }
@@ -86,6 +113,11 @@ public class VirtualMachine {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        }
+        TimerWheel wheel = timerWheel;
+        if (wheel != null) {
+            wheel.stop();
+            wheel.awaitStop();
         }
         ProcessRegistry.instance().cleanup();
     }
@@ -139,15 +171,13 @@ public class VirtualMachine {
     }
 
     public TimerReference send_after(int time, Term message, PID pid) {
-        return new TimerReference(timerExecutor.schedule(
-            new Runnable() {
-
-                @Override
-                public void run() {
-                    resolve(pid).send(message);
-                }
-
-            }, time, TimeUnit.MILLISECONDS), System.currentTimeMillis() + time);
+        TimerWheel.Handle handle = timerWheel.schedule(() -> {
+            Process target = resolve(pid);
+            if (target != null) {
+                target.send(message);
+            }
+        }, time);
+        return new TimerReference(handle);
     }
 
     /**
@@ -156,20 +186,15 @@ public class VirtualMachine {
      * of the message, so it is created around the scheduled task.
      */
     public TimerReference start_timer(int time, Term message, PID pid) {
-        final TimerReference[] reference = new TimerReference[1];
-        reference[0] = new TimerReference(timerExecutor.schedule(
-            new Runnable() {
-
-                @Override
-                public void run() {
-                    Process target = resolve(pid);
-                    if (target != null) {
-                        target.send(Tuple.of(Atom.of("timeout"), reference[0], message));
-                    }
-                }
-
-            }, time, TimeUnit.MILLISECONDS), System.currentTimeMillis() + time);
-        return reference[0];
+        TimerReference reference = new TimerReference(null);
+        TimerWheel.Handle handle = timerWheel.schedule(() -> {
+            Process target = resolve(pid);
+            if (target != null) {
+                target.send(Tuple.of(Atom.of("timeout"), reference, message));
+            }
+        }, time);
+        reference.setHandle(handle);
+        return reference;
     }
 
     public Process spawn(Fun fun) {
@@ -193,6 +218,7 @@ public class VirtualMachine {
         PID pid = new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
         Process process = new Process(pid, fun);
         ProcessRegistry.register(process);
+        Tracing.applyToNewProcess(process);
         return process;
     }
 
@@ -200,6 +226,7 @@ public class VirtualMachine {
         PID pid = new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
         Process process = new Process(pid, module, fun, args);
         ProcessRegistry.register(process);
+        Tracing.applyToNewProcess(process);
         return process;
     }
 
@@ -208,6 +235,23 @@ public class VirtualMachine {
      */
     public void schedule(Process process) {
         schedule(process, null);
+    }
+
+    /**
+     * Put a process that was woken from a wait back on a run queue.
+     *
+     * Normally the process keeps the scheduler it last ran on. That scheduler
+     * may however be blocked in a wait for this very process (application
+     * start and stop do that); queueing behind the wait would deadlock until
+     * the timeout, so in that case the wakeup goes to another scheduler.
+     */
+    public void wake(ProcessOrPort process) {
+        Scheduler current = process.scheduler();
+        if (current != null && !current.isInBlockingCall()) {
+            current.add(process);
+        } else {
+            schedulers[nextAvailableScheduler(null)].add(process);
+        }
     }
 
     /**

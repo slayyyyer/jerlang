@@ -19,11 +19,11 @@ import org.jerlang.type.stack.StackFrame;
  * erlang:process_info/1,2.
  *
  * The items this runtime can answer are implemented; an item it does not know
- * is a badarg, as in OTP. Two of them are approximations: there is no
- * reduction counter and no word count for a JVM object graph, so reductions,
- * heap_size and stack_size report 0. They are present because the crash report
- * asks for them, and a report that fails while reporting a failure is worse
- * than one with a zero in it.
+ * is a badarg, as in OTP. Reductions are counted per executed instruction.
+ * There is no word count for a JVM object graph, so heap_size and stack_size
+ * still report 0. They are present because the crash report asks for them, and
+ * a report that fails while reporting a failure is worse than one with a zero
+ * in it.
  *
  * process_info(Pid, registered_name) is the odd one: OTP returns the bare
  * empty list for a process without a name, not a {registered_name, []} tuple,
@@ -40,8 +40,11 @@ public class ErlangProcessInfo {
     private static final Atom STATUS = Atom.of("status");
     private static final Atom CURRENT_FUNCTION = Atom.of("current_function");
     private static final Atom REDUCTIONS = Atom.of("reductions");
+    private static final Atom MEMORY = Atom.of("memory");
     private static final Atom HEAP_SIZE = Atom.of("heap_size");
     private static final Atom STACK_SIZE = Atom.of("stack_size");
+    private static final Atom MAX_HEAP_SIZE = Atom.of("max_heap_size");
+    private static final Atom MESSAGE_QUEUE_DATA = Atom.of("message_queue_data");
     private static final Atom CURRENT_STACKTRACE = Atom.of("current_stacktrace");
 
     private ErlangProcessInfo() {
@@ -73,7 +76,8 @@ public class ErlangProcessInfo {
         }
         Term[] items = { REGISTERED_NAME, DICTIONARY, MESSAGE_QUEUE_LEN, MESSAGES,
                          LINKS, TRAP_EXIT, STATUS, CURRENT_FUNCTION, REDUCTIONS,
-                         HEAP_SIZE, STACK_SIZE };
+                         MEMORY, HEAP_SIZE, STACK_SIZE, MAX_HEAP_SIZE,
+                         MESSAGE_QUEUE_DATA };
         List info = List.nil;
         for (Term item : items) {
             info = new List(entry(process, item), info);
@@ -167,9 +171,16 @@ public class ErlangProcessInfo {
             // gen_server asks for this while terminating a server, to report
             // where the terminate callback was called from.
             return process.stacktrace();
-        } else if (item.equals(REDUCTIONS) || item.equals(HEAP_SIZE)
-            || item.equals(STACK_SIZE)) {
+        } else if (item.equals(REDUCTIONS)) {
+            return new Integer(java.math.BigInteger.valueOf(process.reductions()));
+        } else if (item.equals(MEMORY)) {
+            return new Integer(java.math.BigInteger.valueOf(process.memory()));
+        } else if (item.equals(HEAP_SIZE) || item.equals(STACK_SIZE)) {
             return Integer.of(0);
+        } else if (item.equals(MAX_HEAP_SIZE)) {
+            return process.maxHeapSize();
+        } else if (item.equals(MESSAGE_QUEUE_DATA)) {
+            return process.messageQueueData();
         }
         throw badarg;
     }

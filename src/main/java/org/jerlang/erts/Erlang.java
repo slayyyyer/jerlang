@@ -21,6 +21,7 @@ import org.jerlang.erts.erlang.ErlangBitstringToList;
 import org.jerlang.erts.erlang.ErlangCancelTimer;
 import org.jerlang.erts.erlang.ErlangByteSize;
 import org.jerlang.erts.erlang.ErlangDemonitor;
+import org.jerlang.erts.erlang.ErlangDiv;
 import org.jerlang.erts.erlang.ErlangDisplay;
 import org.jerlang.erts.erlang.ErlangElement;
 import org.jerlang.erts.erlang.ErlangError;
@@ -88,6 +89,8 @@ import org.jerlang.erts.erlang.ErlangSpawnRequestAbandon;
 import org.jerlang.erts.erlang.ErlangSystemInfo;
 import org.jerlang.erts.erlang.ErlangTermToBinary;
 import org.jerlang.erts.erlang.ErlangThrow;
+import org.jerlang.erts.erlang.ErlangTrace;
+import org.jerlang.erts.erlang.ErlangTracePattern;
 import org.jerlang.erts.erlang.ErlangTl;
 import org.jerlang.erts.erlang.ErlangTupleSize;
 import org.jerlang.erts.erlang.ErlangTupleToList;
@@ -420,6 +423,14 @@ public class Erlang {
         return ErlangProcessInfo.process_info_2(pid, item);
     }
 
+    public static Term trace(Term target, Term how, List flags) {
+        return ErlangTrace.trace_3(target, how, flags);
+    }
+
+    public static Term trace_pattern(Term target, Term matchSpec, List flags) {
+        return ErlangTracePattern.trace_pattern_3(target, matchSpec, flags);
+    }
+
     public static Term put(Term key, Term val) {
         return ErlangPut.put_2(key, val);
     }
@@ -502,6 +513,10 @@ public class Erlang {
 
     public static Term whereis(Atom name) {
         return ErlangWhereis.whereis_1(name);
+    }
+
+    public static Integer div(Integer a, Integer b) {
+        return ErlangDiv.div_2(a, b);
     }
 
     public static Integer rem(Integer a, Integer b) {

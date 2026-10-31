@@ -21,6 +21,7 @@ import org.jerlang.type.PID;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
+import org.jerlang.vm.Scheduler;
 import org.jerlang.vm.VirtualMachine;
 
 /**
@@ -504,20 +505,35 @@ public final class Applications {
         }
         Term reference = Erlang.monitor(PROCESS, child.pid());
         // The caller's scheduler thread is about to poll for the monitor DOWN
-        // message, so the callback has to run somewhere else. Otherwise the
-        // callback, and everything it starts, sits in the blocked queue.
-        machine.schedule(child, caller.scheduler());
-        Term down = caller.awaitMessage(message -> isDown(message, reference, child.pid()), timeout);
-        if (down == null) {
-            Erlang.exit(child.pid(), Atom.of("kill"));
-            return new Call(List.nil, Atom.of("timeout"));
+        // message, so the callback has to run somewhere else. Mark the
+        // scheduler blocked before the callback can run: the callback starts
+        // its supervision tree immediately, and a descendant spawned before
+        // the mark would be queued on this scheduler, behind the wait. The
+        // callback would then never get its start ack and the start would
+        // time out.
+        Scheduler scheduler = caller.scheduler();
+        if (scheduler != null) {
+            scheduler.enterBlockingCall();
         }
-        Term reason = ((Tuple) down).element(5);
-        if (!NORMAL.equals(reason)) {
-            return new Call(List.nil, reason);
+        try {
+            machine.schedule(child, scheduler);
+            Term down = caller.awaitMessage(
+                message -> isDown(message, reference, child.pid()), timeout);
+            if (down == null) {
+                Erlang.exit(child.pid(), Atom.of("kill"));
+                return new Call(List.nil, Atom.of("timeout"));
+            }
+            Term reason = ((Tuple) down).element(5);
+            if (!NORMAL.equals(reason)) {
+                return new Call(List.nil, reason);
+            }
+            Term result = child.getX(0);
+            return new Call(result == null ? List.nil : result, null);
+        } finally {
+            if (scheduler != null) {
+                scheduler.exitBlockingCall();
+            }
         }
-        Term result = child.getX(0);
-        return new Call(result == null ? List.nil : result, null);
     }
 
     private static boolean isDown(Term message, Term reference, PID pid) {
@@ -554,11 +570,24 @@ public final class Applications {
             return;
         }
         Term reference = Erlang.monitor(PROCESS, pid);
-        Erlang.send(pid, Tuple.of(SYSTEM, Tuple.of(caller.pid(), reference),
-            Tuple.of(TERMINATE, SHUTDOWN)));
-        if (caller.awaitMessage(message -> isDown(message, reference, pid), 5000) == null
-            && alive(pid)) {
-            Erlang.exit(pid, Atom.of("kill"));
+        // Mark the scheduler blocked before the message wakes the supervisor
+        // or one of its children. A process woken while its scheduler is
+        // blocked would sit behind this wait until the shutdown timeout.
+        Scheduler scheduler = caller.scheduler();
+        if (scheduler != null) {
+            scheduler.enterBlockingCall();
+        }
+        try {
+            Erlang.send(pid, Tuple.of(SYSTEM, Tuple.of(caller.pid(), reference),
+                Tuple.of(TERMINATE, SHUTDOWN)));
+            if (caller.awaitMessage(message -> isDown(message, reference, pid), 5000) == null
+                && alive(pid)) {
+                Erlang.exit(pid, Atom.of("kill"));
+            }
+        } finally {
+            if (scheduler != null) {
+                scheduler.exitBlockingCall();
+            }
         }
     }
 

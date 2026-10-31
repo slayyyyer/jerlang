@@ -11,9 +11,6 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.jerlang.erts.dist.Distribution;
@@ -34,6 +31,7 @@ import org.jerlang.type.Tuple;
 import org.jerlang.type.stack.ExceptionHandler;
 import org.jerlang.type.stack.StackFrame;
 import org.jerlang.vm.Scheduler;
+import org.jerlang.vm.TimerWheel;
 import org.jerlang.vm.VirtualMachine;
 
 /**
@@ -46,16 +44,6 @@ import org.jerlang.vm.VirtualMachine;
  * http://www.erlang.org/doc/reference_manual/processes.html
  */
 public class Process extends ProcessOrPort {
-
-    /**
-     * Fires the timers of `receive ... after Timeout` expressions. Daemon
-     * threads, so a waiting process never keeps the VM alive.
-     */
-    private static final ScheduledThreadPoolExecutor WAIT_TIMERS = new ScheduledThreadPoolExecutor(1, runnable -> {
-        Thread thread = new Thread(runnable, "jerlang-wait-timer");
-        thread.setDaemon(true);
-        return thread;
-    });
 
     // See "erts/emulator/beam/erl_vm.h":
     private final int MAX_REG = 1024;
@@ -116,6 +104,29 @@ public class Process extends ProcessOrPort {
     // are still in scope when it is resumed.
     private volatile long waitActivation = 0;
 
+    // Reduction accounting. Every instruction costs one reduction. A
+    // scheduler starts a time slice with a budget; when the budget is spent
+    // the interpreter saves where to continue and gives the scheduler back
+    // its thread. Inline calls from Java leave the budget at -1, so they run
+    // to completion without a scheduler to return to.
+    private long reductions = 0;
+    private long reductionCredit = -1;
+    private int interpreterFrames = 0;
+    private boolean yielded = false;
+    private Module yieldModule = null;
+    private int yieldIndex = -1;
+    private long yieldActivation = 0;
+
+    // Tail-call continuations of the activation that is running. A
+    // cross-module tail call replaces the activation instead of nesting a
+    // Java frame, so the place it has to return to is explicit. The stack is
+    // per interpreter frame: a nested call gets its own, empty one.
+    private final java.util.Deque<java.util.Deque<TailTarget>> tailTargetScopes =
+        new java.util.ArrayDeque<>();
+    private java.util.List<TailTarget> waitTailTargets = java.util.Collections.emptyList();
+    private java.util.List<TailTarget> yieldTailTargets = java.util.Collections.emptyList();
+    private TailCall pendingTailCall = null;
+
     // The enclosing activations of a suspended nested call, innermost first.
     // A cross-module call runs on the Java stack, which a parked process
     // loses, so each activation records where it continues after the call.
@@ -134,7 +145,7 @@ public class Process extends ProcessOrPort {
     // this position did not match the clauses already tried and stay in
     // the mailbox for later receives, as Erlang/OTP requires.
     private int receivePosition = 0;
-    private ScheduledFuture<?> waitTimer = null;
+    private TimerWheel.Handle waitTimer = null;
 
     private static final Atom DOWN = Atom.of("DOWN");
     private static final Atom PROCESS = Atom.of("process");
@@ -170,6 +181,13 @@ public class Process extends ProcessOrPort {
 
     private volatile boolean trapExit = false;
 
+    // process_flag(max_heap_size, #{...}) and process_flag(message_queue_data,
+    // ...). The runtime has no per-process heap of its own, so the heap limit
+    // is kept for process_info and for a future allocator; it does not kill
+    // anything yet. The queue mode is likewise reported, not enforced.
+    private volatile Term maxHeapSize = defaultMaxHeapSize();
+    private volatile Atom messageQueueData = Atom.of("on_heap");
+
     /**
      * Whether a normal exit must leave this process' links alone.
      *
@@ -182,6 +200,11 @@ public class Process extends ProcessOrPort {
     private volatile boolean keepLinksOnNormalExit = false;
     private volatile Term pendingExit = null;
     private volatile boolean terminated = false;
+
+    // erlang:trace/3 flags and the tracer they report to. A process with no
+    // flags has an empty set, so the interpreter's hot path is one map check.
+    private final Set<Atom> traceFlags = ConcurrentHashMap.newKeySet();
+    private volatile PID traceTracer = null;
 
     public Process(PID pid) {
         super(pid);
@@ -421,7 +444,7 @@ public class Process extends ProcessOrPort {
         try {
             mailbox.put(message);
             if (wake()) {
-                scheduler().add(this);
+                VirtualMachine.instance().wake(this);
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -440,7 +463,7 @@ public class Process extends ProcessOrPort {
         waitGeneration++;
         waitTimedOut = false;
         if (waitTimer != null) {
-            waitTimer.cancel(false);
+            waitTimer.cancel();
             waitTimer = null;
         }
         // Stay WAITING: execute() dispatches a wakeup by resuming the
@@ -462,11 +485,12 @@ public class Process extends ProcessOrPort {
         waitModule = module;
         waitIndex = index;
         waitActivation = currentActivation();
+        waitTailTargets = tailTargetsSnapshot();
         waitLabel = label;
         waitTimedOut = false;
         waitGeneration++;
         if (waitTimer != null) {
-            waitTimer.cancel(false);
+            waitTimer.cancel();
             waitTimer = null;
         }
         setState(ProcessState.WAITING);
@@ -475,8 +499,8 @@ public class Process extends ProcessOrPort {
                 waitTimedOut = true;
             } else {
                 long generation = waitGeneration;
-                waitTimer = WAIT_TIMERS.schedule(() -> timeout(generation),
-                    timeoutMillis, TimeUnit.MILLISECONDS);
+                waitTimer = VirtualMachine.instance().timerWheel()
+                    .schedule(() -> timeout(generation), timeoutMillis);
             }
         }
         // A message or an exit signal can land between the receive scanning
@@ -487,7 +511,7 @@ public class Process extends ProcessOrPort {
         // process that has a message from the receive label, and terminates
         // one that has a pending exit before it runs.
         if ((hasMessage() || hasPendingExit()) && scheduler() != null) {
-            scheduler().add(this);
+            VirtualMachine.instance().wake(this);
         }
     }
 
@@ -503,7 +527,7 @@ public class Process extends ProcessOrPort {
             }
             // Stay WAITING: execute() takes the timeout continuation.
         }
-        scheduler().add(this);
+        VirtualMachine.instance().wake(this);
     }
 
     public void setCP(int cp) {
@@ -641,11 +665,14 @@ public class Process extends ProcessOrPort {
         private final Module module;
         private final int index;
         private final long activation;
+        private final java.util.List<TailTarget> tailTargets;
 
-        ResumePoint(Module module, int index, long activation) {
+        ResumePoint(Module module, int index, long activation,
+            java.util.List<TailTarget> tailTargets) {
             this.module = module;
             this.index = index;
             this.activation = activation;
+            this.tailTargets = tailTargets;
         }
 
         public Module module() {
@@ -665,6 +692,60 @@ public class Process extends ProcessOrPort {
             return activation;
         }
 
+        public java.util.List<TailTarget> tailTargets() {
+            return tailTargets;
+        }
+
+    }
+
+    /**
+     * Where a trampolined cross-module tail call returns: an instruction
+     * index in the module that made the call. The stack of these replaces the
+     * Java frames that tail calls used to nest.
+     */
+    public static final class TailTarget {
+
+        private final Module module;
+        private final int index;
+
+        TailTarget(Module module, int index) {
+            this.module = module;
+            this.index = index;
+        }
+
+        public Module module() {
+            return module;
+        }
+
+        public int index() {
+            return index;
+        }
+
+    }
+
+    /**
+     * An instruction stream the interpreter loop should switch to without a
+     * Java call. The caller has already popped the replaced frame and pushed
+     * the target frame.
+     */
+    public static final class TailCall {
+
+        private final Module module;
+        private final int start;
+
+        TailCall(Module module, int start) {
+            this.module = module;
+            this.start = start;
+        }
+
+        public Module module() {
+            return module;
+        }
+
+        public int start() {
+            return start;
+        }
+
     }
 
     /**
@@ -672,7 +753,60 @@ public class Process extends ProcessOrPort {
      * another module's code.
      */
     public void pushResumePoint(Module module, int index) {
-        resumePoints.push(new ResumePoint(module, index, currentActivation()));
+        resumePoints.push(new ResumePoint(module, index, currentActivation(),
+            tailTargetsSnapshot()));
+    }
+
+    /**
+     * Enter the tail-call continuation scope of a new interpreter frame,
+     * restoring the continuations of a resumed activation.
+     */
+    public java.util.Deque<TailTarget> enterTailTargets(java.util.List<TailTarget> saved) {
+        java.util.Deque<TailTarget> targets = new java.util.ArrayDeque<>();
+        if (saved != null) {
+            targets.addAll(saved);
+        }
+        tailTargetScopes.push(targets);
+        return targets;
+    }
+
+    public void exitTailTargets() {
+        if (!tailTargetScopes.isEmpty()) {
+            tailTargetScopes.pop();
+        }
+    }
+
+    /**
+     * Remember that a tail call from this module has to return to the given
+     * instruction index once the chain it starts ends.
+     */
+    public void pushTailTarget(Module module, int index) {
+        java.util.Deque<TailTarget> targets = tailTargetScopes.peek();
+        if (targets != null) {
+            targets.push(new TailTarget(module, index));
+        }
+    }
+
+    public java.util.List<TailTarget> tailTargetsSnapshot() {
+        java.util.Deque<TailTarget> targets = tailTargetScopes.peek();
+        if (targets == null) {
+            return java.util.Collections.emptyList();
+        }
+        return new java.util.ArrayList<>(targets);
+    }
+
+    /**
+     * Ask the interpreter loop to continue at another module's instruction
+     * stream after the current instruction.
+     */
+    public void requestTailCall(Module module, int start) {
+        pendingTailCall = new TailCall(module, start);
+    }
+
+    public TailCall takeTailCall() {
+        TailCall call = pendingTailCall;
+        pendingTailCall = null;
+        return call;
     }
 
     /**
@@ -694,6 +828,144 @@ public class Process extends ProcessOrPort {
         if (!activations.isEmpty()) {
             activations.pop();
         }
+    }
+
+    /**
+     * Start a scheduler time slice. The interpreter spends this budget one
+     * instruction at a time and yields when it reaches zero.
+     */
+    public void beginTimeSlice(long credit) {
+        reductionCredit = credit;
+    }
+
+    public void spendReduction() {
+        reductions++;
+        if (reductionCredit > 0) {
+            reductionCredit--;
+        }
+    }
+
+    public boolean reductionSliceExhausted() {
+        return reductionCredit == 0;
+    }
+
+    public long reductions() {
+        return reductions;
+    }
+
+    /**
+     * The value erlang:process_info(Pid, memory) reports. A JVM object graph
+     * has no word count, so this is a stable estimate of the runtime's own
+     * arrays and the mailbox, not a measured heap size.
+     */
+    public long memory() {
+        int registerCount = registers == null ? 0 : registers.length;
+        return 8L * (stack.length + registerCount + mailboxSize() + framesDepth() * 4 + 16);
+    }
+
+    public boolean traceFlag(Atom flag) {
+        return !traceFlags.isEmpty() && traceFlags.contains(flag);
+    }
+
+    public void setTraceFlag(Atom flag, boolean enabled) {
+        if (enabled) {
+            traceFlags.add(flag);
+        } else {
+            traceFlags.remove(flag);
+        }
+    }
+
+    public void clearTraceFlags() {
+        traceFlags.clear();
+    }
+
+    public void setTraceTracer(PID tracer) {
+        traceTracer = tracer;
+    }
+
+    public PID traceTracer() {
+        return traceTracer;
+    }
+
+    /**
+     * Deliver one trace event to the tracer. The tracer is a normal process,
+     * so this is an ordinary message send and does not wait for it.
+     */
+    public void trace(Term event) {
+        PID tracer = traceTracer;
+        if (tracer == null) {
+            return;
+        }
+        ProcessOrPort target = ProcessRegistry.resolve(tracer);
+        if (target instanceof Process) {
+            ((Process) target).send(event);
+        }
+    }
+
+    public Term maxHeapSize() {
+        return maxHeapSize;
+    }
+
+    public Term setMaxHeapSize(Term value) {
+        Term previous = maxHeapSize;
+        maxHeapSize = value;
+        return previous;
+    }
+
+    public Atom messageQueueData() {
+        return messageQueueData;
+    }
+
+    public Atom setMessageQueueData(Atom value) {
+        Atom previous = messageQueueData;
+        messageQueueData = value;
+        return previous;
+    }
+
+    private static Term defaultMaxHeapSize() {
+        org.jerlang.type.Map map = new org.jerlang.type.Map();
+        map.set(Atom.of("size"), Integer.ZERO);
+        map.set(Atom.of("kill"), org.jerlang.type.Boolean.am_true);
+        map.set(Atom.of("error_logger"), org.jerlang.type.Boolean.am_true);
+        return map;
+    }
+
+    /**
+     * The number of interpreter frames currently on the Java stack. A nested
+     * call has a depth greater than one; yielding there would cut a Java frame
+     * in the middle of a call, so preemption is only taken at the outermost
+     * frame for now. This counts physical frames, not activation identifiers:
+     * a process that parked for a message is resumed without re-pushing its
+     * identifier, but its interpreter frame is still counted.
+     */
+    public int interpreterFrames() {
+        return interpreterFrames;
+    }
+
+    public void enterInterpreterFrame() {
+        interpreterFrames++;
+    }
+
+    public void exitInterpreterFrame() {
+        interpreterFrames--;
+    }
+
+    public boolean hasResumePoints() {
+        return !resumePoints.isEmpty();
+    }
+
+    /**
+     * Save an instruction boundary and make the process runnable again. The
+     * interpreter returns to the scheduler, which puts the process at the
+     * back of its run queue.
+     */
+    public void yieldActivation(Module module, int index, long activation) {
+        yieldModule = module;
+        yieldIndex = index;
+        yieldActivation = activation;
+        yieldTailTargets = tailTargetsSnapshot();
+        yielded = true;
+        setState(ProcessState.RUNNABLE);
     }
 
     /**
@@ -722,7 +994,8 @@ public class Process extends ProcessOrPort {
             ResumePoint point = resumePoints.pop();
             // The activation was suspended inside the call instruction.
             setCP(point.index() - 1);
-            Interpreter.continueExecution(point.module(), point.index(), point.activation());
+            Interpreter.continueExecution(point.module(), point.index(), point.activation(),
+                point.tailTargets());
         }
     }
 
@@ -740,9 +1013,11 @@ public class Process extends ProcessOrPort {
                 waitLabel = null;
                 setCP(waitIndex);
                 if (label != null) {
-                    Interpreter.continueExecutionAtLabel(waitModule, label, waitActivation);
+                    Interpreter.continueExecutionAtLabel(waitModule, label, waitActivation,
+                        waitTailTargets);
                 } else {
-                    Interpreter.continueExecution(waitModule, waitIndex, waitActivation);
+                    Interpreter.continueExecution(waitModule, waitIndex, waitActivation,
+                        waitTailTargets);
                 }
                 finishResumePoints();
             } else if (waitTimedOut) {
@@ -754,12 +1029,23 @@ public class Process extends ProcessOrPort {
                 receivePosition = 0;
                 // The wait instruction is followed by the timeout code.
                 setCP(waitIndex);
-                Interpreter.continueExecution(waitModule, waitIndex + 1, waitActivation);
+                Interpreter.continueExecution(waitModule, waitIndex + 1, waitActivation,
+                    waitTailTargets);
                 finishResumePoints();
             }
             break;
         case RUNNABLE:
-            if (funEntry >= 0) {
+            if (yielded) {
+                Module module = yieldModule;
+                int index = yieldIndex;
+                long activation = yieldActivation;
+                yielded = false;
+                yieldModule = null;
+                yieldIndex = -1;
+                setState(ProcessState.RUNNING);
+                Interpreter.resumeExecution(module, index, activation, yieldTailTargets);
+                finishResumePoints();
+            } else if (funEntry >= 0) {
                 int start = funEntry;
                 funEntry = -1;
                 setCP(0);
@@ -1311,10 +1597,7 @@ public class Process extends ProcessOrPort {
             }
         }
         if (waiting) {
-            Scheduler scheduler = scheduler();
-            if (scheduler != null) {
-                scheduler.add(this);
-            }
+            VirtualMachine.instance().wake(this);
         }
     }
 
@@ -1333,7 +1616,7 @@ public class Process extends ProcessOrPort {
         // the DOWN and restarts the child already finds the name free.
         TableRegistry.deleteOwnedBy(pid());
         if (waitTimer != null) {
-            waitTimer.cancel(false);
+            waitTimer.cancel();
             waitTimer = null;
         }
         Termination termination = new Termination(pid(), reason,
@@ -1450,18 +1733,29 @@ public class Process extends ProcessOrPort {
      * Remove the message the receive loop is looking at. Like the BEAM
      * instruction, this does not touch any register.
      */
-    public void removeMessage() {
+    public synchronized void removeMessage() {
         Iterator<Term> iterator = mailbox.iterator();
         int index = 0;
+        Term selected = null;
         while (iterator.hasNext()) {
-            iterator.next();
+            Term message = iterator.next();
             if (index++ == receivePosition) {
+                selected = message;
                 iterator.remove();
                 break;
             }
         }
         receivePosition = 0;
-        // TODO: remove timer
+        // A message that was already in the mailbox when the receive parked
+        // still armed a timeout. Matching it ends the receive, so the timeout
+        // must not fire for a later receive expression.
+        if (waitTimer != null) {
+            waitTimer.cancel();
+            waitTimer = null;
+        }
+        if (selected != null) {
+            Tracing.receive(this, selected);
+        }
     }
 
     public void popSignature() {

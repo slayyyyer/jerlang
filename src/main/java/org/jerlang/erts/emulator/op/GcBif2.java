@@ -40,23 +40,10 @@ public class GcBif2 {
         ArrayList<FunctionSignature> imports = m.beamData().importTableChunk().imports();
         FunctionSignature s = imports.get(bif.toInteger().toInt());
 
-        List args = List.nil;
-
-        if (arg2 instanceof Integer) {
-            args = new List(arg2, args);
-        } else if (arg2.isXRegister()) {
-            args = new List(arg2.toArg(process), args);
-        } else {
-            throw new Error("Unsupported ARG2: " + arg2);
-        }
-
-        if (arg1.isXRegister() || arg1.isYRegister()) {
-            args = new List(arg1.toArg(process), args);
-        } else if (arg1 instanceof Integer) {
-            args = new List(arg1, args);
-        } else {
-            throw new Error("Unsupported ARG1: " + arg1);
-        }
+        // Both operands can be X registers, Y registers or literals. The
+        // older handler only accepted an X register in the second slot,
+        // which an ordinary `length(List) * 99` spills to a Y register.
+        List args = List.of(arg1.toArg(process), arg2.toArg(process));
 
         Term result = Erlang.apply(s.module(), s.function(), args);
 
