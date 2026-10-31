@@ -53,7 +53,7 @@ What works today:
   `code:load_file/1`, `code:is_loaded/1`, `code:get_path/0`,
   `code:add_patha/1`, `code:add_pathz/1` and `code:del_path/1` report and use
   it. Modules load from any directory on the path, not just the working one.
-* A 479-test suite. The unit tests need no Erlang and run on every push and
+* A 494-test suite. The unit tests need no Erlang and run on every push and
   pull request. Ten tests drive OTP's own modules and run in a separate CI job
   with an OTP 29 installation; a further 15 are opt-in external or machine
   tests (the live peer suite, the pass-rate run and the benchmarks).
@@ -119,7 +119,7 @@ notes and documents the one remaining language-feature gap.
 |0.5    |Language completeness     |A corpus of constructs runs with no unsupported opcode           |Done   |
 |0.6    |Standard library boot     |Unmodified `gen_server`/`supervisor` start via `application`     |Done   |
 |0.7    |Runtime and concurrency   |Preemption, timer bounds, no leaked processes under stress       |Done   |
-|0.8    |Interop and embedding     |Java↔Erlang examples in CI and a frozen API                      |Planned|
+|0.8    |Interop and embedding     |Java↔Erlang examples in CI and a frozen API                      |In progress|
 |0.9    |Cluster and operations    |Metrics, reconnection and graceful shutdown under load           |Planned|
 |1.0    |Release                   |Benchmarks against OTP 29, 24 hour soak, fuzzing, artifact       |Planned|
 
@@ -160,8 +160,9 @@ The reverse direction is `org.jerlang.api.Bridge`:
 Term result = Bridge.call("lists", "reverse", List.of(Integer.of(1), Integer.of(2)));
 ```
 
-The bridge's type mapping and handle lifetime are not frozen yet; that is the
-0.8 milestone.
+The type mapping is specified row by row in
+[docs/java-interop.md](docs/java-interop.md) and covered by `TypeMappingTest`;
+object-handle lifetime and the embedding API are still 0.8 work.
 
 ## Compiled Erlang
 
@@ -221,6 +222,7 @@ mvn pitest:mutationCoverage -DtargetClasses=org.jerlang.type.Nil -DtargetTests=o
 
 ## Documentation
 
+* [docs/java-interop.md](docs/java-interop.md) — the value mapping and bridge rules
 * [docs/roadmap.md](docs/roadmap.md) — milestones from 0.4 to a production release
 * [docs/beam-compatibility.md](docs/beam-compatibility.md) — opcode and language coverage
 * [docs/distribution.md](docs/distribution.md) — distribution protocol and sockets

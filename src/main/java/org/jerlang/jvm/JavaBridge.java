@@ -11,6 +11,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -462,6 +463,15 @@ public final class JavaBridge {
             }
             return array;
         }
+        if (term instanceof org.jerlang.type.Map) {
+            org.jerlang.type.Map map = (org.jerlang.type.Map) term;
+            Map<Object, Object> result = new LinkedHashMap<>();
+            for (List keys = map.keys(); keys.length() > 0; keys = keys.tail()) {
+                Term key = keys.head();
+                result.put(toJava(key), toJava(map.get(key)));
+            }
+            return result;
+        }
         if (term instanceof List) {
             return toJavaList((List) term);
         }
@@ -516,6 +526,13 @@ public final class JavaBridge {
                 terms[index] = toTerm(array[index]);
             }
             return Tuple.of(terms);
+        }
+        if (object instanceof java.util.Map) {
+            org.jerlang.type.Map map = new org.jerlang.type.Map();
+            for (Map.Entry<?, ?> entry : ((java.util.Map<?, ?>) object).entrySet()) {
+                map.set(toTerm(entry.getKey()), toTerm(entry.getValue()));
+            }
+            return map;
         }
         if (object instanceof Collection) {
             Collection<?> collection = (Collection<?>) object;
