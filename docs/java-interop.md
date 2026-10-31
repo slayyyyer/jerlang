@@ -66,8 +66,69 @@ Handles are node-local and are not Erlang terms that can be sent to another
 node.
 
 The handle table currently has no owner and is not bounded: a program that
-never releases handles keeps its Java objects alive. Ownership and a documented
-release policy are still open 0.8 work, as is the embedding API.
+never releases handles keeps its Java objects alive. Ownership and a release
+policy are decided but not implemented; see
+[Decided but not yet implemented](#decided-but-not-yet-implemented).
+
+## Decided but not yet implemented
+
+These decisions are recorded before the code lands, so the contract can be
+reviewed on its own. Everything above describes what the code does today; this
+section describes what 0.8 must make it do.
+
+### Handle ownership and lifetime
+
+The handle table moves off the static fields in `JavaBridge` and onto the
+`VirtualMachine` instance, so a handle lives exactly as long as its node.
+
+* No owner argument is threaded through `java:*`. Erlang code running inside a
+  node is already inside its scope, so the arities do not change.
+* `java:release/1` becomes early release. `Node.close()` drains the table, so
+  shutdown releases every handle without a finalizer or a `Cleaner`.
+* The table is bounded by `NodeOptions.maxHandles`, default 100 000. Creating a
+  handle past the cap raises `system_limit`, the reason Erlang already uses for
+  an exhausted runtime resource. `{java_exception, _, _}` stays reserved for
+  exceptions thrown by Java code.
+
+### Reflection is opt-in
+
+`NodeOptions.reflection(boolean)` defaults to `false`. The `java` module is
+registered on node start and unregistered on close, so a node that does not ask
+for reflection has no `java:new/2` and cannot reach arbitrary JVM classes.
+`Bridge` and the value mapping are unaffected, because neither needs the module.
+
+### Embedding API
+
+`org.jerlang.api.Node` implements `AutoCloseable` and owns the node:
+
+```java
+Node node = Node.start(NodeOptions.builder().reflection(true).build());
+node.registerFunction("my_mod", "echo", 1, args -> args[0]);
+Term reply = node.apply("gen_server", "call", pid, request, Integer.of(5000));
+Term out = node.apply(anErlangFun, Integer.of(41));
+node.close();
+```
+
+`apply` takes both a module name and an Erlang fun. `registerFunction` makes a
+Java lambda callable from Erlang through the normal module registry. `Bridge`
+stays as it is: a static convenience over a default node.
+
+### Deterministic overload resolution
+
+Conversion distance picks the candidate, as it does today. Ties are broken by
+parameter specificity and then by sorted signature, so the same call picks the
+same method on every JVM. Today a tie is settled by `Class#getMethods`
+iteration order, which the JDK does not specify. Varargs are supported for a
+trailing `Object...` parameter only.
+
+### Compatibility gate
+
+`mvn verify` runs japicmp 0.26.5 against a baseline jar checked in under
+`src/api-baseline/`, with `accessModifier public`,
+`breakBuildOnSourceIncompatibleModifications` and
+`breakBuildBasedOnSemanticVersioning`. Because the project is still `0.x`,
+`breakBuildBasedOnSemanticVersioningForMajorVersionZero` must also be set or the
+gate does nothing. The baseline is refreshed only when the version is bumped.
 
 ## Stability
 
