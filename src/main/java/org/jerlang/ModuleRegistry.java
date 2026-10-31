@@ -55,7 +55,7 @@ public class ModuleRegistry {
      * runtime's implementations of them.
      */
     private static final Set<Atom> BEAM_PREFERRED = new HashSet<>(
-        Arrays.asList(Atom.of("lists")));
+        Arrays.asList(Atom.of("lists"), Atom.of("timer")));
 
     private final Map<Atom, Module> modules;
 

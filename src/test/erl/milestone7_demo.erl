@@ -6,7 +6,7 @@
 %%   erlc -o src/test/resources src/test/erl/milestone7_demo.erl
 -module(milestone7_demo).
 
--export([spawn_cycles/1, timer_bound/1, signals/1, info/0, priority/1,
+-export([spawn_cycles/1, timer_bound/1, timer_api/0, signals/1, info/0, priority/1,
          trace_calls/0, trace_tail_calls/0, trace_messages/0, target/1]).
 
 %% 10k spawn/monitor/exit cycles. Every child is gone before the caller
@@ -24,6 +24,25 @@ wait_down([{Pid, Ref} | Rest]) ->
     after 5000 ->
         {timeout, Pid}
     end.
+
+%% The timer module has to expose OTP's shapes: send_after returns
+%% {ok, {send_local, TRef}}, cancel accepts that wrapper, and read_timer is
+%% an exported erlang BIF. The standard test job has no timer.beam on the
+%% code path, so this exercises the built-in fallback; the OTP job exercises
+%% the real stdlib module when one is installed.
+timer_api() ->
+    {ok, {instant, _InstantRef}} = timer:send_after(0, self(), instant_tick),
+    receive instant_tick -> ok after 1000 -> instant_timeout end,
+    {ok, {send_local, SendRef}} = timer:send_after(1000, self(), timer_tick),
+    SendRemaining = erlang:read_timer(SendRef),
+    true = is_integer(SendRemaining),
+    {ok, cancel} = timer:cancel({send_local, SendRef}),
+    false = erlang:cancel_timer(SendRef),
+    StartRef = erlang:start_timer(1000, self(), start_tick),
+    StartRemaining = erlang:read_timer(StartRef),
+    true = is_integer(StartRemaining),
+    true = is_integer(erlang:cancel_timer(StartRef)),
+    {ok, SendRemaining > 0, StartRemaining > 0}.
 
 %% One round of every timer form, with the elapsed milliseconds for each.
 %% The Java test checks both the lower bound (it did wait) and an upper bound

@@ -74,6 +74,12 @@ public class Milestone7Test {
     }
 
     @Test
+    public void testTimerModuleMatchesOtpApi() throws Throwable {
+        Term result = apply("timer_api", List.nil);
+        assertEquals(Tuple.of(Atom.of("ok"), Boolean.am_true, Boolean.am_true), result);
+    }
+
+    @Test
     public void testLinkMonitorStressLosesNoSignal() throws Throwable {
         Term result = apply("signals", List.of(Integer.of(500)));
         assertEquals(Tuple.of(Atom.of("ok"), Integer.of(500), Integer.of(500)), result);

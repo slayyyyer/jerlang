@@ -1,12 +1,10 @@
 package org.jerlang.stdlib;
 
-import org.jerlang.ProcessRegistry;
 import org.jerlang.stdlib.timer.TimerCancel;
+import org.jerlang.stdlib.timer.TimerSendAfter;
 import org.jerlang.type.Integer;
 import org.jerlang.type.PID;
 import org.jerlang.type.Term;
-import org.jerlang.type.TimerReference;
-import org.jerlang.vm.VirtualMachine;
 
 /**
  * = timer
@@ -17,16 +15,16 @@ import org.jerlang.vm.VirtualMachine;
  */
 public class Timer {
 
-    public static Term cancel(TimerReference timerReference) {
-        return TimerCancel.cancel_1(timerReference);
+    public static Term cancel(Term timer) {
+        return TimerCancel.cancel_1(timer);
     }
 
     public static Term send_after(Integer time, Term message) {
-        return VirtualMachine.instance().send_after(time.toInt(), message, ProcessRegistry.self().pid());
+        return TimerSendAfter.send_after_2(time, message);
     }
 
     public static Term send_after(Integer time, PID pid, Term message) {
-        return VirtualMachine.instance().send_after(time.toInt(), message, pid);
+        return TimerSendAfter.send_after_3(time, pid, message);
     }
 
 }

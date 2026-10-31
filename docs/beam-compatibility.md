@@ -396,9 +396,12 @@ at the earliest deadline, with a 100 ms cap so a cancellation or a newly added
 timer is noticed promptly. A 10 ms timer is checked against a 250 ms bound by
 `Milestone7Test`, through all four entry points.
 
-The `timer` module is a built-in and exports `send_after/2,3` and `cancel/1`.
+The `timer` module loads OTP's `timer.beam` when it is on the code path, so
+its full API wins over the runtime's fallback. The fallback exports
+`send_after/2,3` and `cancel/1`; `send_after` returns OTP's
+`{ok, {send_local, TRef}}` shape, and `cancel/1` accepts that wrapper.
 `timer:apply_after`, the interval timers and the `{abs, ...}` timer options are
-not implemented.
+not implemented by the fallback.
 
 ## Process information and flags
 
