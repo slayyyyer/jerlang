@@ -3,6 +3,7 @@ package org.jerlang.vm;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jerlang.Process;
+import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
 import org.jerlang.Tracing;
 import org.jerlang.erts.erlang.Error;
@@ -234,6 +235,23 @@ public class VirtualMachine {
      */
     public void schedule(Process process) {
         schedule(process, null);
+    }
+
+    /**
+     * Put a process that was woken from a wait back on a run queue.
+     *
+     * Normally the process keeps the scheduler it last ran on. That scheduler
+     * may however be blocked in a wait for this very process (application
+     * start and stop do that); queueing behind the wait would deadlock until
+     * the timeout, so in that case the wakeup goes to another scheduler.
+     */
+    public void wake(ProcessOrPort process) {
+        Scheduler current = process.scheduler();
+        if (current != null && !current.isInBlockingCall()) {
+            current.add(process);
+        } else {
+            schedulers[nextAvailableScheduler(null)].add(process);
+        }
     }
 
     /**

@@ -444,7 +444,7 @@ public class Process extends ProcessOrPort {
         try {
             mailbox.put(message);
             if (wake()) {
-                scheduler().add(this);
+                VirtualMachine.instance().wake(this);
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -511,7 +511,7 @@ public class Process extends ProcessOrPort {
         // process that has a message from the receive label, and terminates
         // one that has a pending exit before it runs.
         if ((hasMessage() || hasPendingExit()) && scheduler() != null) {
-            scheduler().add(this);
+            VirtualMachine.instance().wake(this);
         }
     }
 
@@ -527,7 +527,7 @@ public class Process extends ProcessOrPort {
             }
             // Stay WAITING: execute() takes the timeout continuation.
         }
-        scheduler().add(this);
+        VirtualMachine.instance().wake(this);
     }
 
     public void setCP(int cp) {
@@ -1597,10 +1597,7 @@ public class Process extends ProcessOrPort {
             }
         }
         if (waiting) {
-            Scheduler scheduler = scheduler();
-            if (scheduler != null) {
-                scheduler.add(this);
-            }
+            VirtualMachine.instance().wake(this);
         }
     }
 
