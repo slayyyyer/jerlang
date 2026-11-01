@@ -15,7 +15,7 @@ what the code does today, not against the original intent.
 | ETS | `set` and `ordered_set`, with named tables and `{keypos, N}`. `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work. A table is destroyed with its owner, `give_away` moves ownership, table operations are locked, and `update_counter` is atomic across processes. Match specs support patterns, bodies, comparisons, boolean guards and the common type tests; `is_map_key` and arithmetic guards are missing, as are `bag`, `duplicate_bag`, `match_delete`, `select_delete` and heirs. |
 | OTP behaviours | OTP's unmodified `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and `code` run from an OTP installation. `gen_statem` is not verified. The application controller models `.app` loading, dependencies, included applications, start phases, environment and key bookkeeping; `application_master` itself, distributed takeover and automatic restart of a crashed permanent application are not modelled. A dead tree is reaped when the controller is queried, and its included applications are stopped with it. |
 | Scheduler | One scheduler thread per processor with no balancing. A process gets 1,000 instructions per slice, and a CPU-bound loop in its outermost activation yields at the next instruction boundary; `process_info(reductions)` reports the count. Cross-module tail calls switch instruction streams in place, so a tail loop stays preemptible; a yield inside a nested non-tail call is still deferred until that call returns. Run queues are split by max/high/normal/low priority, and `process_flag(priority, ...)` moves a queued process. All timers use one 512-slot, 1 ms timer wheel. |
-| Tests | 494 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 15 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run and the benchmarks). The 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Tests | 522 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 15 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
 | CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, an `otp` job that runs the OTP-backed behaviour tests, and a `conformance` job that installs OTP and enforces the pass-rate floor. |
 | Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
@@ -215,17 +215,41 @@ killed peer and reconnects, and shuts down without losing in-flight calls.
 
 **Goal:** a release that can be supported.
 
-* Benchmark suite: startup, function call, message passing, binary operations,
-  ETS, distribution throughput. Compare against OTP 29 on the same machine and
-  publish both numbers.
-* Set budgets from that baseline (for example, no more than 5x BEAM on message
-  throughput). Optimise the interpreter only where the profile says so; decide
-  on a JIT/bytecode compiler from data, not from the old roadmap.
-* Soak test: 24 hours at target load, memory flat, no leaked processes or file
-  descriptors.
-* Fuzzing: BEAM loader, ETF decoder, distribution framing.
-* Packaging: reproducible build, signed artifact, versioning and support policy,
-  upgrade notes.
+**Status: in progress.** The five bullets below are implemented and runnable;
+what is missing is the 24 hour soak run itself and the tag, both of which are
+process steps rather than code. See [release.md](release.md) for the checklist.
+
+* [x] Benchmark suite: startup, function call, message passing, binary
+  operations and ETS, measured against OTP 29 on the same machine from the same
+  Erlang source (`BeamBenchTest`), with both numbers published in
+  [benchmarks.md](benchmarks.md). Distribution throughput is the one workload
+  listed here that the harness does not yet measure: it needs two peers and a
+  second node rather than an inline call, and it is the first row to add after
+  the release.
+* [x] Budgets set from that baseline, with the roadmap's own example enforced:
+  message throughput must stay within 5x BEAM (measured 0.20x) and the CI `bench`
+  job fails the build outside it. Interpreted-operation ratios are recorded and
+  not gated, and the 213x closures row is named as the next thing to profile.
+  No JIT is added: the data so far says the interpreter's per-instruction cost,
+  not a missing compiler, is the difference.
+* [x] Soak test: configurable duration at target load, with flatness asserted on
+  process count, open file descriptors where the platform reports them, and heap
+  after collection (`SoakTest`). CI runs thirty minutes nightly; a hosted runner
+  is killed after six hours, so the 24 hour gate runs on a machine that stays up
+  and the release checklist says so.
+* [x] Fuzzing: the BEAM loader and the ETF decoder, deterministic from a seed,
+  in CI at 200 iterations and locally at any count (`BeamLoaderFuzzTest`,
+  `EtfFuzzTest`). Distribution framing itself is covered by
+  `DistListenerTest` at the handshake level but is not in the fuzz campaign
+  yet, which is stated in [release.md](release.md). The campaign already paid
+  for itself: it found an unbounded allocation in the term reader, where a five
+  byte message could ask for a two gigabyte array.
+* [x] Packaging: reproducible build (`project.build.outputTimestamp`, checked by
+  building twice in `scripts/package.sh`), checksums, optional detached GPG
+  signature, semantic versioning with the `japicmp` API gate, a support policy,
+  upgrade notes and the release checklist, all in [release.md](release.md).
+  The signing key itself is release infrastructure, not something a repository
+  can hold.
 
 **Exit test:** the benchmark table and the 24 hour soak are green on the same
 commit that is tagged 1.0, and the artifact is installable from a clean machine.

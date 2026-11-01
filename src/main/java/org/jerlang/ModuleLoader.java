@@ -91,6 +91,16 @@ public class ModuleLoader {
             Module m = new Module(beamData, module);
             m.export();
             m.setBeamFile(file);
+            if (m.beamData().exportTableChunk().exports().isEmpty()) {
+                // Every module OTP compiles exports module_info/0 and
+                // module_info/1, so an empty export table means the chunk did
+                // not parse. A module the interpreter can not call any
+                // function in looks like a successful load and fails later as
+                // an {undef} with no clue where it came from.
+                System.err.println("Can not load module " + filename
+                    + ": the export table is empty");
+                return null;
+            }
             return m;
         } catch (Throwable e) {
             System.err.println("Can not load module " + filename + ": " + e);

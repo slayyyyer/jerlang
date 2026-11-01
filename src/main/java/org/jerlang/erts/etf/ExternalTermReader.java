@@ -40,12 +40,41 @@ public class ExternalTermReader {
 
     private final DataInputStream inputStream;
 
+    /**
+     * The largest single allocation one term may ask for. A length field is
+     * attacker-controlled: five bytes can claim two gigabytes of list
+     * elements, and obeying that turns a malformed message into an
+     * OutOfMemoryError that takes the node with it. OTP's own distribution
+     * packet limit is 64 MiB, so a larger claim is a decode error.
+     */
+    private static final int MAX_ALLOCATION = 64 * 1024 * 1024;
+
+    private final int allocationLimit;
+
     public ExternalTermReader(byte[] bytes) {
-        this(new DataInputStream(new ByteArrayInputStream(bytes)));
+        this(new DataInputStream(new ByteArrayInputStream(bytes)), bytes.length);
     }
 
     public ExternalTermReader(DataInputStream inputStream) {
+        this(inputStream, MAX_ALLOCATION);
+    }
+
+    private ExternalTermReader(DataInputStream inputStream, int allocationLimit) {
         this.inputStream = inputStream;
+        this.allocationLimit = allocationLimit;
+    }
+
+    /**
+     * Check a count before it becomes an array size. Every element of every
+     * term costs at least one byte, so for a reader over a fixed buffer the
+     * number of remaining bytes is the real bound; for a reader over a socket
+     * the packet limit stands in for it.
+     */
+    private void requireAllocation(int count, String what) {
+        if (count < 0 || count > allocationLimit) {
+            throw new Error("External term " + what + " claims " + count
+                + " bytes, the limit is " + allocationLimit);
+        }
     }
 
     public Term read() throws Throwable {
@@ -139,13 +168,20 @@ public class ExternalTermReader {
      */
     private Term readCompressed() throws Throwable {
         int uncompressedSize = read4Bytes();
+        if (uncompressedSize < 0 || uncompressedSize > MAX_ALLOCATION) {
+            throw new Error("Compressed term claims " + uncompressedSize + " bytes");
+        }
         byte[] compressed = inputStream.readAllBytes();
-        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(0, uncompressedSize));
+        ByteArrayOutputStream out = new ByteArrayOutputStream(Math.min(uncompressedSize, 4096));
         try (InflaterInputStream inflater = new InflaterInputStream(
             new ByteArrayInputStream(compressed))) {
             byte[] buffer = new byte[4096];
             int read;
             while ((read = inflater.read(buffer)) >= 0) {
+                if (out.size() + read > uncompressedSize) {
+                    throw new Error("Compressed term is larger than the "
+                        + uncompressedSize + " bytes it declares");
+                }
                 out.write(buffer, 0, read);
             }
         }
@@ -241,7 +277,9 @@ public class ExternalTermReader {
     }
 
     private Term readBitBinary() throws IOException {
-        byte[] bytes = new byte[read4Bytes()];
+        int length = read4Bytes();
+        requireAllocation(length, "bit binary");
+        byte[] bytes = new byte[length];
         int usedBits = read1Byte();
         readBytes(bytes);
         if (usedBits == 8) {
@@ -252,6 +290,7 @@ public class ExternalTermReader {
 
     private Term readMap() throws Throwable {
         int pairs = read4Bytes();
+        requireAllocation(pairs, "map pair count");
         Map map = new Map();
         while (pairs-- > 0) {
             map.set(read(), read());
@@ -272,13 +311,16 @@ public class ExternalTermReader {
     }
 
     private Binary readBinary() throws IOException {
-        byte[] bytes = new byte[read4Bytes()];
+        int length = read4Bytes();
+        requireAllocation(length, "binary");
+        byte[] bytes = new byte[length];
         readBytes(bytes);
         return new Binary(bytes);
     }
 
     private Term readList() throws Throwable {
         int length = read4Bytes();
+        requireAllocation(length, "list length");
         Term[] elements = new Term[length];
         for (int index = 0; index < length; index++) {
             elements[index] = read();
@@ -299,6 +341,7 @@ public class ExternalTermReader {
     }
 
     private Term readBig(int length) throws IOException {
+        requireAllocation(length, "big integer");
         int sign = read1Byte();
         byte[] digits = new byte[length];
         readBytes(digits);
@@ -315,6 +358,7 @@ public class ExternalTermReader {
     }
 
     private Tuple readTuple(int arity) throws Throwable {
+        requireAllocation(arity, "tuple arity");
         Term[] terms = new Term[arity];
         for (int index = 0; index < arity; index++) {
             terms[index] = read();

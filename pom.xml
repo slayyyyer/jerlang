@@ -4,7 +4,7 @@
   <groupId>org.jerlang</groupId>
   <artifactId>jerlang</artifactId>
   <name>jerlang</name>
-  <version>0.8.0</version>
+  <version>1.0.0</version>
   <description>Erlang on the JVM</description>
   <prerequisites>
     <maven>3.0</maven>
@@ -17,6 +17,10 @@
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Reproducible build: a fixed timestamp instead of the wall clock, so
+         the same source builds to the same bytes. scripts/package.sh checks
+         it by building twice and comparing checksums. -->
+    <project.build.outputTimestamp>2026-11-01T00:00:00Z</project.build.outputTimestamp>
     <version.assertj>3.8.0</version.assertj>
     <version.jacoco-maven-plugin>0.8.16</version.jacoco-maven-plugin>
     <version.japicmp-maven-plugin>0.26.5</version.japicmp-maven-plugin>
@@ -33,7 +37,10 @@
     <version.maven-jxr-plugin>2.5</version.maven-jxr-plugin>
     <version.maven-pmd-plugin>3.8</version.maven-pmd-plugin>
     <version.maven-project-info-reports-plugin>2.9</version.maven-project-info-reports-plugin>
-    <version.maven-shade-plugin>3.1.0</version.maven-shade-plugin>
+    <!-- 3.2.4 and later honour project.build.outputTimestamp, so the shaded
+         jar is byte-identical across builds; 3.1.0 stamped the wall clock into
+         every entry, which is what made the reproducibility check fail. -->
+    <version.maven-shade-plugin>3.6.0</version.maven-shade-plugin>
     <version.maven-site-plugin>3.22.0</version.maven-site-plugin>
     <version.maven-surefire-report-plugin>2.20.1</version.maven-surefire-report-plugin>
     <version.pitest-maven>1.30.1</version.pitest-maven>

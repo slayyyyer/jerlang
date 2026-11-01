@@ -7,6 +7,11 @@ on:
   push:
   pull_request:
     branches: [master]
+  # The nightly soak. A hosted runner is killed after six hours, so this is the
+  # long run that fits; the 24 hour gate from docs/release.md runs on a machine
+  # that stays up.
+  schedule:
+    - cron: '0 3 * * *'
 
 permissions:
   contents: read
@@ -133,3 +138,72 @@ jobs:
           mvn -B -Dtest=PassRateTest \
             -Djerlang.conformance.dir="$OTP_ROOT/lib" \
             -Djerlang.conformance.min=0.99 test
+
+  bench:
+    # The benchmark table from docs/benchmarks.md, measured against a real OTP
+    # node in the same job. With the gate on, the roadmap's message throughput
+    # budget (no more than 5x BEAM) is enforced instead of reported.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Set up Erlang/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: '29'
+
+      - name: Compare against BEAM
+        run: |
+          OTP_ROOT="$(erl -noshell -eval 'io:format("~s", [code:root_dir()]), halt().')"
+          mvn -B \
+            -Dtest=BeamBenchTest \
+            -Djerlang.bench=true \
+            -Djerlang.bench.gate=true \
+            -Djerlang.otp.dir="$OTP_ROOT" test
+
+  fuzz:
+    # The checked-in campaign is short; a longer one is a local command, see
+    # docs/release.md. Both fuzzers are deterministic, so a failure names the
+    # seed and iteration that reproduces it.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Fuzz the loader and the term decoder
+        run: mvn -B -Dtest=BeamLoaderFuzzTest,EtfFuzzTest -Djerlang.fuzz.iterations=2000 test
+
+  soak:
+    # Nightly only: this is the flatness check that a unit test can not make.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Run the soak
+        run: mvn -B -Dtest=SoakTest -Djerlang.soak.seconds=1800 -Djerlang.soak.workers=32 test
