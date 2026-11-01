@@ -111,6 +111,7 @@ public class VirtualMachine {
             previous.awaitStop();
         }
         ProcessRegistry.instance().cleanup();
+        ProcessRegistry.resetMessagesDelivered();
         org.jerlang.erts.dist.Distribution.start();
         startedAtMillis = System.currentTimeMillis();
     }

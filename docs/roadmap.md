@@ -192,8 +192,10 @@ public signature changes without a version bump.
 the load, metrics and shutdown half, and `OtpReconnectTest` starts an OTP peer,
 kills it, restarts it under the same name and waits for this node to reconnect
 and carry messages again, in the `otp` job and with no peer started by hand.
-The metrics are documented in `docs/operations.md`; message throughput is the
-one item of the bullet list above that the snapshot does not report.
+The metrics are documented in `docs/operations.md`, including the message
+throughput the bullet list above asks for: `jerlang_messages_delivered` counts
+deliveries into mailboxes and `jerlang_messages_per_second` reports the average
+rate since start.
 
 * Logging: OTP `logger` backed by `java.util.logging`/SLF4J, with levels and
   metadata.

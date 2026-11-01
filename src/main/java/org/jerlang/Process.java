@@ -443,6 +443,7 @@ public class Process extends ProcessOrPort {
     public void send(Term message) {
         try {
             mailbox.put(message);
+            ProcessRegistry.messageDelivered();
             if (wake()) {
                 VirtualMachine.instance().wake(this);
             }

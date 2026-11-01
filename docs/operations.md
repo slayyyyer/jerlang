@@ -12,8 +12,7 @@ there is no `Node` at hand.
 
 The snapshot is a sample, not a stream. Each field is read from the live process
 registry in turn, so a scrape that overlaps with processes starting or dying can
-be slightly inconsistent, and no counter on the hot path exists to keep it
-consistent. This is the same trade `erlang:statistics/1` makes.
+be slightly inconsistent. This is the same trade `erlang:statistics/1` makes.
 
 | Field                        | Meaning                                                                 |
 |------------------------------|-------------------------------------------------------------------------|
@@ -23,6 +22,8 @@ consistent. This is the same trade `erlang:statistics/1` makes.
 | `runQueueDepth(i)`           | Waiting work on scheduler `i`.                                          |
 | `reductions()`               | Reductions executed by the processes that are alive at the reading.      |
 | `mailboxes()`                | Messages waiting in all mailboxes together.                             |
+| `messagesDelivered()`        | Messages delivered into a mailbox since the VM started (cumulative).    |
+| `messagesPerSecond()`        | `messagesDelivered()` divided by uptime: the average rate.              |
 | `schedulerCount()`           | Scheduler threads in this VM.                                           |
 | `utilisation()`              | Busy fraction of all schedulers, 0.0 to 1.0.                            |
 | `utilisation(i)`             | Busy fraction of scheduler `i`.                                         |
@@ -39,8 +40,17 @@ divided by time spent executing plus time parked with an empty queue. A schedule
 that is blocked inside a BIF that waits for another process counts as busy, so a
 node with a blocked scheduler and an idle one reports around 0.5.
 
+Throughput is the one cumulative number. Every delivery into a mailbox
+increments a counter, so `messagesDelivered()` answers "how many messages has
+this node delivered since it started", and `messagesPerSecond()` divides that by
+uptime. The average is not an instantaneous rate: a node that delivered a
+million messages and then idled for an hour reports a low figure, so diff two
+scrapes of `messagesDelivered()` for a windowed rate. Counting on the delivery
+path costs one atomic increment per message and is the only counter the
+snapshot keeps; everything else is sampled.
+
 The numbers are only collected while the VM runs. After `Node.close()`,
-`uptimeMillis()` and the process counts are zero.
+`uptimeMillis()`, `messagesDelivered()` and the process counts are zero.
 
 ### Text format
 
@@ -54,6 +64,8 @@ jerlang_ports 0
 jerlang_run_queue 1
 jerlang_reductions 14872
 jerlang_mailbox_messages 0
+jerlang_messages_delivered 1284
+jerlang_messages_per_second 1231.4751
 jerlang_schedulers 8
 jerlang_uptime_millis 1043
 jerlang_scheduler_utilisation 0.2137
@@ -61,8 +73,9 @@ jerlang_scheduler_queue{index="0"} 0
 jerlang_scheduler_utilisation{index="0"} 0.3125
 ```
 
-Utilisation is printed with four decimal places, in the root locale, so a
-comma-decimal JVM does not change the file. Counts are plain integers.
+Utilisation and the per-second rate are printed with four decimal places, in the
+root locale, so a comma-decimal JVM does not change the file. Counts are plain
+integers.
 
 ## Logging
 

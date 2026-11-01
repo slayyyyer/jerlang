@@ -5,9 +5,13 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import org.jerlang.ModuleRegistry;
+import org.jerlang.Process;
+import org.jerlang.ProcessRegistry;
 import org.jerlang.api.Node;
 import org.jerlang.api.NodeOptions;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Integer;
+import org.jerlang.type.PID;
 import org.junit.After;
 import org.junit.Test;
 
@@ -65,6 +69,33 @@ public class MetricsTest {
             assertTrue("an idle scheduler is not fully busy: " + metrics,
                 metrics.utilisation() < 1.0);
         }
+    }
+
+    @Test
+    public void deliveredMessagesShowUpAsAThroughputReading() throws Exception {
+        try (Node node = Node.start(NodeOptions.builder().schedulers(2).build())) {
+            long before = node.metrics().messagesDelivered();
+
+            Process sink = new Process(new PID(4411));
+            ProcessRegistry.register(sink);
+            for (int index = 0; index < 5; index++) {
+                sink.send(Integer.of(index));
+            }
+            // Uptime is in whole milliseconds, and a rate needs a non-zero one.
+            Thread.sleep(5);
+
+            Metrics metrics = node.metrics();
+            assertEquals("the registry counted " + ProcessRegistry.messagesDelivered()
+                + ": " + metrics, before + 5, metrics.messagesDelivered());
+            assertTrue("a node that just delivered messages reports a rate: " + metrics,
+                metrics.messagesPerSecond() > 0.0);
+            String text = metrics.toText();
+            assertTrue(text, text.contains("jerlang_messages_delivered " + (before + 5) + "\n"));
+            assertTrue(text, text.contains("jerlang_messages_per_second "));
+        }
+
+        assertEquals("a closed node delivered nothing",
+            0, Metrics.snapshot().messagesDelivered());
     }
 
     private static int occurrences(String text, String needle) {

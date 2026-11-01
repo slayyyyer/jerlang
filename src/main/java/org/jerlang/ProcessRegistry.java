@@ -137,6 +137,12 @@ public class ProcessRegistry {
     /**
      * Messages in every mailbox together.
      */
+    private static final java.util.concurrent.atomic.AtomicLong delivered =
+        new java.util.concurrent.atomic.AtomicLong();
+
+    /**
+     * Messages in every mailbox together.
+     */
     public static long totalMailboxSize() {
         long total = 0;
         for (ProcessOrPort entry : instance.id2process.values()) {
@@ -160,6 +166,32 @@ public class ProcessRegistry {
             }
         }
         return total;
+    }
+
+    /**
+     * Messages delivered into a mailbox since the virtual machine started.
+     * A delivered message leaves nothing behind to sample once it is consumed,
+     * so the delivery path counts it instead.
+     */
+    public static long messagesDelivered() {
+        return delivered.get();
+    }
+
+    /**
+     * One message arrived in a mailbox. Called from {@link Process#send}, which
+     * is the single place a mailbox grows, so the count covers local sends,
+     * distribution and port deliveries alike.
+     */
+    public static void messageDelivered() {
+        delivered.incrementAndGet();
+    }
+
+    /**
+     * Forget the deliveries of a previous run, so a restarted virtual machine
+     * reports its own throughput rather than the sum of every run in this JVM.
+     */
+    public static void resetMessagesDelivered() {
+        delivered.set(0);
     }
 
     public static ProcessOrPort self() {

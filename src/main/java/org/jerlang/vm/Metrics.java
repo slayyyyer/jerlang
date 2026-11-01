@@ -7,18 +7,23 @@ import org.jerlang.ProcessRegistry;
 /**
  * One reading of the runtime counters a service is monitored by: how many
  * processes and ports exist, how much work is queued, how many reductions the
- * live processes have executed, how many messages are sitting in mailboxes,
- * and how busy each scheduler is.
+ * live processes have executed, how many messages are sitting in mailboxes or
+ * have been delivered, and how busy each scheduler is.
  *
  * A snapshot is a sample, not a stream: the numbers are read one process at a
  * time, so a scrape that overlaps with processes starting and dying can be
  * slightly inconsistent. That is the same trade Erlang/OTP makes for
- * {@code erlang:statistics/1}, and it keeps the numbers free: nothing on the
- * hot path increments a counter for this.
+ * {@code erlang:statistics/1}, and it keeps the numbers free: the only counter
+ * on the delivery path is the message count, which can not be sampled after the
+ * fact the way a mailbox size can.
  *
  * Reductions are summed over the processes that are alive at the reading, so
  * the value is not cumulative for the node's lifetime. It answers "how much
  * work is this node doing now", not "how much work has it done".
+ *
+ * Delivered messages are the other way round: a message that was delivered and
+ * consumed leaves no trace to sample, so deliveries are counted as they happen
+ * and the total is cumulative for the node's lifetime.
  */
 public final class Metrics {
 
@@ -26,6 +31,7 @@ public final class Metrics {
     private final long ports;
     private final long reductions;
     private final long mailboxes;
+    private final long messagesDelivered;
     private final long runQueueDepth;
     private final long uptimeMillis;
     private final long[] schedulerQueueDepth;
@@ -33,12 +39,13 @@ public final class Metrics {
     private final long[] schedulerIdleNanos;
 
     private Metrics(long processes, long ports, long reductions, long mailboxes,
-        long runQueueDepth, long uptimeMillis, long[] schedulerQueueDepth,
-        long[] schedulerBusyNanos, long[] schedulerIdleNanos) {
+        long messagesDelivered, long runQueueDepth, long uptimeMillis,
+        long[] schedulerQueueDepth, long[] schedulerBusyNanos, long[] schedulerIdleNanos) {
         this.processes = processes;
         this.ports = ports;
         this.reductions = reductions;
         this.mailboxes = mailboxes;
+        this.messagesDelivered = messagesDelivered;
         this.runQueueDepth = runQueueDepth;
         this.uptimeMillis = uptimeMillis;
         this.schedulerQueueDepth = schedulerQueueDepth;
@@ -70,6 +77,10 @@ public final class Metrics {
             ProcessRegistry.countPorts(),
             ProcessRegistry.totalReductions(),
             ProcessRegistry.totalMailboxSize(),
+            // Gated on the VM running, not on uptime: a scrape in the same
+            // millisecond the node started has an uptime of 0 but has still
+            // delivered whatever was delivered so far.
+            started == 0 ? 0 : ProcessRegistry.messagesDelivered(),
             queued,
             uptime,
             queues,
@@ -95,6 +106,28 @@ public final class Metrics {
     /** Messages waiting in all mailboxes together. */
     public long mailboxes() {
         return mailboxes;
+    }
+
+    /**
+     * Messages delivered into a mailbox since this virtual machine started.
+     * Unlike {@link #reductions()}, this is cumulative: a consumed message
+     * leaves nothing behind to sample.
+     */
+    public long messagesDelivered() {
+        return messagesDelivered;
+    }
+
+    /**
+     * {@link #messagesDelivered()} divided by the time the node has been up:
+     * the average delivery rate since start, in messages per second. This is an
+     * average over the whole run, not an instantaneous rate; diff two scrapes
+     * of {@link #messagesDelivered()} for a windowed one.
+     */
+    public double messagesPerSecond() {
+        if (messagesDelivered == 0 || uptimeMillis == 0) {
+            return 0.0;
+        }
+        return (double) messagesDelivered / (uptimeMillis / 1000.0);
     }
 
     /** Processes and ports waiting on all schedulers together. */
@@ -152,6 +185,8 @@ public final class Metrics {
         line(text, "jerlang_run_queue", Long.toString(runQueueDepth));
         line(text, "jerlang_reductions", Long.toString(reductions));
         line(text, "jerlang_mailbox_messages", Long.toString(mailboxes));
+        line(text, "jerlang_messages_delivered", Long.toString(messagesDelivered));
+        line(text, "jerlang_messages_per_second", ratio(messagesPerSecond()));
         line(text, "jerlang_schedulers", Integer.toString(schedulerCount()));
         line(text, "jerlang_uptime_millis", Long.toString(uptimeMillis));
         line(text, "jerlang_scheduler_utilisation", ratio(utilisation()));
@@ -171,6 +206,8 @@ public final class Metrics {
             + ", runQueueDepth=" + runQueueDepth
             + ", reductions=" + reductions
             + ", mailboxMessages=" + mailboxes
+            + ", messagesDelivered=" + messagesDelivered
+            + ", messagesPerSecond=" + ratio(messagesPerSecond())
             + ", schedulers=" + schedulerCount()
             + ", utilisation=" + ratio(utilisation())
             + ", uptimeMillis=" + uptimeMillis
