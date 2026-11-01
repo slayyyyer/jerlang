@@ -1,0 +1,50 @@
+plugins {
+    id 'application'
+}
+
+// Same as the key-value example: the published artifact, so this is also a check
+// that a consumer's build file is enough to run an Erlang service.
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.github.slayyyyer:jerlang:1.0.0'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+application {
+    mainClass = 'example.ChatServer'
+}
+
+def ebin = layout.buildDirectory.dir('ebin')
+
+// Only compilation needs erlc; the .beam files are loaded at run time.
+tasks.register('compileErlang', Exec) {
+    description = 'Compiles the Erlang sources of the service.'
+    group = 'build'
+    def sources = fileTree('src/main/erl') { include '**/*.erl' }
+    def erlc = System.getenv('ERLC') ?: 'erlc'
+    inputs.files sources
+    outputs.dir ebin
+    doFirst {
+        ebin.get().asFile.mkdirs()
+        commandLine([erlc, '-o', ebin.get().asFile.absolutePath]
+            + sources.files.collect { it.absolutePath })
+    }
+}
+
+tasks.named('classes') {
+    dependsOn 'compileErlang'
+}
+
+tasks.named('run') {
+    systemProperty 'jerlang.example.ebin', ebin.get().asFile.absolutePath
+    systemProperty 'jerlang.example.port', providers.gradleProperty('port').getOrElse('8080')
+    systemProperty 'jerlang.example.clients', providers.gradleProperty('clients').getOrElse('64')
+}

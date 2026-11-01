@@ -1,15 +1,16 @@
 # Examples
 
-Two programs, one for each direction of the Java interop, plus an HTTP service
-built on the published artifact.
+Two programs, one for each direction of the Java interop, plus two services built
+on the published artifact.
 
 | Directory | What it shows |
 | --- | --- |
 | `gen-server` | Java embeds the runtime, starts an Erlang `gen_server` and calls it. |
 | `java-service` | Erlang calls static methods of a Java class through `java:call_static/3`. |
 | `http-service` | Erlang behind an HTTP listener: Gradle pulls the artifact, Java is fixed plumbing, the routes are `.erl`. |
+| `chat-service` | The same shape with a push direction: rooms, ETS history and server-sent events through a Java sink Erlang calls. |
 
-All three use `org.jerlang.api.Node`, which owns the runtime: it starts the
+All four use `org.jerlang.api.Node`, which owns the runtime: it starts the
 schedulers, applies the options and, on `close()`, drains the object handle
 table.
 
@@ -24,16 +25,21 @@ bash examples/run.sh
 OTP's own `gen_server`, so it needs a real Erlang installation, not just the
 runtime. The second one only needs a JDK, but `run.sh` compiles both.
 
-`http-service` is its own Gradle build and is not covered by `run.sh`:
+`http-service` and `chat-service` are their own Gradle builds and are not
+covered by `run.sh`:
 
 ```sh
 cd examples/http-service
 gradle run                 # http://127.0.0.1:8080/
+
+cd examples/chat-service
+gradle run                 # http://127.0.0.1:8080/, 64 streams
 ```
 
-It needs `erlc` to compile the `.erl` files and nothing Erlang-shaped to run
-them. See its [README](http-service/README.md) and the
-[docs page](../docs/examples/http-service.md).
+Both need `erlc` to compile the `.erl` files and nothing Erlang-shaped to run
+them. See their READMEs and docs pages:
+[http-service](http-service/README.md),
+[chat-service](chat-service/README.md).
 
 Expected output:
 
