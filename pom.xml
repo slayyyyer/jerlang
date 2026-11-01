@@ -3,16 +3,30 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.jerlang</groupId>
   <artifactId>jerlang</artifactId>
-  <name>jerlang</name>
+  <name>JErlang</name>
   <version>1.0.0</version>
-  <description>Erlang on the JVM</description>
+  <description>An Erlang runtime and interpreter on the JVM: BEAM modules, the
+    external term format and OTP's standard library, embedded in a Java process
+    or run as a node.</description>
+  <url>https://github.com/slayyyyer/jerlang</url>
   <prerequisites>
     <maven>3.0</maven>
   </prerequisites>
   <distributionManagement>
     <site>
-      <url>https://github.com/jerlang/jerlang</url>
+      <url>https://slayyyyer.github.io/jerlang/</url>
     </site>
+    <!-- Central Portal. The id has to match the server id in settings.xml,
+         and publishing is opt-in through the central profile so a normal
+         build never talks to a repository. -->
+    <repository>
+      <id>central</id>
+      <url>https://central.sonatype.com/api/v1/publisher</url>
+    </repository>
+    <snapshotRepository>
+      <id>central</id>
+      <url>https://central.sonatype.com/api/v1/publisher</url>
+    </snapshotRepository>
   </distributionManagement>
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
@@ -44,9 +58,12 @@
     <version.maven-site-plugin>3.22.0</version.maven-site-plugin>
     <version.maven-surefire-report-plugin>2.20.1</version.maven-surefire-report-plugin>
     <version.pitest-maven>1.30.1</version.pitest-maven>
+    <version.maven-source-plugin>3.3.1</version.maven-source-plugin>
+    <version.maven-gpg-plugin>3.2.7</version.maven-gpg-plugin>
+    <version.central-publishing-maven-plugin>0.12.0</version.central-publishing-maven-plugin>
   </properties>
   <issueManagement>
-    <url>https://github.com/jerlang/jerlang/issues</url>
+    <url>https://github.com/slayyyyer/jerlang/issues</url>
   </issueManagement>
   <developers>
     <developer>
@@ -60,16 +77,16 @@
     </developer>
   </developers>
   <scm>
-    <connection>scm:git:https://github.com/jerlang/jerlang.git</connection>
-    <developerConnection>scm:git:https://github.com/jerlang/jerlang.git</developerConnection>
-    <url>https://github.com/jerlang/jerlang</url>
+    <connection>scm:git:https://github.com/slayyyyer/jerlang.git</connection>
+    <developerConnection>scm:git:https://github.com/slayyyyer/jerlang.git</developerConnection>
+    <url>https://github.com/slayyyyer/jerlang</url>
+    <tag>1.0.0</tag>
   </scm>
   <licenses>
     <license>
-      <name>Apache 2</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
       <distribution>repo</distribution>
-      <comments>A business-friendly OSS license</comments>
     </license>
   </licenses>
   <build>
@@ -253,18 +270,105 @@
       </plugin>
     </plugins>
   </build>
-  <repositories>
-    <repository>
-      <id>maven2-repository.dev.java.net</id>
-      <name>Java.net Repository for Maven</name>
-      <url>http://download.java.net/maven/2/</url>
-      <layout>default</layout>
-    </repository>
-    <repository>
-      <id>repo.bodar.com</id>
-      <url>http://repo.bodar.com</url>
-    </repository>
-  </repositories>
+  <profiles>
+    <!--
+      Publishing to Maven Central. Opt-in on purpose: a normal build has no
+      reason to sign anything or talk to a repository, and the plugins below
+      add a source jar, a javadoc jar and detached signatures to what Central
+      requires of every artifact.
+
+        mvn -B -Pcentral -DskipTests deploy            real publication
+        mvn -B -Pcentral -DskipTests -Dgpg.skip=true package
+                                                       check the bundle offline
+
+      Credentials live in ~/.m2/settings.xml as a server id `central` holding a
+      Portal token; the signing key is the one GPG already knows about. Neither
+      belongs in this file. See docs/release.md.
+    -->
+    <profile>
+      <id>central</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>${version.maven-source-plugin}</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>${version.maven-javadoc-plugin}</version>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <!-- The interpreter is documented in prose; doclint would fail
+                   the bundle on a missing @param in a 4,000-file codebase. -->
+              <doclint>none</doclint>
+              <quiet>true</quiet>
+              <failOnError>true</failOnError>
+              <failOnWarnings>false</failOnWarnings>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>${version.maven-gpg-plugin}</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <gpgArguments>
+                <arg>--pinentry-mode</arg>
+                <arg>loopback</arg>
+              </gpgArguments>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>${version.central-publishing-maven-plugin}</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <!-- A deploy uploads the bundle and stops there. Publishing is
+                   releasing, and a release is the thing the checklist in
+                   docs/release.md has to clear first. -->
+              <autoPublish>false</autoPublish>
+              <waitUntil>uploaded</waitUntil>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+  <!--
+    No <repositories> block: every dependency resolves from Central, and Maven
+    Central refuses a pom that points at a plaintext http repository. The two
+    that used to be here (java.net and repo.bodar.com) were long dead; removing
+    them is what makes this pom publishable at all.
+  -->
   <dependencies>
     <dependency>
       <groupId>org.apache.commons</groupId>

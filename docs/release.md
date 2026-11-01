@@ -73,6 +73,65 @@ sha256sum -c jerlang-1.0.0.jar.sha256
 artifact it describes, so a downloaded jar can be traced to a commit without
 trusting the download page.
 
+## Publishing to Maven Central
+
+The pom is prepared for Central — metadata, source and javadoc jars, signatures
+and the Portal plugin behind a `central` profile — but **nothing has been
+uploaded**, because the three things publishing needs are not in this
+repository and should not be.
+
+### One-time prerequisites
+
+1. **A verified namespace.** `org.jerlang` has to be verified on
+   [central.sonatype.com](https://central.sonatype.com), which means a DNS TXT
+   record on `jerlang.org` or a record on the `jerlang` GitHub organisation.
+   If neither is under the project's control, the alternative is
+   `io.github.slayyyyer`, which a GitHub account can verify itself — at the cost
+   of the coordinates changing from what this pom, the `japicmp` baseline in
+   `src/api-baseline` and every document here already say.
+2. **A Portal token** in `~/.m2/settings.xml`, as the server id `central`:
+
+   ```xml
+   <server>
+     <id>central</id>
+     <username>your-portal-username</username>
+     <password>the-token</password>
+   </server>
+   ```
+
+   The password is the generated token, not the account password.
+3. **A GPG key** whose public half is on a keyserver, so Central can check the
+   signatures it stores next to the artifacts.
+
+### The commands
+
+```
+mvn -B -Pcentral -DskipTests -Dgpg.skip=true package   # build the bundle, no key
+mvn -B -Pcentral -DskipTests deploy                     # upload to the Portal
+```
+
+The first form is the one to run to check the bundle: it produces
+`jerlang-<version>.jar`, `-sources.jar`, `-javadoc.jar` and the pom. The second
+needs the key and the token, and it **uploads rather than publishes**:
+`autoPublish` is `false`, so the bundle waits in the Portal until someone has
+read the checklist below and releases it by hand.
+
+What gets uploaded is those four files plus a detached `.asc` signature for
+each. The main artifact is the shaded, runnable jar, which is deliberate — the
+artifact the release notes tell people to run with `java -jar` is the artifact
+in the repository — and it has a cost worth stating: the jar's dependencies are
+also declared in the pom, so a consumer of the library gets both the bundled
+classes and the transitive ones. Same versions, so it resolves and runs; a
+consumer that cares can exclude them or use the thin `original-` jar that
+`maven-shade-plugin` writes. Attaching the runnable jar under a classifier and
+publishing the thin one is the cleaner shape, and it is the change to make if
+the bundled classes ever cause trouble.
+
+One more thing had to change for Central: the pom declared two plaintext
+`http://` repositories, and a pom that points at one is rejected. Both were
+dead; with them gone, every dependency resolves from Central, which the build
+check above demonstrates.
+
 ## Release checklist
 
 The 1.0 exit test is a conjunction, and each line below is a thing that was
@@ -97,6 +156,10 @@ measured on the commit being tagged:
    `examples/`, and compare checksums against `BUILD-INFO`.
 6. **Tag.** `git tag -s 1.0.0 -m "JErlang 1.0.0"` on the commit that passed 1–5,
    then push the tag with the release notes.
+7. **Publish** (optional, and separate from the tag): `mvn -B -Pcentral
+   -DskipTests deploy`, then release the bundle in the Portal. A deployment that
+   is not released sits there and becomes nothing, so the tag does not depend on
+   this step.
 
 Steps 1–3 are commands in this repository, not prose: a release that can not
 re-run them is not a release.
