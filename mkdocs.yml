@@ -61,6 +61,7 @@ nav:
       - Erlang calls Java: examples/java-service.md
       - Erlang HTTP service from Gradle: examples/http-service.md
       - A chat service over SSE: examples/chat-service.md
+      - mnesia over distribution: examples/mnesia-service.md
   - Guides:
       - Java interoperability: java-interop.md
       - Distribution: distribution.md

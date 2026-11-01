@@ -1,0 +1,54 @@
+plugins {
+    id 'application'
+}
+
+// The published artifact, as in http-service and chat-service.
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.github.slayyyyer:jerlang:1.0.0'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+application {
+    mainClass = 'example.MnesiaServer'
+}
+
+def ebin = layout.buildDirectory.dir('ebin')
+
+// Only the service's own module is compiled here. The module on the other node
+// is compiled by the OTP installation that runs it.
+tasks.register('compileErlang', Exec) {
+    description = 'Compiles the Erlang sources of the service.'
+    group = 'build'
+    def sources = fileTree('src/main/erl') { include '**/*.erl' }
+    def erlc = System.getenv('ERLC') ?: 'erlc'
+    inputs.files sources
+    outputs.dir ebin
+    doFirst {
+        ebin.get().asFile.mkdirs()
+        commandLine([erlc, '-o', ebin.get().asFile.absolutePath]
+            + sources.files.collect { it.absolutePath })
+    }
+}
+
+tasks.named('classes') {
+    dependsOn 'compileErlang'
+}
+
+tasks.named('run') {
+    systemProperty 'jerlang.example.ebin', ebin.get().asFile.absolutePath
+    systemProperty 'jerlang.example.port', providers.gradleProperty('port').getOrElse('8080')
+    systemProperty 'jerlang.example.nodename', providers.gradleProperty('nodename').getOrElse('mnesia_http')
+    systemProperty 'jerlang.example.cookie', providers.gradleProperty('cookie').getOrElse('examplecookie')
+    if (providers.gradleProperty('peer').isPresent()) {
+        systemProperty 'jerlang.example.peer', providers.gradleProperty('peer').get()
+    }
+}
