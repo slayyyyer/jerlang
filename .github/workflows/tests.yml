@@ -91,7 +91,7 @@ jobs:
           OTP_ROOT="$(erl -noshell -eval 'io:format("~s", [code:root_dir()]), halt().')"
           echo "OTP root: $OTP_ROOT"
           mvn -B \
-            -Dtest=ApplicationTest,SupervisorTest,GenServerTest,ProcLibTest,LoggerTest \
+            -Dtest=ApplicationTest,SupervisorTest,GenServerTest,ProcLibTest,LoggerTest,OtpReconnectTest \
             -Djerlang.otp.dir="$OTP_ROOT" test
 
       - name: Upload test reports

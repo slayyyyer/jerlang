@@ -30,6 +30,9 @@ public class VirtualMachine {
     /** One wheel owns every timer in this VM. */
     private volatile TimerWheel timerWheel;
 
+    /** When the schedulers were last started, for the metrics uptime. */
+    private volatile long startedAtMillis = 0;
+
     /**
      * The Java objects Erlang code holds through object handles. The table
      * belongs to this VM, not to the bridge, so a handle can not outlive its
@@ -109,10 +112,16 @@ public class VirtualMachine {
         }
         ProcessRegistry.instance().cleanup();
         org.jerlang.erts.dist.Distribution.start();
+        startedAtMillis = System.currentTimeMillis();
     }
 
     public void shutdown() {
         org.jerlang.erts.dist.Distribution.shutdown();
+        // Applications stop while the schedulers can still run their
+        // supervision trees, newest first, so a tree is always gone before the
+        // applications it depends on.
+        org.jerlang.kernel.application_controller.Applications.stopAll();
+        drain();
         for (Scheduler scheduler : schedulers) {
             scheduler.interrupt();
         }
@@ -130,6 +139,57 @@ public class VirtualMachine {
         }
         ProcessRegistry.instance().cleanup();
         handleTable.clear();
+        startedAtMillis = 0;
+    }
+
+    /**
+     * Let the work that is already queued finish before the schedulers stop.
+     * Bounded by jerlang.shutdown.drain.ms (default 1000): a process that
+     * never finishes must not keep the JVM up.
+     */
+    private void drain() {
+        long timeout = Math.max(0, Long.getLong("jerlang.shutdown.drain.ms", 1000L));
+        long deadline = System.currentTimeMillis() + timeout;
+        while (queuedWork() > 0 && System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    /**
+     * Processes and ports waiting on any scheduler.
+     */
+    private long queuedWork() {
+        long queued = 0;
+        for (Scheduler scheduler : schedulers) {
+            queued += scheduler.queueDepth();
+        }
+        return queued;
+    }
+
+    /**
+     * The schedulers of this VM, for the metrics snapshot.
+     */
+    public Scheduler[] schedulers() {
+        return schedulers.clone();
+    }
+
+    /**
+     * Milliseconds since this VM was started, or 0 while it is not running.
+     */
+    public long startedAtMillis() {
+        return startedAtMillis;
+    }
+
+    /**
+     * One reading of the runtime counters, see {@link Metrics}.
+     */
+    public Metrics metrics() {
+        return Metrics.snapshot();
     }
 
     /**
