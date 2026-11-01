@@ -62,6 +62,11 @@ The script builds the artifact twice and fails if the two checksums differ, so
 Signing needs a GPG secret key and `JERLANG_SIGNING_KEY` naming it. Without a
 key the script says the artifact is unsigned and exits successfully; with
 `--sign` and no key it fails rather than produce a file that looks signed.
+When the key carries a passphrase, `JERLANG_SIGNING_PASSPHRASE_FILE` points at a
+file holding it and the script signs in loopback mode, so it never waits on a
+pinentry dialog. Maven's `central` profile reads the same secret from the
+`gpg.passphrase` server entry in `~/.m2/settings.xml`, which is why no passphrase
+appears on a command line.
 Verification is the ordinary GPG flow:
 
 ```
@@ -183,7 +188,12 @@ measured on the commit being tagged:
    the jar on a machine with only a JDK, run one of the checked-in examples from
    `examples/`, and compare checksums against `BUILD-INFO`.
 6. **Tag.** `git tag -s 1.0.0 -m "JErlang 1.0.0"` on the commit that passed 1–5,
-   then push the tag with the release notes.
+   then push the tag with the release notes. Name the key with `-u` or set
+   `user.signingkey`: left to itself git guesses from the committer identity,
+   and when two keys share that address it guesses the wrong one. A protected
+   key also needs the passphrase cached in `gpg-agent` or a `gpg.program`
+   wrapper that signs in loopback mode, or the command waits on a pinentry
+   dialog a headless run never shows.
 7. **Publish** (optional, and separate from the tag): `mvn -B -Pcentral
    -DskipTests deploy`, then release the bundle in the Portal. A deployment that
    is not released sits there and becomes nothing, so the tag does not depend on
