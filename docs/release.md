@@ -152,13 +152,16 @@ measured on the commit being tagged:
    This can not run in GitHub Actions: a hosted job is killed after six hours, so
    the 24 hour run happens on a machine that stays up, and CI runs a shorter soak
    every night. The soak fails on a process leak, on descriptor growth where the
-   platform reports descriptors, and on heap growth past 64 MB after collection
+   platform reports descriptors, and on heap growth past 256 MB after collection
    — measured from a reference taken once the load has settled, not from the
    empty node. That reference exists because a 168 second run at 32 workers
    showed the live set reaching about 335 MB within two minutes and then staying
    there while another 40 million messages went through: the runtime's stacks and
    queues grow to a high-water mark, and comparing a day-long run against startup
-   would have measured that warm-up rather than a leak.
+   would have measured that warm-up rather than a leak. The allowance is a
+   quarter of a gigabyte rather than something tighter because G1's count of
+   used-heap-after-collection moves by around 100 MB at this load; a leak here is
+   measured in gigabytes an hour, so the wider bound loses nothing.
 3. **Fuzzing campaign.**
    `mvn -Dtest='*FuzzTest' -Djerlang.fuzz.iterations=20000 test`. The checked-in
    run is 200 iterations per target on every push; the campaign is the long run.
