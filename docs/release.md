@@ -82,13 +82,19 @@ repository and should not be.
 
 ### One-time prerequisites
 
-1. **A verified namespace.** `org.jerlang` has to be verified on
-   [central.sonatype.com](https://central.sonatype.com), which means a DNS TXT
-   record on `jerlang.org` or a record on the `jerlang` GitHub organisation.
-   If neither is under the project's control, the alternative is
-   `io.github.slayyyyer`, which a GitHub account can verify itself — at the cost
-   of the coordinates changing from what this pom, the `japicmp` baseline in
-   `src/api-baseline` and every document here already say.
+1. **A verified namespace — decided, and it is not `org.jerlang`.** The
+   coordinates are `io.github.slayyyyer:jerlang`. `org.jerlang` would need a DNS
+   record on `jerlang.org` or a record on the `jerlang` GitHub organisation, and
+   this fork controls neither, so the name it cannot prove was dropped rather
+   than hoped for. `io.github.<username>` is the namespace a GitHub account
+   verifies itself: sign in at [central.sonatype.com](https://central.sonatype.com)
+   with GitHub, add the namespace whose name matches the account, and it is
+   verified immediately because GitHub is the proof of ownership.
+
+   What does **not** change: the artifact id (`jerlang`), the jar names, and
+   every Java package (`org.jerlang.*`). A group id is a coordinate, not a
+   package prefix — renaming the packages would break every embedder and every
+   `import` in this repository for nothing.
 2. **A Portal token** in `~/.m2/settings.xml`, as the server id `central`:
 
    ```xml

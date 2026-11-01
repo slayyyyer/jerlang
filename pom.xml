@@ -1,7 +1,18 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.jerlang</groupId>
+  <!--
+    Coordinates are io.github.slayyyyer because Maven Central only lets you
+    publish into a namespace you can prove you control: org.jerlang would need a
+    DNS record on jerlang.org or the jerlang GitHub organisation, and this fork
+    controls neither. io.github.<username> is verified against the GitHub account
+    itself, so it is the honest choice for a fork.
+
+    The Java packages stay org.jerlang.*: a group id is a coordinate, not a
+    package prefix, and renaming the packages would break every embedder to
+    gain nothing.
+  -->
+  <groupId>io.github.slayyyyer</groupId>
   <artifactId>jerlang</artifactId>
   <name>JErlang</name>
   <version>1.0.0</version>
