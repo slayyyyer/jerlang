@@ -21,12 +21,22 @@ for arg in "$@"; do
     esac
 done
 
-version="$(sed -n 's:^  <version>\(.*\)</version>$:\1:p' "$repo/pom.xml" | head -1)"
+# sed reads the whole file and sed -n '1p' consumes the stream, so nothing
+# closes the pipe early. Piping into head did: sed died of SIGPIPE, pipefail
+# made that a failed command substitution, and set -e then killed the script
+# before its first line of output -- intermittently, on the same source.
+version="$(sed -n 's:^  <version>\(.*\)</version>$:\1:p' "$repo/pom.xml" | sed -n '1p')"
 jar="$dist/jerlang-$version.jar"
 
 # The two builds are staged outside target/, because each build starts with
 # mvn clean and would delete the artifact it is meant to be compared against.
-stage="$(mktemp -d)"
+# /tmp is not always writable: on Git Bash for Windows it maps to
+# C:\WINDOWS\tmp, where mktemp fails with "Permission denied" even when TMPDIR
+# names a writable directory. The fallback stages inside the repository, which
+# is still outside target/, because each build starts with mvn clean.
+if ! stage="$(mktemp -d 2>/dev/null)"; then
+    stage="$(mktemp -d "$repo/.package-stage.XXXXXX")"
+fi
 trap 'rm -rf "$stage"' EXIT
 
 build() {
