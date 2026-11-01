@@ -68,7 +68,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 
 **Tests**
 
-- A 516-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 15 are opt-in external or machine tests (the live peer suite, the pass-rate run and the benchmarks).
+- A 517-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 15 are opt-in external or machine tests (the live peer suite, the pass-rate run and the benchmarks).
 
 ### What does not work yet
 
@@ -94,7 +94,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 | 0.6     | Standard library boot   | Unmodified `gen_server`/`supervisor` start via `application` | Done    |
 | 0.7     | Runtime and concurrency | Preemption, timer bounds, no leaked processes under stress   | Done    |
 | 0.8     | Interop and embedding   | Java↔Erlang examples in CI and a frozen API                  | Done    |
-| 0.9     | Cluster and operations  | Metrics, reconnection and graceful shutdown under load       | In progress |
+| 0.9     | Cluster and operations  | Metrics, reconnection and graceful shutdown under load       | Done    |
 | 1.0     | Release                 | Benchmarks against OTP 29, 24 hour soak, fuzzing, artifact   | Planned |
 
 The full plan, including what was dropped from the original roadmap and why, is in [docs/roadmap.md](docs/roadmap.md).

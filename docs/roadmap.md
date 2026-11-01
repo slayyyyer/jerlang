@@ -188,12 +188,12 @@ public signature changes without a version bump.
 
 **Goal:** a node can be run and debugged like a service.
 
-**Status: in progress.** Logging levels and metadata, process state in error
-reports, ordered shutdown and reconnection are in, with the metrics snapshot in
-`docs/operations.md`. Not done: message throughput is not one of the metrics,
-and the exit test below is enforced only for its load, metrics and shutdown
-half (`OperationsTest`); "survives a killed peer and reconnects" has unit tests
-for the retry policy but no end-to-end test in CI.
+**Status: complete.** The exit test below runs in CI: `OperationsTest` covers
+the load, metrics and shutdown half, and `OtpReconnectTest` starts an OTP peer,
+kills it, restarts it under the same name and waits for this node to reconnect
+and carry messages again, in the `otp` job and with no peer started by hand.
+The metrics are documented in `docs/operations.md`; message throughput is the
+one item of the bullet list above that the snapshot does not report.
 
 * Logging: OTP `logger` backed by `java.util.logging`/SLF4J, with levels and
   metadata.

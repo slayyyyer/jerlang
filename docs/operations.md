@@ -204,11 +204,23 @@ between hosts you control.
   `erlang:nodes()`.
 * There is one VM per JVM process: two nodes in one JVM are not supported.
 
-## What the 0.9 exit test covers
+## The 0.9 exit test
 
-`OperationsTest` runs a node under concurrent calls while scraping metrics,
-checks that no call is lost, and closes the node cleanly: no process, port or
-uptime is left behind. The reconnection policy is covered by
-`DistReconnectTest`, which exercises the retry bookkeeping and backoff without
-needing a second machine. A multi-host end-to-end test that kills a peer and
-waits for `nodeup` is not part of the suite yet.
+Both halves run in CI, so nothing here depends on a peer started by hand.
+
+`OperationsTest` is the service half: a node serves concurrent calls while it is
+scraped, no call is lost, and closing it leaves no process, port or uptime
+behind.
+
+`OtpReconnectTest` is the peer half. It starts a real OTP node with `erl` on
+127.0.0.1, connects, kills it, checks that the peer leaves `erlang:nodes/0` and
+that this node notices the loss, starts a peer under the same name again, and
+then waits for the connection to return by itself — the test never calls
+`connect_node/1` after the kill. It ends by echoing a message over the new
+connection, so a reconnect that only flipped a flag would fail, and by scraping
+metrics, so a node that reconnected but stopped being observable would fail too.
+It runs in the `otp` CI job, which has an Erlang installation; without one it is
+skipped like the other OTP-backed tests.
+
+`DistReconnectTest` covers the policy itself, on a machine with no peer at all:
+the backoff shape and the retry bookkeeping.
