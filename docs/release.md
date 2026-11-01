@@ -147,26 +147,33 @@ measured on the commit being tagged:
    `mvn -Dtest=BeamBenchTest -Djerlang.bench=true -Djerlang.bench.gate=true \
    -Djerlang.otp.dir="$OTP" test`. The table goes into `docs/benchmarks.md`; the
    gate enforces the message throughput budget.
-2. **Soak, 24 hours at target load.**
+2. **Soak at target load.** The long form is
    `mvn -Dtest=SoakTest -Djerlang.soak.seconds=86400 -Djerlang.soak.workers=32 test`.
-   This can not run in GitHub Actions: a hosted job is killed after six hours, so
-   the 24 hour run happens on a machine that stays up, and CI runs a shorter soak
-   every night. The soak fails on a process leak, on descriptor growth where the
-   platform reports descriptors, and on heap growth past 256 MB after collection
-   — measured from a reference taken once the load has settled, not from the
-   empty node. That reference exists because a 168 second run at 32 workers
-   showed the live set reaching about 335 MB within two minutes and then staying
-   there while another 40 million messages went through: the runtime's stacks and
-   queues grow to a high-water mark, and comparing a day-long run against startup
-   would have measured that warm-up rather than a leak. The allowance is a
-   quarter of a gigabyte rather than something tighter because G1's count of
-   used-heap-after-collection moves by around 100 MB at this load; a leak here is
-   measured in gigabytes an hour, so the wider bound loses nothing. The reading
-   itself is the smallest of three taken with nothing between the collection and
-   the read: a full collection is stop-the-world, and the schedulers refill the
-   heap the instant it returns, so collecting, sleeping and then reading measures
-   how much was allocated rather than what is retained. A run whose live set
-   never passed 172 MB failed on a 256 MB bound before that was fixed.
+   **1.0.0 ships without the 24 hour run.** That is a decision, not an oversight:
+   a hosted CI job is killed after six hours, so the day-long run needs a machine
+   that stays up for a day, and 1.0 was not going to wait on hardware it does not
+   have. What was measured on the tagged commit is the same test at 330 seconds
+   and 32 workers: 233 million messages delivered, the reported heap holding at
+   196 MB for the whole load, the registry draining back to its baseline process
+   count, and a final live heap of 4 MB. CI runs a shorter soak every night, and
+   the 24 hour run is the gate for 1.0.1 rather than for this tag. The residual
+   risk is stated rather than dismissed: a leak slow enough to hide behind ten
+   minutes of load — under a megabyte a minute — would ship untested.
+
+   The soak fails on a process leak, on descriptor growth where the platform
+   reports descriptors, and on heap growth past 256 MB, checked once after the
+   drivers exit and compared against a reference taken when the load had settled
+   rather than against the empty node. That reference exists because a run at 32
+   workers showed the live set reaching about 200 MB within two minutes and then
+   staying there while another 40 million messages went through: the runtime's
+   stacks and queues grow to a high-water mark, and comparing a day-long run
+   against startup would have measured that warm-up rather than a leak. The heap
+   is not asserted while the load runs, because there the number is not
+   trustworthy: `System.gc()` returns without a full collection when one is
+   already in progress, so one run reported 196 MB and 320 MB over the reference
+   seconds apart while an external class histogram put the live set at a flat
+   172 MB. A leak that survives the load is still caught, which is the leak a
+   release has to care about.
 3. **Fuzzing campaign.**
    `mvn -Dtest='*FuzzTest' -Djerlang.fuzz.iterations=20000 test`. The checked-in
    run is 200 iterations per target on every push; the campaign is the long run.
