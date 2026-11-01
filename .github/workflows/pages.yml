@@ -46,6 +46,12 @@ jobs:
         # not part of the site.
         run: mkdocs build
 
+      # Reads the Pages configuration, so a repository that has not enabled
+      # Pages fails here with a named error instead of at deploy time. It
+      # can not enable Pages itself: that needs a token other than GITHUB_TOKEN.
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
       - name: Upload the site
         uses: actions/upload-pages-artifact@v3
         with:
