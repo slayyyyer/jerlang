@@ -82,12 +82,24 @@ public class SoakTest {
                 workers, seconds, baselineProcesses, baselineFds, baselineHeap >> 20);
 
             long startedAt = System.currentTimeMillis();
-            long deadline = startedAt + seconds * 1000L;
+            // Sample up to two seconds before the load's own deadline: the
+            // drivers stop themselves on the wall clock, so a sample taken at
+            // the deadline would race their exit and report the empty node.
+            long deadline = startedAt + Math.max(1L, seconds - 2L) * 1000L;
             int samples = 0;
             long peakProcesses = baselineProcesses;
             long peakFds = baselineFds;
             long peakHeap = baselineHeap;
             Metrics metrics = node.metrics();
+            int warmupSeconds = Math.max(2, Math.min(120, seconds / 10));
+            // A run shorter than this has not finished warming up: the live set
+            // keeps climbing for about two minutes, so a heap bound taken from a
+            // twenty second run would fail on the warm-up rather than on a leak.
+            // Short runs report the numbers; the 24 hour gate asserts them.
+            boolean assertHeapBound = seconds >= 300;
+            long referenceHeap = baselineHeap;
+            long referenceProcesses = baselineProcesses;
+            boolean referenceTaken = false;
 
             while (System.currentTimeMillis() < deadline) {
                 Thread.sleep(1000);
@@ -99,6 +111,29 @@ public class SoakTest {
                 long fds = openFileDescriptors();
                 if (fds >= 0) {
                     peakFds = Math.max(peakFds, fds);
+                }
+                // The runtime reaches its working set within the first seconds:
+                // the interpreter's stacks and queues grow to a high-water mark
+                // and stay there. Comparing a 24 hour run against the empty
+                // node would measure that warm-up, not a leak, so the reference
+                // is taken once the load has settled.
+                long elapsed = System.currentTimeMillis() - startedAt;
+                if (!referenceTaken && elapsed >= warmupSeconds * 1000L) {
+                    referenceTaken = true;
+                    referenceHeap = heap;
+                    referenceProcesses = metrics.processes();
+                    System.out.printf(Locale.ROOT,
+                        "SOAK warm-up over at %ds: processes=%d heap=%dMB (reference for growth)%n",
+                        elapsed / 1000, referenceProcesses, referenceHeap >> 20);
+                }
+                if (referenceTaken) {
+                    if (assertHeapBound) {
+                        assertTrue("heap grew past the reference by "
+                            + ((heap - referenceHeap) >> 20) + "MB at t=" + (elapsed / 1000) + "s: " + metrics,
+                            heap - referenceHeap < HEAP_GROWTH_BYTES);
+                    }
+                    assertEquals("processes changed after warm-up at t=" + (elapsed / 1000) + "s",
+                        referenceProcesses, metrics.processes());
                 }
                 if (samples % 10 == 1 || samples == seconds) {
                     System.out.printf(Locale.ROOT,
@@ -125,14 +160,21 @@ public class SoakTest {
                 baselineProcesses, drained);
 
             long finalHeap = usedHeap();
-            long growth = finalHeap - baselineHeap;
+            long reference = referenceTaken ? referenceHeap : baselineHeap;
+            long growth = finalHeap - reference;
             System.out.printf(Locale.ROOT,
                 "SOAK done: %d samples, peak processes=%d, peak fds=%d, delivered=%d, "
-                    + "peak heap=%dMB, final heap %dMB -> %dMB%n",
+                    + "peak heap=%dMB, empty-node heap %dMB, reference %dMB, final %dMB%n",
                 samples, peakProcesses, peakFds, metrics.messagesDelivered(),
-                peakHeap >> 20, baselineHeap >> 20, finalHeap >> 20);
-            assertTrue("heap grew by " + (growth >> 20) + "MB over the run, limit is "
-                + (HEAP_GROWTH_BYTES >> 20) + "MB", growth < HEAP_GROWTH_BYTES);
+                peakHeap >> 20, baselineHeap >> 20, reference >> 20, finalHeap >> 20);
+            if (assertHeapBound) {
+                assertTrue("heap grew by " + (growth >> 20) + "MB past the warm-up reference, limit is "
+                    + (HEAP_GROWTH_BYTES >> 20) + "MB", growth < HEAP_GROWTH_BYTES);
+            } else {
+                System.out.printf(Locale.ROOT,
+                    "SOAK heap bound not asserted: a %d s run is too short to have warmed up%n",
+                    seconds);
+            }
 
             if (baselineFds >= 0) {
                 long finalFds = openFileDescriptors();

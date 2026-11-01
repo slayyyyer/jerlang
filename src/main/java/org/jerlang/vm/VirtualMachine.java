@@ -124,13 +124,21 @@ public class VirtualMachine {
         org.jerlang.kernel.application_controller.Applications.stopAll();
         drain();
         for (Scheduler scheduler : schedulers) {
-            scheduler.interrupt();
+            scheduler.requestStop();
         }
         for (Scheduler scheduler : schedulers) {
             try {
-                scheduler.join();
+                // Bounded: a shutdown that can not finish must not become a
+                // hang for the caller. A scheduler still alive here is a bug,
+                // and it is reported rather than waited on forever.
+                scheduler.join(10_000L);
+                if (scheduler.isAlive()) {
+                    System.err.println("jerlang: scheduler " + scheduler.getName()
+                        + " did not stop within 10s of being asked to");
+                }
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                Thread.currentThread().interrupt();
+                break;
             }
         }
         TimerWheel wheel = timerWheel;

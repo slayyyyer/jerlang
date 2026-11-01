@@ -59,6 +59,27 @@ public class Scheduler extends Thread {
     private volatile long busyNanos = 0;
     private volatile long idleNanos = 0;
 
+    /**
+     * Set by {@link #requestStop()} to end the run loop.
+     *
+     * The interrupt status is deliberately not used for this. An interrupt
+     * clears itself when an interruptible call throws, so a scheduler that was
+     * interrupted inside a blocking mailbox send came back to the loop with
+     * the flag already cleared and carried on forever: shutdown then joined a
+     * thread that had no intention of stopping. A soak with 32 processes still
+     * sending hung in {@code Node.close()} for exactly this reason.
+     */
+    private volatile boolean stopRequested = false;
+
+    /**
+     * Ask this scheduler to finish the current process step and stop. Safe to
+     * call more than once and from any thread.
+     */
+    void requestStop() {
+        stopRequested = true;
+        interrupt();
+    }
+
     public Scheduler() {
         ids = new HashSet<>();
         runQueueMax = new RunQueue<>();
@@ -131,7 +152,7 @@ public class Scheduler extends Thread {
      */
     @Override
     public void run() {
-        while (!isInterrupted()) {
+        while (!stopRequested) {
             long started = System.nanoTime();
             boolean worked = executeOneProcess();
             long elapsed = System.nanoTime() - started;
@@ -308,7 +329,9 @@ public class Scheduler extends Thread {
             try {
                 workLock.wait();
             } catch (InterruptedException e) {
-                interrupt();
+                if (!stopRequested) {
+                    interrupt();
+                }
             }
             workPending = false;
         }

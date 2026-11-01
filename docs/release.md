@@ -146,7 +146,13 @@ measured on the commit being tagged:
    This can not run in GitHub Actions: a hosted job is killed after six hours, so
    the 24 hour run happens on a machine that stays up, and CI runs a shorter soak
    every night. The soak fails on a process leak, on descriptor growth where the
-   platform reports descriptors, and on heap growth past 64 MB after collection.
+   platform reports descriptors, and on heap growth past 64 MB after collection
+   — measured from a reference taken once the load has settled, not from the
+   empty node. That reference exists because a 168 second run at 32 workers
+   showed the live set reaching about 335 MB within two minutes and then staying
+   there while another 40 million messages went through: the runtime's stacks and
+   queues grow to a high-water mark, and comparing a day-long run against startup
+   would have measured that warm-up rather than a leak.
 3. **Fuzzing campaign.**
    `mvn -Dtest='*FuzzTest' -Djerlang.fuzz.iterations=20000 test`. The checked-in
    run is 200 iterations per target on every push; the campaign is the long run.
@@ -184,6 +190,13 @@ re-run them is not a release.
     of returning a module where every call is `{undef}`.
 * **Packaging:** the version is now `1.0.0`, the build is reproducible, and
   `scripts/package.sh` is the supported way to produce a release artifact.
+* **Shutdown, found by the soak:** `Node.close()` could hang forever when
+  processes were still running. Schedulers ended on their interrupt status, and
+  an interrupt that arrived inside a blocking mailbox send had already been
+  cleared by the time the loop checked, so the thread never stopped and the
+  shutdown join waited on it. Schedulers now stop on an explicit request, and
+  the join is bounded at ten seconds with a message naming a scheduler that
+  outlives it.
 
 ## Known limitations at 1.0
 
