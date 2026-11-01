@@ -1,0 +1,64 @@
+name: Docs
+
+on:
+  # Only the site's inputs need to trigger this: a push to master that touches
+  # docs, the site config, or this workflow.
+  push:
+    branches: [master]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time. Queued runs are cancelled only by a newer run of
+# this workflow, never by a concurrent push to another one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install MkDocs Material
+        # Pinned to the version the site was last built with locally, so a new
+        # release of the theme cannot change the output between runs.
+        run: pip install 'mkdocs-material==9.8.0'
+
+      - name: Build the site
+        # Not --strict: docs/ links to files outside the documentation tree
+        # (../src/test/..., ../src/api-baseline/...) on purpose, and strict mode
+        # would fail the build for links that are correct in the repository but
+        # not part of the site.
+        run: mkdocs build
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

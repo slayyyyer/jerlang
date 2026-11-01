@@ -81,9 +81,9 @@ trusting the download page.
 ## Publishing to Maven Central
 
 The pom is prepared for Central — metadata, source and javadoc jars, signatures
-and the Portal plugin behind a `central` profile — but **nothing has been
-uploaded**, because the three things publishing needs are not in this
-repository and should not be.
+and the Portal plugin behind a `central` profile — and **1.0.0 is published**:
+`io.github.slayyyyer:jerlang:1.0.0` resolves from Maven Central. What follows is
+how that was done, because the next version repeats it.
 
 ### One-time prerequisites
 
@@ -112,7 +112,45 @@ repository and should not be.
 
    The password is the generated token, not the account password.
 3. **A GPG key** whose public half is on a keyserver, so Central can check the
-   signatures it stores next to the artifacts.
+   signatures it stores next to the artifacts. 1.0.0 used `53566F66…`, a
+   passphrase-protected key; the note under *Building a release* covers how
+   Maven and `scripts/package.sh` get at the secret without a prompt.
+
+### What 1.0.0 published
+
+The namespace `io.github.slayyyyer` was verified through the GitHub sign-in on
+2026-11-01, the bundle was uploaded under deployment
+`6d1cfff1-3a9f-4609-a2a8-b7400ef8b81a`, Sonatype validated it (`1 out of 1
+Components Validated`) and it was released by hand in the Portal. Central now
+serves:
+
+```
+https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/1.0.0/jerlang-1.0.0.jar
+https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/1.0.0/jerlang-1.0.0-sources.jar
+https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/1.0.0/jerlang-1.0.0-javadoc.jar
+https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/1.0.0/jerlang-1.0.0.pom
+```
+
+The published jar is the artifact `target/dist/BUILD-INFO` describes: its
+sha256 is
+`e650cbd72a798f7b8a8fb75dcfe51905536a61b3d79a0299486d998b8526cef7`, the same
+bytes the reproducible build produced hours earlier, in a different `target/`.
+That is the check worth repeating for every release, and it has to be made
+against Central rather than against a local copy:
+
+```sh
+BASE=https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/1.0.0
+curl -sO $BASE/jerlang-1.0.0.jar
+curl -sO $BASE/jerlang-1.0.0.jar.asc
+curl -s  $BASE/jerlang-1.0.0.jar.sha256
+gpg --verify jerlang-1.0.0.jar.asc jerlang-1.0.0.jar
+```
+
+Replication to `repo1.maven.org` lagged the Portal by about seven minutes: a
+404 immediately after releasing means the artifact has not propagated yet, not
+that the release failed. The Portal's own status is `PUBLISHED` before Central
+serves the file, so trust the Portal for "did it release" and Central for "can
+anyone download it".
 
 ### The commands
 
@@ -161,7 +199,7 @@ measured on the commit being tagged:
    and 32 workers: 233 million messages delivered, the reported heap holding at
    196 MB for the whole load, the registry draining back to its baseline process
    count, and a final live heap of 4 MB. CI runs a shorter soak every night, and
-   the 24 hour run is the exit test of [the 1.1 milestone](roadmap.md#11--the-24-hour-gate)
+   the 24 hour run is the exit test of [the 1.1 milestone](roadmap.md#11-the-24-hour-gate)
    rather than a gate this tag met. The residual
    risk is stated rather than dismissed: a leak slow enough to hide behind ten
    minutes of load — under a megabyte a minute — would ship untested.

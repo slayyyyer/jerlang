@@ -220,7 +220,7 @@ implemented and runnable. One part of the exit test was waived: the 24 hour soak
 was not run, so the tag was cut on a 330 second soak at target load — 233 million
 messages, heap flat at 196 MB, registry drained, final live heap 4 MB. The
 waiver and the risk it leaves are recorded in [release.md](release.md), and
-closing it is the whole of [1.1](#11--the-24-hour-gate). The fuzzing bullet
+closing it is the whole of [1.1](#11-the-24-hour-gate). The fuzzing bullet
 below also earned its keep on the way out: the campaign at 20000 iterations found
 three loader defects, including a corrupt `.beam` that hung the loader for 23
 minutes of CPU.

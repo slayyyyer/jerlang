@@ -6,6 +6,9 @@ An Erlang runtime for the [Java Virtual Machine](https://en.wikipedia.org/wiki/J
 
 > **Fork notice:** this project began as a fork of [jerlang/jerlang](https://github.com/jerlang/jerlang) and is continued in this repository.
 
+Published to Maven Central as `io.github.slayyyyer:jerlang:1.0.0`. The
+documentation site is at <https://slayyyyer.github.io/jerlang/>.
+
 JErlang reads the BEAM files that `erlc` produces and interprets them on the JVM. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.
 
 ## Intended goals
@@ -95,7 +98,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 | 0.7     | Runtime and concurrency | Preemption, timer bounds, no leaked processes under stress   | Done    |
 | 0.8     | Interop and embedding   | Java↔Erlang examples in CI and a frozen API                  | Done    |
 | 0.9     | Cluster and operations  | Metrics, reconnection and graceful shutdown under load       | Done    |
-| 1.0     | Release                 | Benchmarks against OTP 29, 24 hour soak, fuzzing, artifact   | In progress |
+| 1.0     | Release                 | Benchmarks against OTP 29, fuzzing, artifact (soak waived)    | Released |
 
 The full plan, including what was dropped from the original roadmap and why, is in [docs/roadmap.md](docs/roadmap.md).
 
@@ -176,6 +179,9 @@ mvn pitest:mutationCoverage -DtargetClasses=org.jerlang.type.Nil -DtargetTests=o
 
 ## Documentation
 
+- [Documentation site](https://slayyyyer.github.io/jerlang/): the same guides,
+  built from this repository and published to GitHub Pages, including a getting
+  started walkthrough and the two annotated examples
 - [docs/java-interop.md](docs/java-interop.md): the value mapping, the bridge rules and the embedding API
 - [docs/roadmap.md](docs/roadmap.md): milestones and what was dropped from the original plan
 - [docs/beam-compatibility.md](docs/beam-compatibility.md): opcode and language coverage

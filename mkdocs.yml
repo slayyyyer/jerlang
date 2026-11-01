@@ -1,0 +1,70 @@
+site_name: JErlang
+site_description: An Erlang runtime for the Java Virtual Machine
+site_url: https://slayyyyer.github.io/jerlang/
+repo_url: https://github.com/slayyyyer/jerlang
+repo_name: slayyyyer/jerlang
+edit_uri: edit/master/docs/
+docs_dir: docs
+site_dir: site
+copyright: Apache 2.0
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Examples:
+      - Java calls Erlang: examples/gen-server.md
+      - Erlang calls Java: examples/java-service.md
+  - Guides:
+      - Java interoperability: java-interop.md
+      - Distribution: distribution.md
+      - Operating a node: operations.md
+      - BEAM compatibility: beam-compatibility.md
+      - Benchmarks: benchmarks.md
+  - Project:
+      - Roadmap: roadmap.md
+      - Releasing: release.md
