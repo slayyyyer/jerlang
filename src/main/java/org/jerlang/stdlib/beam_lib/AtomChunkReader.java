@@ -24,9 +24,27 @@ public class AtomChunkReader extends AbstractChunkReader<AtomChunk> {
         int count = read4Bytes();
         boolean compactLengths = count < 0;
         int numberOfAtoms = Math.abs(count);
+        // The count sizes an array before a single atom has been read, so it
+        // has to be believed only as far as the file can back it. Every atom
+        // costs at least its length byte, which makes the bytes left in the
+        // file an upper bound. Math.abs leaves Integer.MIN_VALUE negative, and
+        // that is refused by the same test.
+        if (numberOfAtoms < 0 || numberOfAtoms > inputStream().available()) {
+            throw new IllegalArgumentException("atom count " + count
+                + " exceeds the " + inputStream().available() + " bytes left in the file");
+        }
         AtomChunk atomChunk = new AtomChunk(chunk(), numberOfAtoms);
         for (int index = 0; index < numberOfAtoms; index++) {
             int length = compactLengths ? decodeArg(null, null).toInteger().toInt() : read1Byte();
+            // A length read out of the file is not evidence that the bytes
+            // exist. A mutated chunk claimed two gigabytes for a one byte atom,
+            // and allocating before checking turned a corrupt file into an
+            // OutOfMemoryError. Every atom byte costs at least one input byte,
+            // so what is left in the file is the ceiling.
+            if (length < 0 || length > inputStream().available()) {
+                throw new IllegalArgumentException("atom length " + length
+                    + " exceeds the " + inputStream().available() + " bytes left in the file");
+            }
             byte[] bytes = new byte[length];
             readBytes(bytes);
             atomChunk.set(index, utf8

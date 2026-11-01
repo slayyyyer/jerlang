@@ -17,8 +17,26 @@ public class LineTableChunkReader extends AbstractChunkReader<LineTableChunk> {
     }
 
     public LineTableChunk read() throws Throwable {
+        int version = read4Bytes();
+        int flags = read4Bytes();
+        int count = read4Bytes();
+        int recordCount = read4Bytes();
+        int fileNameCount = read4Bytes();
+        // Both counts size arrays before a single record has been read, so they
+        // are checked against what the file can back: a record costs at least
+        // one byte. Without this a mutated header asked for a two gigabyte
+        // array and turned a corrupt file into an OutOfMemoryError.
+        int remaining = inputStream().available();
+        if (recordCount < 0 || recordCount > remaining) {
+            throw new IllegalArgumentException("line record count " + recordCount
+                + " exceeds the " + remaining + " bytes left in the file");
+        }
+        if (fileNameCount < 0 || fileNameCount > remaining) {
+            throw new IllegalArgumentException("line filename count " + fileNameCount
+                + " exceeds the " + remaining + " bytes left in the file");
+        }
         LineTableChunk lineTableChunk = new LineTableChunk(chunk(),
-            read4Bytes(), read4Bytes(), read4Bytes(), read4Bytes(), read4Bytes());
+            version, flags, count, recordCount, fileNameCount);
 
         // From beam_asm.erl:
         // "Encode the line items compactly.

@@ -130,6 +130,16 @@ public class ModuleLoader {
                 int offset = chunkTuple.element(2).toInteger().toInt();
                 int length = chunkTuple.element(3).toInteger().toInt();
                 ChunkId chunkId = ChunkId.of(chunkTuple.element(1).toStr().string());
+                // The offset and length come out of the file being read, and
+                // the readers trust them when they size their buffers. A
+                // mutated header can point past the end of the file, so the
+                // check belongs here, where the file's real length is known.
+                if (offset < 0 || length < 0 || (long) offset + length > bytes.length) {
+                    System.err.println("Chunk " + chunkId + " lies outside the file: offset="
+                        + offset + " length=" + length + " file=" + bytes.length);
+                    chunkList = chunkList.tail();
+                    continue;
+                }
                 Chunk chunk = new Chunk(chunkId, offset, length);
                 DataInputStream dis = new DataInputStream(new ByteArrayInputStream(bytes));
                 dis.skipBytes(offset);

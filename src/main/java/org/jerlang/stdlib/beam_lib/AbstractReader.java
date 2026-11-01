@@ -142,6 +142,15 @@ public class AbstractReader {
 
         // Bignum
         int numBytes = decodeIntLength(b);
+        // The length is read out of the file, so it is checked against what the
+        // file can still supply. Without this a mutated instruction asked for a
+        // two gigabyte array, and then shifted a BigInteger left by
+        // numBytes * 8 bits, which is not a slow load but a hang: the fuzzing
+        // campaign spent 23 minutes of CPU in shiftLeft before it was killed.
+        if (numBytes < 0 || numBytes > inputStream.available()) {
+            throw new IllegalArgumentException("bignum length " + numBytes
+                + " exceeds the " + inputStream.available() + " bytes left in the file");
+        }
         byte[] bytes = new byte[numBytes];
         readBytes(bytes);
 
