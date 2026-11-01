@@ -1,0 +1,52 @@
+plugins {
+    id 'application'
+}
+
+// The published artifact, not this repository's sources: the example is what a
+// consumer's build file looks like. jzlib comes with it transitively, and it is
+// needed to inflate compressed BEAM chunks.
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.github.slayyyyer:jerlang:1.0.0'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+application {
+    mainClass = 'example.Server'
+}
+
+def ebin = layout.buildDirectory.dir('ebin')
+
+// The Erlang sources are the service. This task is the whole reason the example
+// needs an Erlang installation: only compilation needs erlc, and the resulting
+// .beam files are loaded by the runtime from build/ebin.
+tasks.register('compileErlang', Exec) {
+    description = 'Compiles the Erlang sources of the service.'
+    group = 'build'
+    def sources = fileTree('src/main/erl') { include '**/*.erl' }
+    def erlc = System.getenv('ERLC') ?: 'erlc'
+    inputs.files sources
+    outputs.dir ebin
+    doFirst {
+        ebin.get().asFile.mkdirs()
+        commandLine([erlc, '-o', ebin.get().asFile.absolutePath]
+            + sources.files.collect { it.absolutePath })
+    }
+}
+
+tasks.named('classes') {
+    dependsOn 'compileErlang'
+}
+
+tasks.named('run') {
+    systemProperty 'jerlang.example.ebin', ebin.get().asFile.absolutePath
+    systemProperty 'jerlang.example.port', providers.gradleProperty('port').getOrElse('8080')
+}

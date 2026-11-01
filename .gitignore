@@ -19,3 +19,7 @@ hs_err_pid*
 
 # The documentation site that `mkdocs build` writes.
 /site/
+
+# Gradle output of examples/http-service.
+/examples/http-service/build/
+/examples/http-service/.gradle/
