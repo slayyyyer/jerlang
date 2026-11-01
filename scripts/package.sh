@@ -80,7 +80,12 @@ if [ "$sign" = "1" ]; then
         echo "JERLANG_SIGNING_KEY is not set; refusing to claim a signature" >&2
         exit 1
     fi
-    gpg --batch --yes --local-user "$JERLANG_SIGNING_KEY" \
+    # The key carries a passphrase now, and --batch has no way to ask for one,
+    # so loopback mode plus a passphrase file is what keeps this unattended.
+    # maven-gpg-plugin reads the same passphrase from ~/.m2/settings.xml.
+    gpg --batch --yes --pinentry-mode loopback \
+        ${JERLANG_SIGNING_PASSPHRASE_FILE:+--passphrase-file "$JERLANG_SIGNING_PASSPHRASE_FILE"} \
+        --local-user "$JERLANG_SIGNING_KEY" \
         --detach-sign --armor --output "$jar.asc" "$jar"
     echo "signed: $jar.asc"
 else
