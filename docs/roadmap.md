@@ -215,9 +215,15 @@ killed peer and reconnects, and shuts down without losing in-flight calls.
 
 **Goal:** a release that can be supported.
 
-**Status: in progress.** The five bullets below are implemented and runnable;
-what is missing is the 24 hour soak run itself and the tag, both of which are
-process steps rather than code. See [release.md](release.md) for the checklist.
+**Status: released.** Tagged `1.0.0` on `074c5b3`. The five bullets below are
+implemented and runnable. One part of the exit test was waived: the 24 hour soak
+was not run, so the tag was cut on a 330 second soak at target load — 233 million
+messages, heap flat at 196 MB, registry drained, final live heap 4 MB. The
+waiver and the risk it leaves are recorded in [release.md](release.md), and
+closing it is the whole of [1.1](#11--the-24-hour-gate). The fuzzing bullet
+below also earned its keep on the way out: the campaign at 20000 iterations found
+three loader defects, including a corrupt `.beam` that hung the loader for 23
+minutes of CPU.
 
 * [x] Benchmark suite: startup, function call, message passing, binary
   operations and ETS, measured against OTP 29 on the same machine from the same
@@ -251,8 +257,54 @@ process steps rather than code. See [release.md](release.md) for the checklist.
   The signing key itself is release infrastructure, not something a repository
   can hold.
 
-**Exit test:** the benchmark table and the 24 hour soak are green on the same
-commit that is tagged 1.0, and the artifact is installable from a clean machine.
+**Exit test:** the benchmark table, the fuzzing campaign and a soak at target
+load are green on the commit that is tagged 1.0, and the artifact is installable
+from a clean machine. The day-long soak was dropped from this gate when 1.0
+shipped; that is the difference between what was written here and what was done,
+and it is carried to 1.1 rather than deleted.
+
+### 1.1 — The 24 hour gate
+
+**Goal:** the day-long soak becomes a gate a release can actually be blocked by,
+rather than a command somebody is meant to run on a machine nobody has.
+
+**Status: planned.** 1.0.0 shipped on a 330 second soak. This milestone exists so
+the next release does not inherit the same gap, and it is deliberately small: the
+soak already asserts process count, descriptors and post-drain heap, so the work
+is the machine, the record, and the proof that a failure is caught.
+
+* [ ] A runner that stays up for a day, with the JDK, the OTP version and the
+  heap it runs with pinned and written down. A hosted CI runner is killed after
+  six hours, so this is a self-hosted runner or a dedicated box, and which of the
+  two is a decision this milestone makes rather than inherits.
+* [ ] A workflow that runs
+  `mvn -Dtest=SoakTest -Djerlang.soak.seconds=86400 -Djerlang.soak.workers=32 test`
+  on release candidates, archives the log as an artifact, and fails the commit
+  that would be tagged when the run is not green. A run that is only ever
+  started by hand is not a gate.
+* [ ] A machine-readable sample stream rather than a log to read by eye: one line
+  per sample with time, process count, mailbox count, delivered messages, rate,
+  heap and descriptors, so two runs can be compared and a slow drift can be seen.
+  The current run prints aggregate peaks, which show that something ended badly
+  but not when it began.
+* [ ] A failing soak that says what grew: when the heap bound is crossed, print
+  the structures of the heaviest processes — mailbox depth, frame depth, resume
+  points, activations, tail-call continuations, stack and register sizes — plus
+  the pending timer count. This was written once while chasing 1.0's apparent
+  memory growth and thrown away again; without it a red 24 hour run is a number
+  and a shrug.
+* [ ] Proof that the gate can fail. A leak injected on purpose — a retention hook
+  that keeps a byte per message delivered — has to make the run red at the bound
+  on the same commit where the ordinary run is green. A gate that has only ever
+  been green is not evidence that it works.
+* [ ] The 24 hour run recorded in [release.md](release.md) as run, with its
+  result and the hardware it ran on, so the 1.0 waiver ends instead of quietly
+  persisting through the 1.x line.
+
+**Exit test:** a 24 hour soak at target load is green on a machine that stayed
+up, its sample stream and log are archived with the release, a deliberately
+injected leak on the same commit fails the same gate, and the release checklist
+contains no waived line.
 
 ## Cross-cutting work
 
@@ -322,5 +374,9 @@ credible story; if it does not, the gaps are known and finite.
 * **Elixir.** Binaries and records block it today, and its standard library is
   larger than Erlang's. Treat it as a separate compatibility track with its own
   corpus after 0.6, not as a side effect of Erlang support.
+* **The 1.0 waiver.** 1.0.0 shipped without the day-long run, so a leak slower
+  than roughly a megabyte a minute would have gone unseen. It is the first item
+  in 1.1 for that reason, and until 1.1 lands the 1.x line carries the same gap
+  and says so in [release.md](release.md).
 * **Hot upgrade.** Deferred, and should be stated as such; production users who
   need it are not served by this runtime yet.

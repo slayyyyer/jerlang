@@ -156,7 +156,8 @@ measured on the commit being tagged:
    and 32 workers: 233 million messages delivered, the reported heap holding at
    196 MB for the whole load, the registry draining back to its baseline process
    count, and a final live heap of 4 MB. CI runs a shorter soak every night, and
-   the 24 hour run is the gate for 1.0.1 rather than for this tag. The residual
+   the 24 hour run is the exit test of [the 1.1 milestone](roadmap.md#11--the-24-hour-gate)
+   rather than a gate this tag met. The residual
    risk is stated rather than dismissed: a leak slow enough to hide behind ten
    minutes of load — under a megabyte a minute — would ship untested.
 
