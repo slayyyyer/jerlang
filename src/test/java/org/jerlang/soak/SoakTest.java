@@ -138,11 +138,11 @@ public class SoakTest {
                         elapsed / 1000, referenceProcesses, referenceHeap >> 20);
                 }
                 if (referenceTaken) {
-                    if (assertHeapBound) {
-                        assertTrue("heap grew past the reference by "
-                            + ((heap - referenceHeap) >> 20) + "MB at t=" + (elapsed / 1000) + "s: " + metrics,
-                            heap - referenceHeap < HEAP_GROWTH_BYTES);
-                    }
+                    // The heap is reported while the load runs but not asserted
+                    // here: see usedHeap(). A process count that moves is a
+                    // fact, so that is asserted per sample; the heap is
+                    // checked once, after the load has drained and nothing is
+                    // allocating.
                     assertEquals("processes changed after warm-up at t=" + (elapsed / 1000) + "s",
                         referenceProcesses, metrics.processes());
                 }
@@ -228,17 +228,46 @@ public class SoakTest {
     }
 
     private static long usedHeap() {
-        Runtime runtime = Runtime.getRuntime();
+        // Read with nothing between the collection and the read, and keep the
+        // smallest of three.
+        //
+        // The obvious version - collect, sleep, read - measures the load rather
+        // than the runtime. A full collection is stop-the-world, so the moment
+        // it returns every scheduler thread starts allocating again, and at the
+        // ~600k messages a second this test generates a 50 ms sleep put tens of
+        // megabytes of fresh garbage into the reading. That is not hypothetical:
+        // a run whose live set never passed 172 MB (checked with an external
+        // class histogram) failed with "heap grew past the reference by 256MB",
+        // because each sample measured how much had been allocated since the
+        // collection instead of what was retained.
+        //
+        // The minimum of several immediate readings is the closest estimate of
+        // the live set available from inside the process. It is still an
+        // overestimate by whatever was allocated in the microseconds after the
+        // collection, which is why the bound is a quarter of a gigabyte and not
+        // tighter.
+        // Use the heap bound for the assertion after the load, not during it.
+        //
+        // Under load this reading is not usable, for a reason that took a while
+        // to see: System.gc() returns without a full collection when one is
+        // already in progress, so the same run reported 196 MB and 320 MB over
+        // the reference seconds apart while an external class histogram put the
+        // live set at a flat 172 MB. Asserting on that made the soak fail on its
+        // own sampling. Once the drivers have exited nothing is allocating and
+        // the reading is stable, which is where the leak bound is checked.
+        //
+        // Used memory comes from the memory bean, not totalMemory - freeMemory:
+        // a full collection can uncommit heap and the two calls are not the same
+        // snapshot, so the subtraction can come out negative (-60MB was a real
+        // reference value) and make every later comparison nonsense.
+        java.lang.management.MemoryMXBean memory = java.lang.management.ManagementFactory
+            .getMemoryMXBean();
+        long smallest = Long.MAX_VALUE;
         for (int attempt = 0; attempt < 3; attempt++) {
             System.gc();
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
+            smallest = Math.min(smallest, memory.getHeapMemoryUsage().getUsed());
         }
-        return runtime.totalMemory() - runtime.freeMemory();
+        return Math.max(0, smallest);
     }
 
 }

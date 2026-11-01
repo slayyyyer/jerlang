@@ -161,7 +161,12 @@ measured on the commit being tagged:
    would have measured that warm-up rather than a leak. The allowance is a
    quarter of a gigabyte rather than something tighter because G1's count of
    used-heap-after-collection moves by around 100 MB at this load; a leak here is
-   measured in gigabytes an hour, so the wider bound loses nothing.
+   measured in gigabytes an hour, so the wider bound loses nothing. The reading
+   itself is the smallest of three taken with nothing between the collection and
+   the read: a full collection is stop-the-world, and the schedulers refill the
+   heap the instant it returns, so collecting, sleeping and then reading measures
+   how much was allocated rather than what is retained. A run whose live set
+   never passed 172 MB failed on a 256 MB bound before that was fixed.
 3. **Fuzzing campaign.**
    `mvn -Dtest='*FuzzTest' -Djerlang.fuzz.iterations=20000 test`. The checked-in
    run is 200 iterations per target on every push; the campaign is the long run.
