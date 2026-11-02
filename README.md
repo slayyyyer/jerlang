@@ -6,7 +6,7 @@ An Erlang runtime for the [Java Virtual Machine](https://en.wikipedia.org/wiki/J
 
 > **Fork notice:** this project began as a fork of [jerlang/jerlang](https://github.com/jerlang/jerlang) and is continued in this repository.
 
-Published to Maven Central as `io.github.slayyyyer:jerlang:1.0.0`. The
+Published to Maven Central as `io.github.slayyyyer:jerlang:1.0.1`. The
 documentation site is at <https://slayyyyer.github.io/jerlang/>.
 
 JErlang reads the BEAM files that `erlc` produces and interprets them on the JVM. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.

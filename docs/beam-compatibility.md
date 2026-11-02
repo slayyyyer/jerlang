@@ -517,5 +517,6 @@ same route.
 | send to a registered process, receive the reply with `after 200` | `[a,b]` in 2.7 ms | `[a,b]` in 1.5 ms |
 | message already in the mailbox, receive with `after 200` | `got_it` in 2.8 ms | `got_it` in 0.7 ms |
 
-1.0.0 is published and cannot change, so the fix ships in the next patch
-release. An artifact or an example pinned to 1.0.0 still has the old behaviour.
+1.0.1 contains this fix, and `io.github.slayyyyer:jerlang:1.0.1` resolves from
+Maven Central. 1.0.0 is published and cannot change, so anything still pinned
+to it keeps the old behaviour.

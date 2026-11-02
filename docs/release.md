@@ -12,8 +12,8 @@ of `org.jerlang.erts.Emulator`. Running it with no arguments starts the shell,
 so the artifact is usable on its own:
 
 ```
-java -jar jerlang-1.0.0.jar
-java -cp jerlang-1.0.0.jar:path/to/beams -Djerlang.otp.dir=/path/to/otp App
+java -jar jerlang-1.0.1.jar
+java -cp jerlang-1.0.1.jar:path/to/beams -Djerlang.otp.dir=/path/to/otp App
 ```
 
 Requirements: Java 21 or newer. Erlang/OTP is only needed to run OTP's own
@@ -70,8 +70,8 @@ appears on a command line.
 Verification is the ordinary GPG flow:
 
 ```
-gpg --verify jerlang-1.0.0.jar.asc jerlang-1.0.0.jar
-sha256sum -c jerlang-1.0.0.jar.sha256
+gpg --verify jerlang-1.0.1.jar.asc jerlang-1.0.1.jar
+sha256sum -c jerlang-1.0.1.jar.sha256
 ```
 
 `target/dist/BUILD-INFO` records the commit, the JDK and the checksum of the
@@ -81,9 +81,9 @@ trusting the download page.
 ## Publishing to Maven Central
 
 The pom is prepared for Central — metadata, source and javadoc jars, signatures
-and the Portal plugin behind a `central` profile — and **1.0.0 is published**:
-`io.github.slayyyyer:jerlang:1.0.0` resolves from Maven Central. What follows is
-how that was done, because the next version repeats it.
+and the Portal plugin behind a `central` profile — and **1.0.0 and 1.0.1 are published**:
+`io.github.slayyyyer:jerlang:1.0.1` resolves from Maven Central. What follows is
+how 1.0.0 was done, because every version since repeats it.
 
 ### One-time prerequisites
 
@@ -151,6 +151,31 @@ Replication to `repo1.maven.org` lagged the Portal by about seven minutes: a
 that the release failed. The Portal's own status is `PUBLISHED` before Central
 serves the file, so trust the Portal for "did it release" and Central for "can
 anyone download it".
+
+### What 1.0.1 published
+
+1.0.1 is a patch: no public API change, and the one behaviour change is the fix
+recorded in [beam-compatibility.md](beam-compatibility.md). The jar Central
+serves has sha256
+`bade6f5abe4276ebc969e99edb4f2b7f5969eb224f6e249a47a8e67ff4942e70`, which is
+both the value Central's own `.sha256` file reports and the value the local
+build produced, and `gpg --verify` on the downloaded jar reports a good
+signature from `53566F66…`. The jar, `-sources.jar`, `-javadoc.jar` and the pom
+each resolve, with a detached signature beside them.
+
+The upload went through the plugin and the release through the Portal API, on
+deployment `a4ee8f90-177c-4423-b5d2-42b74376a64f`:
+
+```sh
+curl -X POST -H "Authorization: Bearer <token>"   https://central.sonatype.com/api/v1/publisher/deployment/a4ee8f90-177c-4423-b5d2-42b74376a64f
+```
+
+The status endpoint reported `PUBLISHED` within about three minutes, and
+`repo1.maven.org` served the file at the same time. While the deployment was in
+`PUBLISHING`, the status payload carried a `common` error, `Deployment components
+info not found`, with an empty `purls` list; the same error was still in the
+`PUBLISHED` payload. It did not prevent publication and the artifacts verify, so
+read the artifact from Central rather than the error text.
 
 ### The commands
 
