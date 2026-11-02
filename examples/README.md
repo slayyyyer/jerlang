@@ -1,7 +1,18 @@
 # Examples
 
-Two programs, one for each direction of the Java interop, plus three services built
-on the published artifact.
+Six programs: the two directions of the Java interop, three services built on the
+published artifact, and a test harness.
+
+## Which one do I want?
+
+| I want to… | Start from |
+| --- | --- |
+| call Erlang from Java, in-process | [`gen-server`](gen-server/README.md) |
+| call a Java class from Erlang | [`java-service`](java-service/README.md) |
+| serve HTTP with the routes in Erlang | [`http-service`](http-service/README.md) |
+| push events to a browser | [`chat-service`](chat-service/README.md) |
+| keep data in mnesia on an OTP node | [`mnesia-service`](mnesia-service/README.md) |
+| test my `.erl` modules from JUnit | [`junit-harness`](junit-harness/README.md) |
 
 | Directory | What it shows |
 | --- | --- |
@@ -10,8 +21,9 @@ on the published artifact.
 | `http-service` | Erlang behind an HTTP listener: Gradle pulls the artifact, Java is fixed plumbing, the routes are `.erl`. |
 | `chat-service` | The same shape with a push direction: rooms, ETS history and server-sent events through a Java sink Erlang calls. |
 | `mnesia-service` | The data lives in mnesia on an OTP node, reached over distribution with `rpc:call/5`; the JVM node is the HTTP front end. |
+| `junit-harness` | Erlang modules under test in a JUnit 5 suite, no Erlang installation needed to run it. |
 
-All four use `org.jerlang.api.Node`, which owns the runtime: it starts the
+All six use `org.jerlang.api.Node`, which owns the runtime: it starts the
 schedulers, applies the options and, on `close()`, drains the object handle
 table. `mnesia-service` also names its node with `-sname`, because a distribution
 peer needs an identity.
@@ -27,8 +39,7 @@ bash examples/run.sh
 OTP's own `gen_server`, so it needs a real Erlang installation, not just the
 runtime. The second one only needs a JDK, but `run.sh` compiles both.
 
-`http-service`, `chat-service` and `mnesia-service` are their own Gradle builds
-and are not covered by `run.sh`:
+The rest are their own Gradle builds and are not covered by `run.sh`:
 
 ```sh
 cd examples/http-service
@@ -36,6 +47,9 @@ gradle run                 # http://127.0.0.1:8080/
 
 cd examples/chat-service
 gradle run                 # http://127.0.0.1:8080/, 64 streams
+
+cd examples/junit-harness
+gradle test                # compiles the .erl if erlc is present, then the suite
 ```
 
 `mnesia-service` also needs the OTP node that owns the table, so it takes two
@@ -49,11 +63,13 @@ erl -sname mnesia_node -setcookie examplecookie -noshell -pa otp -eval 'mnesia_n
 gradle run                 # http://127.0.0.1:8080/, in another terminal
 ```
 
-The first two need `erlc` to compile the `.erl` files and nothing Erlang-shaped to
-run them; `mnesia-service` needs a running OTP node as well. See their READMEs and
-docs pages: [http-service](http-service/README.md),
+The Gradle examples need `erlc` to compile the `.erl` files; only `http-service`,
+`chat-service` and `mnesia-service` need Erlang at run time, and `junit-harness`
+needs none at all. See their READMEs and docs pages:
+[http-service](http-service/README.md),
 [chat-service](chat-service/README.md),
-[mnesia-service](mnesia-service/README.md).
+[mnesia-service](mnesia-service/README.md),
+[junit-harness](junit-harness/README.md).
 
 Expected output:
 

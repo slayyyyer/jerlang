@@ -1,0 +1,60 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.github.slayyyyer:jerlang:1.0.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// The tests call the .beam files in src/test/ebin, and those are committed. That
+// is deliberate: a checkout with no Erlang installation at all can still run
+// `gradle test`. This task refreshes them when erlc is available, and skips
+// itself when it is not.
+//
+// The directory is outside src/test/resources on purpose. Gradle refuses to let
+// the resource task read a directory another task writes (an implicit
+// dependency it rejects at configuration time), and the beams are loaded from
+// disk by the runtime anyway, never from the classpath.
+def ebin = file('src/test/ebin')
+
+tasks.register('compileErlang', Exec) {
+    description = 'Recompiles the Erlang modules the tests call.'
+    group = 'build'
+    def sources = fileTree('src/main/erl') { include '**/*.erl' }
+    def erlc = System.getenv('ERLC') ?: 'erlc'
+    inputs.files sources
+    outputs.dir ebin
+    onlyIf {
+        try {
+            new ProcessBuilder(erlc, '-v').redirectErrorStream(true).start().waitFor() == 0
+        } catch (Exception missing) {
+            logger.lifecycle('erlc not found, using the committed .beam files')
+            false
+        }
+    }
+    doFirst {
+        ebin.mkdirs()
+        commandLine([erlc, '-o', ebin.absolutePath] + sources.files.collect { it.absolutePath })
+    }
+}
+
+tasks.named('test') {
+    dependsOn 'compileErlang'
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'failed'
+        showStandardStreams = false
+    }
+}

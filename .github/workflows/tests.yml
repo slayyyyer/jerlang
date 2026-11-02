@@ -207,3 +207,39 @@ jobs:
 
       - name: Run the soak
         run: mvn -B -Dtest=SoakTest -Djerlang.soak.seconds=1800 -Djerlang.soak.workers=32 test
+
+  gradle-examples:
+    # The Gradle examples are consumer builds: they resolve the published
+    # artifact and compile their own Erlang, so a change to the runtime or to
+    # their sources can not hide behind a stale local build. mnesia-service is
+    # built here but not run: running it needs a live OTP node.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Erlang/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: '29'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: junit-harness
+        run: cd examples/junit-harness && gradle --no-daemon test
+
+      - name: http-service
+        run: cd examples/http-service && gradle --no-daemon installDist
+
+      - name: chat-service
+        run: cd examples/chat-service && gradle --no-daemon installDist
+
+      - name: mnesia-service
+        run: cd examples/mnesia-service && gradle --no-daemon installDist
