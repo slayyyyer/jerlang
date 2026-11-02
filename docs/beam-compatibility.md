@@ -478,19 +478,44 @@ replace.
 
 ## `receive ... after` inside an inbound distribution call
 
-Measured on 1.0.0 against a real OTP 29 peer. In a process created to serve an
-`erpc` call that arrived over distribution, a `receive` with an `after` clause
-does not park: it returns `[]` immediately when the message is not already in the
-mailbox.
+The defect described here was fixed after 1.0.0. The measurements below are
+from 1.0.0 as published, and the ones after them are from the fixed build, both
+against a real OTP 29 peer.
 
-| Call | From an inbound `erpc:call` | From Java, in-process |
+In 1.0.0, a process created to serve an `erpc` call that arrived over
+distribution did not park in a `receive` with an `after` clause: it returned
+`[]` immediately when the message was not already in the mailbox.
+
+| Call on 1.0.0 | From an inbound `erpc:call` | From Java, in-process |
 |------|:---------------------------:|:---------------------:|
 | `receive never -> got after 200 -> timed_out end` | `[]` in 3.6 ms | `timed_out` in 214 ms |
 | a child sends, the parent receives with `after 200` | `[]` in 0.9 ms | `{got,42}` in 0.9 ms |
 | send to a registered process, receive the reply with `after 200` | `[]` in 1.1 ms | `[a,b]` in 0.6 ms |
 
-A receive whose message is already in the mailbox works in both cases, so the
-defect is the waiting, not delivery. The consequence is concrete: a stateful
-module served to a cluster answers `[]` instead of its state, because every
-request/reply pattern is written this way. The trigger is the arrival path; the
-cause is not established.
+A receive whose message is already in the mailbox worked in both cases, so the
+defect was the waiting, not delivery. The consequence was concrete: a stateful
+module served to a cluster answered `[]` instead of its state, because every
+request/reply pattern is written this way.
+
+The cause: `erpc:execute_call/4` is a Java function, and it ran the target with
+`erlang:apply/3` inside its own Java frame. Suspension unwinds that frame,
+because only the interpreter's own activations carry a resume point, so the
+process finished without the result and the monitor reported what was left in
+`x0`.
+
+The fix hands the reply to the exit path. `execute_call/4` records the result
+reference when the call parks instead of throwing a reply it cannot build,
+`Interpreter` leaves a parked process `WAITING` rather than marking it exited,
+and the scheduler builds `{Ref, return, x0}` when the process finally stops
+running. A failure raised after the resume becomes `{Ref, error, Reason}` by the
+same route.
+
+| Call on the fixed build | From an inbound `erpc:call` | From Java, in-process |
+|------|:---------------------------:|:---------------------:|
+| `receive never -> got after 200 -> timed_out end` | `timed_out` in 222 ms | `timed_out` in 213 ms |
+| a child sends, the parent receives with `after 200` | `{got,42}` in 4.3 ms | `{got,42}` in 1.4 ms |
+| send to a registered process, receive the reply with `after 200` | `[a,b]` in 2.7 ms | `[a,b]` in 1.5 ms |
+| message already in the mailbox, receive with `after 200` | `got_it` in 2.8 ms | `got_it` in 0.7 ms |
+
+1.0.0 is published and cannot change, so the fix ships in the next patch
+release. An artifact or an example pinned to 1.0.0 still has the old behaviour.

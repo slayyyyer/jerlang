@@ -51,6 +51,13 @@ public class Interpreter {
             }
             Term res = m.apply(signature, args);
             process.setX(0, res);
+            // A call into an internal module runs in Java, so a receive that
+            // parks inside it has no instruction stream to return to. The
+            // process must stay WAITING for the scheduler to keep it, and it
+            // finishes when the code it parked in does.
+            if (process.state() == ProcessState.WAITING) {
+                return res;
+            }
             // Setting the EXITING state must be the last
             // operation before return. Otherwise another
             // thread waiting for this process might get

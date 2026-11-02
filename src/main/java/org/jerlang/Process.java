@@ -87,6 +87,11 @@ public class Process extends ProcessOrPort {
     // Set when an uncaught Throwable terminated this process
     private volatile Throwable failure = null;
 
+    // The reference a parked erpc:execute_call/4 still owes a reply to. Its
+    // Java frame does not survive the suspension, so the reply is built from
+    // x0 when the process stops running.
+    private volatile Term erpcReply = null;
+
     // Timeout
     private long timeout = 0;
 
@@ -1063,6 +1068,20 @@ public class Process extends ProcessOrPort {
 
     public boolean hasPendingExit() {
         return pendingExit != null;
+    }
+
+    public void setErpcReply(Term reference) {
+        erpcReply = reference;
+    }
+
+    /**
+     * The reply this process still owes an erpc caller, or null. Taken once,
+     * by the scheduler, when the process has stopped running.
+     */
+    public Term consumeErpcReply() {
+        Term reference = erpcReply;
+        erpcReply = null;
+        return reference;
     }
 
     public Term pendingExitReason() {

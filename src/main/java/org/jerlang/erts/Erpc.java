@@ -7,6 +7,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.jerlang.Process;
 import org.jerlang.ProcessSignals;
+import org.jerlang.ProcessState;
 import org.jerlang.erts.dist.SpawnRequests;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
@@ -37,6 +38,7 @@ public class Erpc {
     private static final Atom RETURN = Atom.of("return");
     private static final Atom THROW = Atom.of("throw");
     private static final Atom SIGNAL = Atom.of("signal");
+    private static final Atom NORMAL = Atom.of("normal");
     private static final Atom NOCONNECTION = Atom.of("noconnection");
     private static final Atom TIMEOUT = Atom.of("timeout");
     private static final Atom REPLY = Atom.of("reply");
@@ -54,9 +56,17 @@ public class Erpc {
      * caller monitors the spawned process.
      */
     public static Term execute_call(Term reference, Term module, Term function, Term args) {
+        Process self = ProcessSignals.self();
         Term reply;
         try {
             Term result = Erlang.apply(module, function, args);
+            if (self.state() == ProcessState.WAITING) {
+                // The target parked in a receive. This frame is Java, so it
+                // is not resumed with the target: record the reference and
+                // let the exit path build the reply from x0.
+                self.setErpcReply(reference);
+                return result;
+            }
             reply = Tuple.of(reference, RETURN, result);
         } catch (Error error) {
             reply = replyFor(reference, error);
@@ -64,6 +74,22 @@ public class Erpc {
         // The monitor on the peer sees this as the DOWN reason. A normal
         // return would terminate with `normal` and lose the result.
         throw new Error(EXIT, reply);
+    }
+
+    /**
+     * The reply of an execute_call/4 that parked before it could throw its
+     * own, built where the process stops running.
+     */
+    public static Term parkedReply(Term reference, Term result, Term reason,
+        Throwable failure) {
+        if (failure instanceof Error) {
+            // The code it parked in failed or exited after it was resumed.
+            return replyFor(reference, (Error) failure);
+        }
+        if (NORMAL.equals(reason)) {
+            return Tuple.of(reference, RETURN, result);
+        }
+        return Tuple.of(reference, EXIT, reason);
     }
 
     private static Term replyFor(Term reference, Error error) {

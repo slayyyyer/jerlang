@@ -2,6 +2,7 @@ package org.jerlang.vm;
 
 import java.util.HashSet;
 
+import org.jerlang.erts.Erpc;
 import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessPriority;
@@ -269,6 +270,14 @@ public class Scheduler extends Thread {
                     reason = process.failure() == null
                         ? Atom.of("normal")
                         : ProcessSignals.reason(process.failure());
+                }
+                // An erpc:execute_call/4 that parked in the call it was
+                // started for could not throw its reply; the result is in x0
+                // now that the code it waited in has finished.
+                Term erpcReply = process.consumeErpcReply();
+                if (erpcReply != null) {
+                    reason = Erpc.parkedReply(erpcReply, process.getX(0), reason,
+                        process.failure());
                 }
                 if (DEBUG_EXITS) {
                     System.err.println("EXIT " + process.pid() + " reason=" + reason
