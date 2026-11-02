@@ -5,10 +5,12 @@ import static org.jerlang.erts.erlang.Error.badarg;
 import org.jerlang.Process;
 import org.jerlang.ProcessOrPort;
 import org.jerlang.ProcessRegistry;
+import org.jerlang.type.Atom;
 import org.jerlang.type.Boolean;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
 import org.jerlang.type.Term;
+import org.jerlang.type.Tuple;
 
 public class EtsGiveAway {
 
@@ -54,9 +56,10 @@ public class EtsGiveAway {
         if (owner == null || !owner.equals(selfPid) || selfPid.equals(target)) {
             throw badarg;
         }
+        Term reference = table.reference();
         table.giveAway(target);
-        // A gift is delivered as a message when the table has an heir; with
-        // no heir model there is nothing to send, so giftData is unused.
+        ((Process) resolved).send(Tuple.of(Atom.of("ETS-TRANSFER"), reference,
+            selfPid, giftData));
         return Boolean.am_true;
     }
 

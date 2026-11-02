@@ -7,15 +7,15 @@ what the code does today, not against the original intent.
 
 | Area | State |
 |------|-------|
-| BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` searches a code path built from the working directory, `-pa`, `-pz` and `ERL_LIBS`, and `code:which/1`, `lib_dir/1,2`, `priv_dir/1`, `root_dir/0`, `load_file/1`, `ensure_loaded/1`, `ensure_modules_loaded/1`, `is_loaded/1`, `get_path/0`, `add_patha/1`, `add_pathz/1`, `del_path/1`, `replace_path/2`, `stick_dir/1`, `unstick_dir/1` and `is_sticky/1` report and change it. `ensure_modules_loaded/1` loads sequentially: the atom table and module registry are not thread safe. OTP boot scripts are not interpreted. |
+| BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` searches a code path built from the working directory, `-pa`, `-pz` and `ERL_LIBS`, and `code:which/1`, `lib_dir/1,2`, `priv_dir/1`, `root_dir/0`, `load_file/1`, `ensure_loaded/1`, `ensure_modules_loaded/1`, `is_loaded/1`, `get_path/0`, `add_patha/1`, `add_pathz/1`, `del_path/1`, `replace_path/2`, `stick_dir/1`, `unstick_dir/1` and `is_sticky/1` report and change it. Independent loads are thread safe and may run concurrently; `ensure_modules_loaded/1` walks its argument in order. OTP boot scripts are not interpreted. |
 | Interpreter | 161 opcode handlers; 191 opcodes known, 30 of them deprecated. Binary matching and construction, records and record updates, `get_hd`/`get_tl`, `bif3`, the coverage line opcodes and the native-record opcodes all have handlers. Native records as a data type are not implemented: constructing one raises a named error. |
 | BIFs | 75 `erlang` BIF modules. `lists`, `maps`, `binary`, `string`, `unicode`-adjacent helpers, `base64`, `math`, `timer`, `beam_lib` exist. |
 | Kernel | `gen_tcp`, `gen_udp`, `inet`, `net_adm`, `net_kernel`, `rpc`, `os`, and a `file` module with three functions. |
 | Distribution | OTP handshake, ETF (including funs, ports, compressed terms), links, monitors, remote spawn, `erpc`/`rpc`, node monitors. No `rex`, no `global`, no TLS distribution, no atom cache. |
-| ETS | `set` and `ordered_set`, with named tables and `{keypos, N}`. `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work. A table is destroyed with its owner, `give_away` moves ownership, table operations are locked, and `update_counter` is atomic across processes. Match specs support patterns, bodies, comparisons, boolean guards and the common type tests; `is_map_key` and arithmetic guards are missing, as are `bag`, `duplicate_bag`, `match_delete`, `select_delete` and heirs. |
+| ETS | `set`, `ordered_set`, `bag` and `duplicate_bag`, with named tables and `{keypos, N}`. `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work. A table is destroyed with its owner, `give_away` and heirs transfer ownership, table operations are locked, and `update_counter` is atomic across processes. `match_delete` and `select_delete` work. Match specs support patterns, bodies, comparisons, boolean guards, `is_map_key` and arithmetic guards. |
 | OTP behaviours | OTP's unmodified `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and `code` run from an OTP installation. `gen_statem` is not verified. The application controller models `.app` loading, dependencies, included applications, start phases, environment and key bookkeeping; `application_master` itself, distributed takeover and automatic restart of a crashed permanent application are not modelled. A dead tree is reaped when the controller is queried, and its included applications are stopped with it. |
 | Scheduler | One scheduler thread per processor with no balancing. A process gets 1,000 instructions per slice, and a CPU-bound loop in its outermost activation yields at the next instruction boundary; `process_info(reductions)` reports the count. Cross-module tail calls switch instruction streams in place, so a tail loop stays preemptible; a yield inside a nested non-tail call is still deferred until that call returns. Run queues are split by max/high/normal/low priority, and `process_flag(priority, ...)` moves a queued process. All timers use one 512-slot, 1 ms timer wheel. |
-| Tests | 530 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 15 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Tests | 551 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 18 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks, the distribution codec benchmark and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
 | CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, an `otp` job that runs the OTP-backed behaviour tests, and a `conformance` job that installs OTP and enforces the pass-rate floor. |
 | Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
@@ -94,17 +94,19 @@ from an OTP 29 installation without changes.
   `code:lib_dir/1,2`, `code:priv_dir/1`, `code:load_file/1` and
   `code:is_loaded/1`.~~ `code:ensure_loaded/1`, `code:ensure_modules_loaded/1`,
   `code:replace_path/2`, the sticky directory functions (`stick_dir/1`,
-  `unstick_dir/1`, `is_sticky/1`) also work. The loader is sequential because
-  module loading is not thread safe, and OTP boot scripts are not interpreted.
+  `unstick_dir/1`, `is_sticky/1`) also work. Independent loads are thread
+  safe and may run concurrently; `code:ensure_modules_loaded/1` walks its
+  argument in order. OTP boot scripts are not interpreted.
 * ~~Fill the BIF gaps the standard library needs.~~ `erlang:error/3` with the
   caller's arguments, `persistent_term`, `io:format`, `io_lib:format`, the
   `unicode` module and `min/max` are implemented, and OTP's `logger`
   application boots. The long tail stays a risk for modules nobody ran yet.
 * ~~Implement ETS for real.~~ `insert`, `lookup`, `delete`, `tab2list`,
   `update_counter`, `match`, `match_object`, `select`, `give_away` and named
-  tables with `{keypos, N}` work for `set` and `ordered_set`. Match specs cover
-  the pattern language, bodies and the common guards; `bag`, `duplicate_bag`,
-  `match_delete`, `select_delete` and heirs are still missing.
+  tables with `{keypos, N}` work for `set`, `ordered_set`, `bag` and
+  `duplicate_bag`. Match specs cover the pattern language, bodies, the common
+  guards, `is_map_key` and arithmetic. `match_delete`, `select_delete` and
+  heirs also work.
 * ~~Start an application: `.app` file parsing, `application:start/1`,
   supervision tree startup and shutdown.~~ The runtime supplies
   `application_controller`; `application.beam` itself is unmodified. Included
@@ -228,10 +230,10 @@ minutes of CPU.
 * [x] Benchmark suite: startup, function call, message passing, binary
   operations and ETS, measured against OTP 29 on the same machine from the same
   Erlang source (`BeamBenchTest`), with both numbers published in
-  [benchmarks.md](benchmarks.md). Distribution throughput is the one workload
-  listed here that the harness does not yet measure: it needs two peers and a
-  second node rather than an inline call, and it is the first row to add after
-  the release.
+  [benchmarks.md](benchmarks.md). Distribution throughput is measured at the codec
+  boundary by `DistributionBenchmarkTest`: 2,082.7 ns/op for an 80-byte frame,
+  about 480k frames/sec. That excludes the socket and scheduler hand-offs, so
+  it is a codec number rather than a two-peer wall-clock claim.
 * [x] Budgets set from that baseline, with the roadmap's own example enforced:
   message throughput must stay within 5x BEAM (measured 0.20x) and the CI `bench`
   job fails the build outside it. Interpreted-operation ratios are recorded and
@@ -245,9 +247,9 @@ minutes of CPU.
   and the release checklist says so.
 * [x] Fuzzing: the BEAM loader and the ETF decoder, deterministic from a seed,
   in CI at 200 iterations and locally at any count (`BeamLoaderFuzzTest`,
-  `EtfFuzzTest`). Distribution framing itself is covered by
-  `DistListenerTest` at the handshake level but is not in the fuzz campaign
-  yet, which is stated in [release.md](release.md). The campaign already paid
+  `EtfFuzzTest`). Distribution framing is covered by
+  `DistributionFramingFuzzTest`: the four-byte length, the 112 type byte and
+  the ETF boundary. The campaign already paid
   for itself: it found an unbounded allocation in the term reader, where a five
   byte message could ask for a two gigabyte array.
 * [x] Packaging: reproducible build (`project.build.outputTimestamp`, checked by

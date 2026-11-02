@@ -244,6 +244,13 @@ public class Scheduler extends Thread {
                         process.beginTimeSlice(REDUCTIONS_PER_SLICE);
                     }
                     p.execute();
+                    if (process != null && p.state() != ProcessState.EXITING
+                        && process.exceedsMaxHeapSize()) {
+                        if (process.maxHeapSizeKills()) {
+                            process.killForHeapLimit();
+                            p.setState(ProcessState.EXITING);
+                        }
+                    }
                 }
             } catch (Throwable t) {
                 // An uncaught error terminates the process, but must not

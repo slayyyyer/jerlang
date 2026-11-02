@@ -3,10 +3,10 @@ package org.jerlang;
 import static org.jerlang.util.StringUtil.camelToSnakeCase;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jerlang.erts.Erlang;
 import org.jerlang.erts.Erpc;
@@ -56,10 +56,18 @@ public class ModuleRegistry {
     private static final Set<Atom> BEAM_PREFERRED = new HashSet<>(
         Arrays.asList(Atom.of("lists"), Atom.of("timer")));
 
-    private final Map<Atom, Module> modules;
+    private final ConcurrentHashMap<Atom, Module> modules;
+
+    /**
+     * One lock per module name. Loading a module can be expensive and can
+     * touch the shared atom table, but two different modules no longer have
+     * to wait for each other.
+     */
+    private static final ConcurrentHashMap<Atom, Object> LOAD_LOCKS =
+        new ConcurrentHashMap<>();
 
     public ModuleRegistry() {
-        modules = new HashMap<>();
+        modules = new ConcurrentHashMap<>();
         registerBuiltins();
     }
 
@@ -105,19 +113,26 @@ public class ModuleRegistry {
             // Already loaded from a BEAM file; real code is never replaced.
             return current;
         }
-        if (current == null || BEAM_PREFERRED.contains(module)) {
-            Module loaded = ModuleLoader.load(module);
-            if (loaded != null) {
-                if (current != null) {
-                    // Keep the built-in primitives the BEAM file declares but
-                    // does not implement, such as the lists BIFs and NIFs.
-                    loaded.adoptBuiltins(current);
-                }
-                instance.modules.put(module, loaded);
-                return loaded;
+        Object lock = LOAD_LOCKS.computeIfAbsent(module, key -> new Object());
+        synchronized (lock) {
+            current = instance.modules.get(module);
+            if (current != null && !current.isInternal()) {
+                return current;
             }
+            if (current == null || BEAM_PREFERRED.contains(module)) {
+                Module loaded = ModuleLoader.load(module);
+                if (loaded != null) {
+                    if (current != null) {
+                        // Keep the built-in primitives the BEAM file declares
+                        // but does not implement, such as lists BIFs and NIFs.
+                        loaded.adoptBuiltins(current);
+                    }
+                    instance.modules.put(module, loaded);
+                    return loaded;
+                }
+            }
+            return current;
         }
-        return current;
     }
 
     public static ModuleRegistry instance() {
@@ -136,12 +151,13 @@ public class ModuleRegistry {
      * Drop every loaded module and go back to the built-ins. Used by tests,
      * which load different BEAM files under the same module names.
      */
-    public static void reset() {
+    public static synchronized void reset() {
         instance.modules.clear();
+        LOAD_LOCKS.clear();
         instance.registerBuiltins();
     }
 
-    public static void register(Module module) {
+    public static synchronized void register(Module module) {
         instance.modules.put(module.name(), module);
     }
 
@@ -150,7 +166,7 @@ public class ModuleRegistry {
      * gone afterwards. The java module is registered this way by a node that
      * asks for reflection and dropped again when that node closes.
      */
-    public static void unregister(Atom module) {
+    public static synchronized void unregister(Atom module) {
         instance.modules.remove(module);
     }
 

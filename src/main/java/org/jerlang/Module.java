@@ -186,7 +186,9 @@ public class Module {
             try {
                 return fun.apply(params);
             } finally {
-                Tracing.afterCall(process, signature, tracePattern);
+                if (!instructionStream) {
+                    Tracing.afterCall(process, signature, tracePattern);
+                }
                 process.popSignature();
                 if (instructionStream) {
                     process.setCP(callerCP);

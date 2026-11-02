@@ -191,6 +191,7 @@ Opt-in suites, all of which need a machine or a peer rather than the build:
 ```sh
 mvn test -Dtest=OtpInteropTest -Djerlang.dist.otp=true    # needs a live OTP 29 peer
 mvn -Dtest=BenchTest -Djerlang.bench=true test            # measures the machine
+mvn -Dtest=DistributionBenchmarkTest -Djerlang.bench=true test  # distribution codec
 mvn jacoco:prepare-agent test jacoco:report
 mvn pitest:mutationCoverage
 ```

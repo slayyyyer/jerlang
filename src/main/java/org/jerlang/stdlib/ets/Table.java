@@ -36,6 +36,8 @@ public abstract class Table {
     // reports. Null when the table was created outside a process. It moves
     // with ets:give_away/3.
     private volatile PID owner;
+    private volatile PID heir;
+    private volatile Term heirData = List.nil;
 
     protected Table(Type type, Access access, Atom name, boolean named_table,
                     boolean compressed, int keypos) {
@@ -83,6 +85,9 @@ public abstract class Table {
      * is not an error, so this is a no-op then.
      */
     public abstract void delete(Term key);
+
+    /** Remove exactly this object, used by match_delete and select_delete. */
+    public abstract void remove(Tuple object);
 
     /**
      * Store one object. The key is the tuple element at this table's key
@@ -144,7 +149,27 @@ public abstract class Table {
         // given away can not be destroyed by its previous owner's exit.
         synchronized (lock) {
             this.owner = newOwner;
+            this.heir = null;
+            this.heirData = List.nil;
         }
+    }
+
+    public PID heir() {
+        return heir;
+    }
+
+    public Term heirData() {
+        return heirData;
+    }
+
+    public synchronized void setHeir(PID heir, Term heirData) {
+        this.heir = heir;
+        this.heirData = heirData == null ? List.nil : heirData;
+    }
+
+    /** The term a transfer message names this table by. */
+    public Term reference() {
+        return named_table ? name : id;
     }
 
     public Type type() {

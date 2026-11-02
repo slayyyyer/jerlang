@@ -35,7 +35,7 @@ public class Set extends Table {
      * keep both in the table. The order is only an implementation detail of
      * the map; nothing exposes it.
      */
-    private static int compareKeys(Term a, Term b) {
+    static int compareKeys(Term a, Term b) {
         int order = TermOrder.compare(a, b);
         if (order != 0 || a.equals(b)) {
             return order;
@@ -47,6 +47,16 @@ public class Set extends Table {
     public void delete(Term key) {
         synchronized (lock()) {
             elements.remove(key);
+        }
+    }
+
+    @Override
+    public void remove(Tuple object) {
+        synchronized (lock()) {
+            Term stored = elements.get(object.element(keypos()));
+            if (stored != null && stored.equals(object)) {
+                elements.remove(object.element(keypos()));
+            }
         }
     }
 

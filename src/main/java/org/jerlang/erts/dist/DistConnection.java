@@ -49,7 +49,7 @@ public final class DistConnection {
     private static final Atom IS_AUTH = Atom.of("is_auth");
     private static final Atom YES = Atom.of("yes");
 
-    private static final int MAX_PACKET = 64 * 1024 * 1024;
+    static final int MAX_PACKET = 64 * 1024 * 1024;
     private static final int CONNECT_TIMEOUT = 5000;
     private static final int DEFAULT_TICK_TIME_SECONDS = 60;
 
@@ -388,7 +388,11 @@ public final class DistConnection {
             null);
     }
 
-    private void sendControl(Term control, Term message) throws IOException {
+    /**
+     * Encode one distribution packet without its four byte length prefix.
+     * Kept separate from the socket so framing can be tested directly.
+     */
+    static byte[] encodeFrame(Term control, Term message) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         DataOutputStream packet = new DataOutputStream(buffer);
         packet.writeByte(TYPE_TAG);
@@ -396,7 +400,52 @@ public final class DistConnection {
         if (message != null) {
             packet.write(ExternalTermWriter.encode(message).toByteArray());
         }
-        byte[] payload = buffer.toByteArray();
+        return buffer.toByteArray();
+    }
+
+    /**
+     * Decode a packet payload after the length prefix: one type byte, then a
+     * control term and, when the operation carries one, a message term. All
+     * allocations are bounded by the packet itself.
+     */
+    static Term[] decodeFrame(byte[] payload) throws IOException {
+        if (payload == null || payload.length == 0
+            || (payload[0] & 0xFF) != TYPE_TAG) {
+            throw new IOException("Unexpected distribution packet type "
+                + (payload == null || payload.length == 0 ? -1 : (payload[0] & 0xFF))
+                + " length " + (payload == null ? -1 : payload.length));
+        }
+        DataInputStream terms = new DataInputStream(
+            new ByteArrayInputStream(payload, 1, payload.length - 1));
+        ExternalTermReader reader = new ExternalTermReader(terms, payload.length - 1);
+        Term control = readFrameTerm(reader, "control");
+        Term message = null;
+        if (terms.available() > 0) {
+            message = readFrameTerm(reader, "message");
+        }
+        if (terms.available() > 0) {
+            throw new IOException("Trailing bytes after distribution terms");
+        }
+        return new Term[] { control, message };
+    }
+
+    private static Term readFrameTerm(ExternalTermReader reader, String what)
+        throws IOException {
+        try {
+            return reader.read();
+        } catch (Throwable e) {
+            throw new IOException("Can not decode distribution " + what + ": " + e, e);
+        }
+    }
+
+    static void checkFrameLength(int length) throws IOException {
+        if (length < 0 || length > MAX_PACKET) {
+            throw new IOException("Invalid distribution packet length " + length);
+        }
+    }
+
+    private void sendControl(Term control, Term message) throws IOException {
+        byte[] payload = encodeFrame(control, message);
 
         synchronized (out) {
             if (!open) {
@@ -418,9 +467,7 @@ public final class DistConnection {
                 if (length == 0) {
                     continue;
                 }
-                if (length < 0 || length > MAX_PACKET) {
-                    throw new IOException("Invalid distribution packet length " + length);
-                }
+                checkFrameLength(length);
                 byte[] payload = new byte[length];
                 in.readFully(payload);
                 if (payload.length == 0 || (payload[0] & 0xFF) != TYPE_TAG) {

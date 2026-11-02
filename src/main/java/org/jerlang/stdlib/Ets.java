@@ -6,9 +6,11 @@ import org.jerlang.stdlib.ets.EtsGiveAway;
 import org.jerlang.stdlib.ets.EtsInsert;
 import org.jerlang.stdlib.ets.EtsLookup;
 import org.jerlang.stdlib.ets.EtsMatch;
+import org.jerlang.stdlib.ets.EtsMatchDelete;
 import org.jerlang.stdlib.ets.EtsMatchObject;
 import org.jerlang.stdlib.ets.EtsNew;
 import org.jerlang.stdlib.ets.EtsSelect;
+import org.jerlang.stdlib.ets.EtsSelectDelete;
 import org.jerlang.stdlib.ets.EtsTab2list;
 import org.jerlang.stdlib.ets.EtsUpdateCounter;
 import org.jerlang.stdlib.ets.EtsWhereis;
@@ -65,6 +67,16 @@ public class Ets {
 
     public static Term match_object(Term tab, Term pattern, Term limit) {
         return EtsMatchObject.match_object_3(tab, pattern, limit);
+    }
+
+    /** http://www.erlang.org/doc/man/ets.html#match_delete-2 */
+    public static Term match_delete(Term tab, Term pattern) {
+        return EtsMatchDelete.match_delete_2(tab, pattern);
+    }
+
+    /** http://www.erlang.org/doc/man/ets.html#select_delete-2 */
+    public static Term select_delete(Term tab, Term specification) {
+        return EtsSelectDelete.select_delete_2(tab, specification);
     }
 
     /**

@@ -145,10 +145,10 @@ public class Code {
     }
 
     /**
-     * Load several modules. OTP loads them in parallel; module loading and
-     * the atom table are not thread safe in this runtime, so the loads here
-     * are sequential. `ok` means every module is loaded, otherwise the result
-     * lists the modules that failed with their reason.
+     * Load several modules. Module loading and the atom table are safe for
+     * concurrent callers, but this function walks its argument in order.
+     * `ok` means every module is loaded, otherwise the result lists the
+     * modules that failed with their reason.
      *
      * http://www.erlang.org/doc/man/code.html#ensure_modules_loaded-1
      */

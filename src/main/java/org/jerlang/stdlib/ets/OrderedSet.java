@@ -34,6 +34,16 @@ public class OrderedSet extends Table {
     }
 
     @Override
+    public void remove(Tuple object) {
+        synchronized (lock()) {
+            Tuple stored = elements.get(object.element(keypos()));
+            if (stored != null && stored.equals(object)) {
+                elements.remove(object.element(keypos()));
+            }
+        }
+    }
+
+    @Override
     public void insert(Tuple object) {
         // Store a copy: set_tuple_element updates a tuple in place, so keeping
         // the caller's tuple would let a later setelement change the table.

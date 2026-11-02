@@ -259,65 +259,121 @@ public class BinMatchState extends Term {
     }
 
     public boolean skip_utf8(int size, int flag) {
-        // TODO: Implement UTF8 decoding
-        if (tail() - 8 < 0) {
-            return false;
-        } else {
-            offset += 8;
-            return true;
-        }
+        return get_utf8(size, flag) != null;
     }
 
     public boolean skip_utf16(int size, int flag) {
-        // TODO: Implement UTF16 decoding
-        if (tail() - 16 < 0) {
-            return false;
-        } else {
-            offset += 16;
-            return true;
-        }
+        return get_utf16(size, flag) != null;
     }
 
     public boolean skip_utf32(int size, int flag) {
-        if (tail() - 32 < 0) {
-            return false;
-        } else {
-            offset += 32;
-            return true;
-        }
+        return get_utf32(size, flag) != null;
     }
 
+    /**
+     * Decode one UTF-8 code point. Overlong forms, surrogate code points and
+     * values above U+10FFFF are invalid, exactly as in a binary match on OTP.
+     */
     public Term get_utf8(int size, int flag) {
-        // TODO: Implement UTF8 decoding
-        if (tail() - 8 < 0) {
-            return List.nil;
-        } else {
-            int value = bitString.extract_bits(offset, 8).intValue() & 0xFF;
-            offset += 8;
-            return Integer.of(value);
+        if (offset % 8 != 0 || tail() < 8) {
+            return null;
         }
+        int first = readByte(offset);
+        int codePoint;
+        int following;
+        int minimum;
+        if (first < 0x80) {
+            codePoint = first;
+            following = 0;
+            minimum = 0;
+        } else if ((first & 0xE0) == 0xC0) {
+            codePoint = first & 0x1F;
+            following = 1;
+            minimum = 0x80;
+        } else if ((first & 0xF0) == 0xE0) {
+            codePoint = first & 0x0F;
+            following = 2;
+            minimum = 0x800;
+        } else if ((first & 0xF8) == 0xF0) {
+            codePoint = first & 0x07;
+            following = 3;
+            minimum = 0x10000;
+        } else {
+            return null;
+        }
+        if (tail() < (following + 1) * 8) {
+            return null;
+        }
+        for (int index = 1; index <= following; index++) {
+            int next = readByte(offset + (index * 8));
+            if ((next & 0xC0) != 0x80) {
+                return null;
+            }
+            codePoint = (codePoint << 6) | (next & 0x3F);
+        }
+        if (codePoint < minimum || codePoint > 0x10FFFF
+            || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+            return null;
+        }
+        offset += (following + 1) * 8;
+        return Integer.of(codePoint);
     }
 
+    /**
+     * Decode one UTF-16 code point, combining a surrogate pair. A lone
+     * surrogate or a truncated pair is a match failure.
+     */
     public Term get_utf16(int size, int flag) {
-        // TODO: Implement UTF16 decoding
-        if (tail() - 16 < 0) {
-            return List.nil;
-        } else {
-            int value = bitString.extract_bits(offset, 16).intValue() & 0xFFFF;
-            offset += 16;
-            return Integer.of(value);
+        boolean little = (flag & 2) != 0;
+        if (offset % 8 != 0 || tail() < 16) {
+            return null;
         }
+        int first = (int) readCodeUnit(offset, 16, little);
+        if (first >= 0xD800 && first <= 0xDBFF) {
+            if (tail() < 32) {
+                return null;
+            }
+            int second = (int) readCodeUnit(offset + 16, 16, little);
+            if (second < 0xDC00 || second > 0xDFFF) {
+                return null;
+            }
+            offset += 32;
+            return Integer.of(0x10000 + ((first - 0xD800) << 10)
+                + (second - 0xDC00));
+        }
+        if (first >= 0xDC00 && first <= 0xDFFF) {
+            return null;
+        }
+        offset += 16;
+        return Integer.of(first);
     }
 
+    /**
+     * Decode one UTF-32 code point. Values outside Unicode and surrogate
+     * code points are a match failure.
+     */
     public Term get_utf32(int size, int flag) {
-        // TODO: Implement UTF32 decoding
-        if (tail() - 32 < 0) {
-            return List.nil;
-        } else {
-            long value = bitString.extract_bits(offset, 32).longValue() & 0xFFFFFFFF;
-            offset += 32;
-            return new Integer(value);
+        boolean little = (flag & 2) != 0;
+        if (offset % 8 != 0 || tail() < 32) {
+            return null;
         }
+        long codePoint = readCodeUnit(offset, 32, little);
+        if (codePoint > 0x10FFFF
+            || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+            return null;
+        }
+        offset += 32;
+        return new Integer(codePoint);
+    }
+
+    private long readCodeUnit(int at, int bits, boolean little) {
+        long value = 0;
+        int byteCount = bits / 8;
+        for (int index = 0; index < byteCount; index++) {
+            int source = little ? byteCount - 1 - index : index;
+            value = (value << 8) | readByte(at + (source * 8));
+        }
+        return value;
     }
 
     public boolean test_unit(int unit) {

@@ -77,25 +77,34 @@ public class Atom extends Term {
     }
 
     public static Atom of(String string) {
-        Atom atom = AtomRegistry.instance().get(string);
-        if (atom == null) {
-            atom = new Atom(string);
-            AtomRegistry.register(atom);
+        AtomRegistry registry = AtomRegistry.instance();
+        Atom atom = registry.get(string);
+        if (atom != null) {
+            return atom;
         }
-        return atom;
+        Atom candidate = new Atom(string);
+        Atom previous = registry.putIfAbsent(candidate);
+        return previous == null ? candidate : previous;
     }
 
     public static Atom of(String name, String value) {
-        Atom atom = AtomRegistry.instance().get(name);
-        if (atom == null) {
-            atom = new Atom(name, value);
-            AtomRegistry.register(atom);
-        } else if (atom.value.equals(value)) {
-            return atom;
-        } else {
+        AtomRegistry registry = AtomRegistry.instance();
+        Atom atom = registry.get(name);
+        if (atom != null) {
+            if (atom.value.equals(value)) {
+                return atom;
+            }
             throw new Error("Duplicate value of atom: " + name);
         }
-        return atom;
+        Atom candidate = new Atom(name, value);
+        Atom previous = registry.putIfAbsent(candidate);
+        if (previous == null) {
+            return candidate;
+        }
+        if (previous.value.equals(value)) {
+            return previous;
+        }
+        throw new Error("Duplicate value of atom: " + name);
     }
 
 }

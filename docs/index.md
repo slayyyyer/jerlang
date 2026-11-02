@@ -72,7 +72,8 @@ These are decisions with reasons, not forgotten features:
   legacy `rex` protocol — `rpc` uses `erpc`'s spawn protocol instead.
 - `gen_statem` and the wider standard library are not covered.
 - Nested non-tail CPU-bound calls are not preempted until they return.
-- The loader is sequential, and OTP boot scripts are not interpreted.
+- OTP boot scripts are not interpreted, and `code:ensure_modules_loaded/1`
+  walks its input in order.
 
 [docs/beam-compatibility.md](beam-compatibility.md) has the per-opcode notes and
 the one remaining language-feature gap (native records).

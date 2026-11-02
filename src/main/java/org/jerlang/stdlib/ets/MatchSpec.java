@@ -465,6 +465,21 @@ public final class MatchSpec {
         if (call.arity() == 2 && typeTest(name)) {
             return Boolean.of(typeTest(name, guard(call.element(2), bindings, whole)));
         }
+        if (call.arity() == 3 && "is_map_key".equals(name)) {
+            Term key = guard(call.element(2), bindings, whole);
+            Term map = guard(call.element(3), bindings, whole);
+            if (!(map instanceof Map)) {
+                throw new Error(Str.of("badarg in match spec guard"));
+            }
+            return Boolean.of(((Map) map).get(key) != null);
+        }
+        if (call.arity() == 3 && arithmetic(name)) {
+            return arithmetic(name, guard(call.element(2), bindings, whole),
+                guard(call.element(3), bindings, whole));
+        }
+        if (call.arity() == 2 && unaryArithmetic(name)) {
+            return unaryArithmetic(name, guard(call.element(2), bindings, whole));
+        }
         if (call.arity() == 3 && "element".equals(name)) {
             Term index = guard(call.element(2), bindings, whole);
             Term tuple = guard(call.element(3), bindings, whole);
@@ -510,6 +525,117 @@ public final class MatchSpec {
             return Integer.of("byte_size".equals(name) ? bytes : bytes * 8 + bitString.bits());
         }
         throw new Error(Str.of("unsupported match spec guard: " + expression));
+    }
+
+    private static boolean arithmetic(String name) {
+        switch (name) {
+        case "+":
+        case "-":
+        case "*":
+        case "div":
+        case "rem":
+        case "band":
+        case "bor":
+        case "bxor":
+        case "bsl":
+        case "bsr":
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    private static boolean unaryArithmetic(String name) {
+        return "-".equals(name) || "+".equals(name) || "abs".equals(name)
+            || "bnot".equals(name);
+    }
+
+    private static Term unaryArithmetic(String name, Term value) {
+        if ("abs".equals(name)) {
+            if (value instanceof Integer) {
+                return new Integer(((Integer) value).toBigInteger().abs());
+            }
+            if (value instanceof org.jerlang.type.Float) {
+                return org.jerlang.type.Float.of(Math.abs(((org.jerlang.type.Float) value).toBigDecimal().doubleValue()));
+            }
+            throw new Error(Str.of("badarg in match spec guard"));
+        }
+        if ("bnot".equals(name)) {
+            if (value instanceof Integer) {
+                return new Integer(((Integer) value).toBigInteger().not());
+            }
+            throw new Error(Str.of("badarg in match spec guard"));
+        }
+        if (!(value instanceof Number)) {
+            throw new Error(Str.of("badarg in match spec guard"));
+        }
+        if (value instanceof Integer) {
+            java.math.BigInteger integer = ((Integer) value).toBigInteger();
+            return new Integer("-".equals(name) ? integer.negate() : integer);
+        }
+        java.math.BigDecimal decimal = ((org.jerlang.type.Float) value).toBigDecimal();
+        return org.jerlang.type.Float.of("-".equals(name) ? decimal.negate().doubleValue()
+            : decimal.doubleValue());
+    }
+
+    private static Term arithmetic(String name, Term left, Term right) {
+        if (left instanceof Integer && right instanceof Integer) {
+            java.math.BigInteger a = ((Integer) left).toBigInteger();
+            java.math.BigInteger b = ((Integer) right).toBigInteger();
+            switch (name) {
+            case "+":
+                return new Integer(a.add(b));
+            case "-":
+                return new Integer(a.subtract(b));
+            case "*":
+                return new Integer(a.multiply(b));
+            case "div":
+                if (b.signum() == 0) {
+                    throw new Error(Str.of("badarith in match spec guard"));
+                }
+                return new Integer(a.divide(b));
+            case "rem":
+                if (b.signum() == 0) {
+                    throw new Error(Str.of("badarith in match spec guard"));
+                }
+                return new Integer(a.remainder(b));
+            case "band":
+                return new Integer(a.and(b));
+            case "bor":
+                return new Integer(a.or(b));
+            case "bxor":
+                return new Integer(a.xor(b));
+            case "bsl":
+                return new Integer(a.shiftLeft(shift(b)));
+            case "bsr":
+                return new Integer(a.shiftRight(shift(b)));
+            default:
+                break;
+            }
+        }
+        if (left instanceof Number && right instanceof Number
+            && ("+".equals(name) || "-".equals(name) || "*".equals(name))) {
+            java.math.BigDecimal a = ((Number) left).toBigDecimal();
+            java.math.BigDecimal b = ((Number) right).toBigDecimal();
+            java.math.BigDecimal result;
+            if ("+".equals(name)) {
+                result = a.add(b);
+            } else if ("-".equals(name)) {
+                result = a.subtract(b);
+            } else {
+                result = a.multiply(b);
+            }
+            return org.jerlang.type.Float.of(result.doubleValue());
+        }
+        throw new Error(Str.of("badarg in match spec guard"));
+    }
+
+    private static int shift(java.math.BigInteger value) {
+        try {
+            return value.intValueExact();
+        } catch (ArithmeticException e) {
+            throw new Error(Str.of("badarg in match spec guard"));
+        }
     }
 
     private static boolean comparison(String name) {

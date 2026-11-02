@@ -360,20 +360,40 @@ public class BitString extends Term {
     }
 
     public void put_utf8(Integer value) {
-        // TODO: Implement UTF8 encoding
-        if (value.toBigInteger().longValue() <= 0x7F) {
-            put_integer(value, Integer.of(8), Integer.ZERO);
+        long codePoint = value.toBigInteger().longValue();
+        if (codePoint < 0 || codePoint > 0x10FFFF
+            || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+            throw Error.badarg;
+        }
+        if (codePoint < 0x80) {
+            put_integer(Integer.of((int) codePoint), Integer.of(8), Integer.ZERO);
+        } else if (codePoint < 0x800) {
+            put_integer(Integer.of(0xC0 | (int) (codePoint >> 6)), Integer.of(8), Integer.ZERO);
+            put_integer(Integer.of(0x80 | (int) (codePoint & 0x3F)), Integer.of(8), Integer.ZERO);
+        } else if (codePoint < 0x10000) {
+            put_integer(Integer.of(0xE0 | (int) (codePoint >> 12)), Integer.of(8), Integer.ZERO);
+            put_integer(Integer.of(0x80 | (int) ((codePoint >> 6) & 0x3F)), Integer.of(8), Integer.ZERO);
+            put_integer(Integer.of(0x80 | (int) (codePoint & 0x3F)), Integer.of(8), Integer.ZERO);
         } else {
-            throw new Error("Not implemented: " + value);
+            put_integer(Integer.of(0xF0 | (int) (codePoint >> 18)), Integer.of(8), Integer.ZERO);
+            put_integer(Integer.of(0x80 | (int) ((codePoint >> 12) & 0x3F)), Integer.of(8), Integer.ZERO);
+            put_integer(Integer.of(0x80 | (int) ((codePoint >> 6) & 0x3F)), Integer.of(8), Integer.ZERO);
+            put_integer(Integer.of(0x80 | (int) (codePoint & 0x3F)), Integer.of(8), Integer.ZERO);
         }
     }
 
     public void put_utf16(Integer value) {
-        // TODO: Implement UTF8 encoding
-        if (value.toBigInteger().longValue() <= 0x7F) {
-            put_integer(value, Integer.of(16), Integer.ZERO);
+        long codePoint = value.toBigInteger().longValue();
+        if (codePoint < 0 || codePoint > 0x10FFFF
+            || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+            throw Error.badarg;
+        }
+        if (codePoint < 0x10000) {
+            put_integer(Integer.of((int) codePoint), Integer.of(16), Integer.ZERO);
         } else {
-            throw new Error("Not implemented: " + value);
+            long adjusted = codePoint - 0x10000;
+            put_integer(Integer.of(0xD800 | (int) (adjusted >> 10)), Integer.of(16), Integer.ZERO);
+            put_integer(Integer.of(0xDC00 | (int) (adjusted & 0x3FF)), Integer.of(16), Integer.ZERO);
         }
     }
 

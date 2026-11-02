@@ -59,7 +59,12 @@ public class ExternalTermReader {
         this(inputStream, MAX_ALLOCATION);
     }
 
-    private ExternalTermReader(DataInputStream inputStream, int allocationLimit) {
+    /**
+     * Read from a stream whose remaining byte count bounds any allocation a
+     * length field can request. Distribution uses this so that a short packet
+     * can not ask for the full 64 MiB limit.
+     */
+    public ExternalTermReader(DataInputStream inputStream, int allocationLimit) {
         this.inputStream = inputStream;
         this.allocationLimit = allocationLimit;
     }

@@ -71,17 +71,16 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 
 **Tests**
 
-- A 530-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 17 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP and the soak). The two fuzzers run on every push at 200 iterations each.
+- A 551-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 18 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
 
 ### What does not work yet
 
 - **Native records**, the experimental OTP 29 data type declared as `-record #name{...}`. Type tests always fail and construction raises a named error; ordinary tuple records are fully supported.
-- **ETS gaps:** no `bag`, `duplicate_bag`, `match_delete`, `select_delete` or heir support. In match specs, `is_map_key` and arithmetic guards are not implemented.
 - **Standard library coverage:** `gen_statem` and the wider standard library are not covered.
 - **`application_master`** is not modelled: distributed takeover and automatic restart of a crashed permanent application are missing.
 - **Fair scheduling across nested non-tail calls.** A CPU-bound loop in a nested cross-module call is not preempted until that call returns; cross-module tail calls are trampolined and do yield.
 - **Timer precision.** Timers are bounded by the timer wheel's 1 ms tick and the scheduler wakeup, not by an OS timer pool; a 10 ms timer is checked against a 250 ms bound.
-- **Code loading.** The loader is sequential because the atom table and module registry are not thread safe, and OTP boot scripts are not interpreted.
+- **Code loading.** Independent module loads are thread safe and may run concurrently; `code:ensure_modules_loaded/1` walks its argument in order, and OTP boot scripts are not interpreted.
 
 [docs/beam-compatibility.md](docs/beam-compatibility.md) keeps the per-opcode notes and documents the one remaining language-feature gap.
 
@@ -162,6 +161,7 @@ The benchmarks are opt-in too, because they measure the machine rather than the 
 
 ```sh
 mvn -Dtest=BenchTest -Djerlang.bench=true test
+mvn -Dtest=DistributionBenchmarkTest -Djerlang.bench=true test
 ```
 
 Coverage and mutation testing are opt-in as well:

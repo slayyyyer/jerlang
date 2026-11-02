@@ -1,7 +1,7 @@
 package org.jerlang;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jerlang.type.Atom;
 
@@ -612,11 +612,20 @@ public class AtomRegistry {
     private final Map<String, Atom> atoms;
 
     public AtomRegistry() {
-        atoms = new HashMap<>();
+        atoms = new ConcurrentHashMap<>();
     }
 
     public Atom get(String name) {
         return atoms.get(name);
+    }
+
+    /**
+     * Publish an atom only if its name is still free. Callers that lost the
+     * race get the atom that won, so two threads can never intern two
+     * different instances for the same name.
+     */
+    public Atom putIfAbsent(Atom atom) {
+        return atoms.putIfAbsent(atom.toString(), atom);
     }
 
     public static AtomRegistry instance() {

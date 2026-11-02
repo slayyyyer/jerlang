@@ -34,6 +34,26 @@ mvn -Dtest=BenchTest -Djerlang.bench=true test
 The suite is skipped unless `-Djerlang.bench=true` is set, because it takes
 about 15 seconds and measures the machine it runs on rather than the build.
 
+The distribution codec has its own opt-in row:
+
+```
+mvn -Dtest=DistributionBenchmarkTest -Djerlang.bench=true test
+```
+
+## Distribution frame codec
+
+Measured on 2026-11-02 with an 80-byte frame (control term plus a 32-byte
+binary message):
+
+| Workload | ns/op | frames/sec | What it measures |
+|---|---:|---:|---|
+| Distribution encode + decode | 2,082.7 | 480,146 | 112-tagged frame, no socket |
+
+This is deliberately a codec benchmark, not a two-peer wall-clock one. A
+socket benchmark would also include the kernel loopback stack and two scheduler
+hand-offs, which measure the machine rather than this runtime. The codec is the
+part that changes with the distribution implementation, so it is isolated here.
+
 ## The baseline
 
 Measured on 2026-10-29, at the end of milestone 0.5, on two consecutive runs.

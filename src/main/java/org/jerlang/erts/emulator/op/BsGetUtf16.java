@@ -27,6 +27,9 @@ public class BsGetUtf16 {
         int size = i.arg(2).toInteger().toInt();
         int flag = i.arg(3).toInteger().toInt();
         Term codepoint = bms.get_utf16(size, flag);
+        if (codepoint == null) {
+            return i.arg(0);
+        }
         Term dest = i.arg(4);
         if (dest.isXRegister()) {
             proc.setX(dest.toRegisterIndex(), codepoint);

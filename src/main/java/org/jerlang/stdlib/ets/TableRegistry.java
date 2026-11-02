@@ -5,9 +5,13 @@ import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jerlang.erts.erlang.Error;
+import org.jerlang.Process;
+import org.jerlang.ProcessOrPort;
+import org.jerlang.ProcessRegistry;
 import org.jerlang.type.Atom;
 import org.jerlang.type.PID;
 import org.jerlang.type.Term;
+import org.jerlang.type.Tuple;
 
 public class TableRegistry {
 
@@ -65,9 +69,24 @@ public class TableRegistry {
     public static void deleteOwnedBy(PID pid) {
         for (Table table : new ArrayList<>(INSTANCE.id2table.values())) {
             synchronized (table.lock()) {
-                if (pid.equals(table.owner())) {
-                    table.delete();
+                if (!pid.equals(table.owner())) {
+                    continue;
                 }
+                PID heir = table.heir();
+                Term heirData = table.heirData();
+                Term reference = table.reference();
+                if (heir == null) {
+                    table.delete();
+                    continue;
+                }
+                ProcessOrPort target = ProcessRegistry.resolve(heir);
+                if (!(target instanceof Process) || ((Process) target).isTerminated()) {
+                    table.delete();
+                    continue;
+                }
+                table.giveAway(heir);
+                ((Process) target).send(Tuple.of(Atom.of("ETS-TRANSFER"),
+                    reference, pid, heirData));
             }
         }
     }

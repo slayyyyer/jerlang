@@ -209,7 +209,25 @@ public class Process extends ProcessOrPort {
     // erlang:trace/3 flags and the tracer they report to. A process with no
     // flags has an empty set, so the interpreter's hot path is one map check.
     private final Set<Atom> traceFlags = ConcurrentHashMap.newKeySet();
+    private final java.util.Deque<FunctionSignature> tracedCalls =
+        new java.util.ArrayDeque<>();
     private volatile PID traceTracer = null;
+
+    public void pushTracedCall(FunctionSignature signature) {
+        tracedCalls.push(signature);
+    }
+
+    public boolean popTracedCall(FunctionSignature signature) {
+        if (tracedCalls.isEmpty()) {
+            return false;
+        }
+        FunctionSignature top = tracedCalls.peek();
+        if (!top.equals(signature)) {
+            return false;
+        }
+        tracedCalls.pop();
+        return true;
+    }
 
     public Process(PID pid) {
         super(pid);
@@ -867,6 +885,37 @@ public class Process extends ProcessOrPort {
     public long memory() {
         int registerCount = registers == null ? 0 : registers.length;
         return 8L * (stack.length + registerCount + mailboxSize() + framesDepth() * 4 + 16);
+    }
+
+    /**
+     * Whether this process has crossed its max_heap_size limit. The limit is
+     * expressed in words, like OTP, while memory() is an estimate in bytes.
+     */
+    public boolean exceedsMaxHeapSize() {
+        Term limit = maxHeapSize;
+        if (!(limit instanceof org.jerlang.type.Map)) {
+            return false;
+        }
+        org.jerlang.type.Map map = (org.jerlang.type.Map) limit;
+        Term size = map.get(Atom.of("size"));
+        if (!(size instanceof Integer)) {
+            return false;
+        }
+        long bytes = size.toInteger().toLong() * 8L;
+        return bytes > 0 && memory() > bytes;
+    }
+
+    public boolean maxHeapSizeKills() {
+        Term limit = maxHeapSize;
+        if (!(limit instanceof org.jerlang.type.Map)) {
+            return false;
+        }
+        Term kill = ((org.jerlang.type.Map) limit).get(Atom.of("kill"));
+        return kill == null || org.jerlang.type.Boolean.am_true.equals(kill);
+    }
+
+    public void killForHeapLimit() {
+        pendingExit = Atom.of("killed");
     }
 
     public boolean traceFlag(Atom flag) {

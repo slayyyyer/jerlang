@@ -13,6 +13,7 @@ import org.jerlang.type.List;
 import org.jerlang.type.PID;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
+import org.jerlang.stdlib.ets.MatchSpec;
 
 /**
  * erlang:trace/3 and erlang:trace_pattern/3.
@@ -89,11 +90,13 @@ public final class Tracing {
 
         private final boolean enabled;
         private final boolean returnTrace;
+        private final MatchSpec matchSpec;
         private final AtomicLong calls = new AtomicLong();
 
-        private Pattern(boolean enabled, boolean returnTrace) {
+        private Pattern(boolean enabled, boolean returnTrace, MatchSpec matchSpec) {
             this.enabled = enabled;
             this.returnTrace = returnTrace;
+            this.matchSpec = matchSpec;
         }
 
         public boolean enabled() {
@@ -228,12 +231,16 @@ public final class Tracing {
      */
     private static Pattern pattern(Term matchSpec, List flags) {
         boolean enabled;
+        MatchSpec compiled = null;
         if (matchSpec.equals(Boolean.am_true)) {
             enabled = true;
         } else if (matchSpec.equals(Boolean.am_false)) {
             enabled = false;
         } else if (matchSpec.isList()) {
             enabled = matchSpec.toList().length() > 0;
+            if (enabled) {
+                compiled = MatchSpec.compile(matchSpec);
+            }
         } else {
             throw Error.badarg;
         }
@@ -260,7 +267,7 @@ public final class Tracing {
                 throw Error.badarg;
             }
         }
-        return new Pattern(enabled, returnTrace);
+        return new Pattern(enabled, returnTrace, compiled);
     }
 
     /**
@@ -275,18 +282,56 @@ public final class Tracing {
         if (pattern == null || !pattern.enabled()) {
             return null;
         }
+        Term message = Tuple.of(TRACE, process.pid(), CALL,
+            Tuple.of(signature.module(), signature.function(), args));
+        if (pattern.matchSpec != null) {
+            Term body = pattern.matchSpec.select(args);
+            if (body == null) {
+                return null;
+            }
+            if (body instanceof Tuple && ((Tuple) body).arity() == 2
+                && Atom.of("message").equals(((Tuple) body).element(1))) {
+                message = ((Tuple) body).element(2);
+            }
+        }
         pattern.calls.incrementAndGet();
-        process.trace(Tuple.of(TRACE, process.pid(), CALL,
-            Tuple.of(signature.module(), signature.function(), args)));
+        process.pushTracedCall(signature);
+        process.trace(message);
         return pattern;
     }
 
     public static void afterCall(Process process, FunctionSignature signature, Pattern pattern) {
-        if (pattern == null || !pattern.returnTrace()) {
+        boolean traced = process.popTracedCall(signature);
+        if (pattern == null || !traced || !pattern.returnTrace()
+            || !process.traceFlag(RETURN_TO)) {
             return;
         }
         process.trace(Tuple.of(TRACE, process.pid(), RETURN_TO,
             Tuple.of(signature.module(), signature.function(), signature.fun_arity())));
+    }
+
+    /**
+     * A local return has no Java caller to run afterCall. The frame about to
+     * be popped names the function, so it can emit the same event.
+     */
+    public static void afterReturn(Process process, FunctionSignature signature) {
+        Pattern pattern = pattern(signature);
+        boolean traced = process.popTracedCall(signature);
+        if (pattern == null || !traced || !pattern.returnTrace()
+            || !process.traceFlag(RETURN_TO)) {
+            return;
+        }
+        process.trace(Tuple.of(TRACE, process.pid(), RETURN_TO,
+            Tuple.of(signature.module(), signature.function(), signature.fun_arity())));
+    }
+
+    /** Clear the global pattern table; used by tests and by a fresh node. */
+    public static void reset() {
+        EXACT.clear();
+        MODULES.clear();
+        ALL = null;
+        anyPattern = false;
+        newProcessTrace = null;
     }
 
     private static Pattern pattern(FunctionSignature signature) {

@@ -4,6 +4,7 @@ import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
+import org.jerlang.type.PID;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 
@@ -12,6 +13,8 @@ public class EtsNew {
     private static final Atom compressed = Atom.of("compressed");
     private static final Atom keypos = Atom.of("keypos");
     private static final Atom named_table = Atom.of("named_table");
+    private static final Atom heir = Atom.of("heir");
+    private static final Atom none = Atom.of("none");
 
     private EtsNew() {
     }
@@ -50,6 +53,8 @@ public class EtsNew {
         boolean is_compressed = false;
         boolean is_named_table = false;
         int key_position = 1;
+        PID heirPid = null;
+        Term heirData = List.nil;
 
         // Parse options ------------------------------------------------------
 
@@ -59,6 +64,18 @@ public class EtsNew {
             if (option instanceof Tuple && ((Tuple) option).arity() == 2
                 && keypos.equals(((Tuple) option).element(1))) {
                 key_position = keypos(((Tuple) option).element(2));
+            } else if (option instanceof Tuple && ((Tuple) option).arity() == 3
+                && heir.equals(((Tuple) option).element(1))) {
+                Term to = ((Tuple) option).element(2);
+                if (to instanceof PID) {
+                    heirPid = (PID) to;
+                    heirData = ((Tuple) option).element(3);
+                } else if (none.equals(to)) {
+                    heirPid = null;
+                    heirData = List.nil;
+                } else {
+                    throw Error.badarg;
+                }
             } else if (Type.SET.toAtom().equals(option)) {
                 type = Type.SET;
             } else if (Type.ORDERED_SET.toAtom().equals(option)) {
@@ -93,10 +110,17 @@ public class EtsNew {
         case ORDERED_SET:
             table = new OrderedSet(access, name, is_named_table, is_compressed, key_position);
             break;
+        case BAG:
+            table = new Bag(Type.BAG, access, name, is_named_table, is_compressed, key_position);
+            break;
+        case DUPLICATE_BAG:
+            table = new DuplicateBag(access, name, is_named_table, is_compressed, key_position);
+            break;
         default:
-            // bag and duplicate_bag are documented gaps, not invalid options:
-            // name the option that is unsupported instead of a string.
-            throw new Error(Tuple.of(Atom.of("not_supported"), type.toAtom()));
+            throw Error.badarg;
+        }
+        if (heirPid != null) {
+            table.setHeir(heirPid, heirData);
         }
         // A named table is addressed by its name, so that is what OTP
         // returns. An unnamed one returns its identifier.

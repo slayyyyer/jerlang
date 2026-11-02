@@ -25,6 +25,7 @@ import org.jerlang.stdlib.ets.TableRegistry;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
+import org.jerlang.type.Map;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 import org.jerlang.vm.VirtualMachine;
@@ -246,6 +247,118 @@ public class EtsTest {
     @Test
     public void testSelectBadSpecification() throws Throwable {
         assertEquals(Atom.of("ok"), apply("select_bad_specification"));
+    }
+
+    @Test
+    public void testBagKeepsOneCopyPerKeyAndDuplicateBagKeepsEveryCopy() {
+        Term bag = Ets._new(Atom.of("ets_bag"), List.of(Atom.of("bag")));
+        Term duplicate = Ets._new(Atom.of("ets_duplicate_bag"),
+            List.of(Atom.of("duplicate_bag")));
+        Term object = Tuple.of(Atom.of("key"), Integer.of(1));
+        try {
+            Ets.insert(bag, object);
+            Ets.insert(bag, object);
+            Ets.insert(duplicate, object);
+            Ets.insert(duplicate, object);
+            assertEquals(1, Ets.lookup(bag, Atom.of("key")).length());
+            assertEquals(2, Ets.lookup(duplicate, Atom.of("key")).length());
+        } finally {
+            Ets.delete(bag);
+            Ets.delete(duplicate);
+        }
+    }
+
+    @Test
+    public void testMatchDeleteRemovesMatchingObjects() {
+        Term tab = Ets._new(Atom.of("ets_match_delete"), List.nil);
+        Term first = Tuple.of(Atom.of("a"), Integer.of(1));
+        Term second = Tuple.of(Atom.of("b"), Integer.of(2));
+        try {
+            Ets.insert(tab, first);
+            Ets.insert(tab, second);
+            Ets.match_delete(tab, Tuple.of(Atom.of("$1"), Integer.of(1)));
+            assertEquals(List.nil, Ets.lookup(tab, Atom.of("a")));
+            assertEquals(List.of(second), Ets.lookup(tab, Atom.of("b")));
+        } finally {
+            Ets.delete(tab);
+        }
+    }
+
+    @Test
+    public void testSelectDeleteReturnsTheNumberOfDeletedObjects() {
+        Term tab = Ets._new(Atom.of("ets_select_delete"), List.nil);
+        try {
+            Ets.insert(tab, Tuple.of(Atom.of("a"), Integer.of(1)));
+            Ets.insert(tab, Tuple.of(Atom.of("b"), Integer.of(2)));
+            Term specification = List.of(Tuple.of(
+                Tuple.of(Atom.of("$1"), Atom.of("$2")), List.nil, Atom.of("$2")));
+            assertEquals(Integer.of(2), Ets.select_delete(tab, specification));
+            assertEquals(0, Ets.tab2list(tab).length());
+        } finally {
+            Ets.delete(tab);
+        }
+    }
+
+    @Test
+    public void testHeirReceivesTheTableAndGiftData() {
+        VirtualMachine machine = VirtualMachine.instance();
+        Process owner = new Process(machine.uselessPid());
+        Process heir = new Process(machine.uselessPid());
+        ProcessRegistry.register(owner);
+        ProcessRegistry.register(heir);
+        Atom name = Atom.of("ets_heir_transfer");
+
+        ProcessOrPort previous = ProcessRegistry.self();
+        try {
+            ProcessRegistry.self(owner);
+            assertEquals(name, Ets._new(name, List.of(Atom.of("named_table"),
+                Tuple.of(Atom.of("heir"), heir.pid(), Atom.of("gift")))));
+        } finally {
+            ProcessRegistry.self(previous);
+        }
+
+        ProcessSignals.terminate(owner, Atom.of("normal"));
+        assertNotNull(TableRegistry.lookup(name));
+        assertEquals(heir.pid(), TableRegistry.lookup(name).owner());
+        assertEquals(Tuple.of(Atom.of("ETS-TRANSFER"), name, owner.pid(),
+            Atom.of("gift")), heir.nextMessage());
+
+        ProcessSignals.terminate(heir, Atom.of("normal"));
+        assertNull(TableRegistry.lookup(name));
+    }
+
+    @Test
+    public void testMatchSpecArithmeticGuard() {
+        Term tab = Ets._new(Atom.of("ets_arithmetic_guard"), List.nil);
+        try {
+            Ets.insert(tab, Tuple.of(Atom.of("k"), Integer.of(2)));
+            Term specification = List.of(Tuple.of(
+                Tuple.of(Atom.of("k"), Atom.of("$1")),
+                Tuple.of(Atom.of(">"),
+                    Tuple.of(Atom.of("+"), Atom.of("$1"), Integer.of(1)),
+                    Integer.of(2)),
+                Atom.of("$1")));
+            assertEquals(List.of(Integer.of(2)), Ets.select(tab, specification));
+        } finally {
+            Ets.delete(tab);
+        }
+    }
+
+    @Test
+    public void testMatchSpecIsMapKeyGuard() {
+        Term tab = Ets._new(Atom.of("ets_is_map_key_guard"), List.nil);
+        Map map = new Map();
+        map.set(Atom.of("key"), Integer.of(7));
+        try {
+            Ets.insert(tab, Tuple.of(Atom.of("k"), map));
+            Term specification = List.of(Tuple.of(
+                Tuple.of(Atom.of("k"), Atom.of("$1")),
+                Tuple.of(Atom.of("is_map_key"), Atom.of("key"), Atom.of("$1")),
+                Atom.of("$1")));
+            assertEquals(List.of(map), Ets.select(tab, specification));
+        } finally {
+            Ets.delete(tab);
+        }
     }
 
     @Test
