@@ -12,8 +12,8 @@ of `org.jerlang.erts.Emulator`. Running it with no arguments starts the shell,
 so the artifact is usable on its own:
 
 ```
-java -jar jerlang-1.0.1.jar
-java -cp jerlang-1.0.1.jar:path/to/beams -Djerlang.otp.dir=/path/to/otp App
+java -jar jerlang-1.1.0.jar
+java -cp jerlang-1.1.0.jar:path/to/beams -Djerlang.otp.dir=/path/to/otp App
 ```
 
 Requirements: Java 21 or newer. Erlang/OTP is only needed to run OTP's own
@@ -70,8 +70,8 @@ appears on a command line.
 Verification is the ordinary GPG flow:
 
 ```
-gpg --verify jerlang-1.0.1.jar.asc jerlang-1.0.1.jar
-sha256sum -c jerlang-1.0.1.jar.sha256
+gpg --verify jerlang-1.1.0.jar.asc jerlang-1.1.0.jar
+sha256sum -c jerlang-1.1.0.jar.sha256
 ```
 
 `target/dist/BUILD-INFO` records the commit, the JDK and the checksum of the
