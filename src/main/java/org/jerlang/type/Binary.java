@@ -2,6 +2,8 @@ package org.jerlang.type;
 
 import java.math.BigInteger;
 
+import org.jerlang.erts.erlang.Error;
+
 /**
  * See:
  * Per Gustafsson:
@@ -66,9 +68,12 @@ public class Binary extends BitString {
     }
 
     public List toList(int pos, int len) {
-        // TODO: check boundaries
+        long end = (long) pos + len;
+        if (pos < 0 || len < 0 || end > bytes.length) {
+            throw Error.badarg;
+        }
         List result = List.nil;
-        for (int index = pos + len; index >= pos; index--) {
+        for (int index = (int) end - 1; index >= pos; index--) {
             result = new List(Integer.of(bytes[index]), result);
         }
         return result;

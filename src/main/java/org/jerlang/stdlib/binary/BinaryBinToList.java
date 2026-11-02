@@ -1,5 +1,7 @@
 package org.jerlang.stdlib.binary;
 
+import java.math.BigInteger;
+
 import org.jerlang.erts.Erlang;
 import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Binary;
@@ -50,9 +52,25 @@ public class BinaryBinToList {
      * http://www.erlang.org/doc/man/binary.html#bin_to_list-2
      */
     public static List bin_to_list_2(Binary subject, Tuple part) {
-        int pos = part.element(1).toInteger().toInt();
-        int len = part.element(1).toInteger().toInt();
-        return subject.toList(pos, len);
+        if (part.arity() != 2) {
+            throw Error.badarg;
+        }
+        return subject.toList(sliceBound(part.element(1)), sliceBound(part.element(2)));
+    }
+
+    /**
+     * An integer that fits the Java int range, or badarg. A bignum must not
+     * be truncated into a plausible-looking slice bound.
+     */
+    private static int sliceBound(Term term) {
+        if (!(term instanceof Integer)) {
+            throw Error.badarg;
+        }
+        BigInteger value = ((Integer) term).toBigInteger();
+        if (value.bitLength() > 31) {
+            throw Error.badarg;
+        }
+        return value.intValue();
     }
 
     /**

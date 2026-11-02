@@ -16,7 +16,9 @@
          monitor_node_wait/2, monitor_node_twice_wait/2,
          monitor_node_missing/1, nodes_subset/0, is_alive/0, connect_node/1,
          rpc_call/4, rpc_call/5, rpc_cast/4, rpc_target/0,
-         rpc_cast_target/0, remote_fun_spawn/2, make_notify_fun/1]).
+         rpc_cast_target/0, rpc_receive_after/0, rpc_receive_reply/0,
+         send_got/1,
+         remote_fun_spawn/2, make_notify_fun/1]).
 
 %% link/1 sends a LINK signal and stays linked until the peer exits.
 link_remote(Remote) ->
@@ -247,6 +249,28 @@ rpc_target() ->
 rpc_cast_target() ->
     rpc_sink ! cast_done,
     ok.
+
+%% An incoming call whose target must park in a receive with a timeout.
+%% Before 1.0.1 the call answered [] at once instead of waiting.
+rpc_receive_after() ->
+    receive
+        never -> got
+    after 200 ->
+        timed_out
+    end.
+
+%% An incoming call that parks before its reply is sent to it. The helper
+%% waits first, so the message can not already be in the mailbox.
+rpc_receive_reply() ->
+    _ = spawn(dist_signals_demo, send_got, [self()]),
+    receive
+        {got, Value} -> {got, Value}
+    after 2000 ->
+        timed_out
+    end.
+
+send_got(To) ->
+    receive after 50 -> To ! {got, 42} end.
 
 %% Send a fun with a free variable to another node. The remote side has
 %% to rebuild the lambda from NEW_FUN_EXT before it can run it.

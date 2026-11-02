@@ -683,6 +683,50 @@ public class DistSignalsTest {
     }
 
     @Test
+    public void incomingOtpRpcCallCanParkInAReceiveWithATimeout() throws Throwable {
+        Peer peer = connect();
+        Reference requestId = new Reference(PEER, 41, 0);
+        Reference resultReference = new Reference(PEER, 42, 0);
+        Tuple mfa = Tuple.of(Atom.of("erpc"), Atom.of("execute_call"), Integer.of(4));
+        List args = List.of(resultReference, Atom.of("dist_signals_demo"),
+            Atom.of("rpc_receive_after"), List.nil);
+        peer.send(Tuple.of(Integer.of(29), requestId, REMOTE, REMOTE, mfa,
+            List.of(Atom.of("monitor"),
+                Tuple.of(Atom.of("reply"), Atom.of("error_only")))), args);
+
+        Term[] down = peer.next(3000);
+        assertNotNull("the OTP rpc result was not reported", down);
+        Tuple signal = down[0].toTuple();
+        assertEquals(Integer.of(21), signal.element(1));
+        assertEquals(requestId, signal.element(4));
+        assertEquals(Tuple.of(resultReference, Atom.of("return"), Atom.of("timed_out")),
+            signal.element(5));
+        peer.close();
+    }
+
+    @Test
+    public void incomingOtpRpcCallReceivesAMessageAfterParking() throws Throwable {
+        Peer peer = connect();
+        Reference requestId = new Reference(PEER, 43, 0);
+        Reference resultReference = new Reference(PEER, 44, 0);
+        Tuple mfa = Tuple.of(Atom.of("erpc"), Atom.of("execute_call"), Integer.of(4));
+        List args = List.of(resultReference, Atom.of("dist_signals_demo"),
+            Atom.of("rpc_receive_reply"), List.nil);
+        peer.send(Tuple.of(Integer.of(29), requestId, REMOTE, REMOTE, mfa,
+            List.of(Atom.of("monitor"),
+                Tuple.of(Atom.of("reply"), Atom.of("error_only")))), args);
+
+        Term[] down = peer.next(5000);
+        assertNotNull("the OTP rpc result was not reported", down);
+        Tuple signal = down[0].toTuple();
+        assertEquals(Integer.of(21), signal.element(1));
+        assertEquals(requestId, signal.element(4));
+        assertEquals(Tuple.of(resultReference, Atom.of("return"),
+            Tuple.of(Atom.of("got"), Integer.of(42))), signal.element(5));
+        peer.close();
+    }
+
+    @Test
     public void linkToAnUnreachableNodeReportsNoconnection() throws Throwable {
         PID remote = new PID(NOBODY, 5, 0, 0);
         Call call = call("link_unreachable", remote);
