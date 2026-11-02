@@ -81,8 +81,8 @@ trusting the download page.
 ## Publishing to Maven Central
 
 The pom is prepared for Central — metadata, source and javadoc jars, signatures
-and the Portal plugin behind a `central` profile — and **1.0.0 and 1.0.1 are published**:
-`io.github.slayyyyer:jerlang:1.0.1` resolves from Maven Central. What follows is
+and the Portal plugin behind a `central` profile — and **1.0.0, 1.0.1 and 1.1.0 are published**:
+`io.github.slayyyyer:jerlang:1.1.0` resolves from Maven Central. What follows is
 how 1.0.0 was done, because every version since repeats it.
 
 ### One-time prerequisites
@@ -176,6 +176,21 @@ The status endpoint reported `PUBLISHED` within about three minutes, and
 info not found`, with an empty `purls` list; the same error was still in the
 `PUBLISHED` payload. It did not prevent publication and the artifacts verify, so
 read the artifact from Central rather than the error text.
+
+### What 1.1.0 published
+
+1.1.0 is a minor release: the public API remains compatible with 1.0.1, and the
+tracing, ETS, loader and distribution changes are additive. The jar Central
+serves has sha256
+`a11df9f9332accf951c3a874e54380bad8db015e72f0a5c3cabf0ef272439874`, matching
+Central's `.sha256` file and the reproducible local build. `gpg --verify`
+reports a good signature from `53566F66…`, and the jar, `-sources.jar`,
+`-javadoc.jar` and the pom each resolve with a detached signature.
+
+The bundle was uploaded through the plugin and released in the Portal on
+2026-11-02, deployment `67c13130-7e15-4a7f-9371-ccead09418db`. Sonatype
+validated the component (`1 out of 1 Components Validated`). The release check
+was the 1,800-second target-load soak; the 24 hour soak remains deferred.
 
 ### The commands
 
