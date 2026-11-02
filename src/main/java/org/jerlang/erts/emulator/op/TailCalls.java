@@ -51,7 +51,7 @@ final class TailCalls {
             // chain that starts here ends.
             process.pushTailTarget(current, returnCP);
         }
-        Tracing.beforeCall(process, signature,
+        Tracing.beforeCallDecision(process, signature,
             CallExt.parameters(process, signature.fun_arity()));
         process.setCP(0);
         process.popFrame();

@@ -208,26 +208,26 @@ check above demonstrates.
 
 ## Release checklist
 
-The 1.0 exit test is a conjunction, and each line below is a thing that was
-measured on the commit being tagged:
+The release exit test is a conjunction, and each line below is a thing that must
+be measured on the commit being tagged:
 
 1. **Benchmarks against BEAM on the same machine.**
    `mvn -Dtest=BeamBenchTest -Djerlang.bench=true -Djerlang.bench.gate=true \
    -Djerlang.otp.dir="$OTP" test`. The table goes into `docs/benchmarks.md`; the
    gate enforces the message throughput budget.
-2. **Soak at target load.** The long form is
-   `mvn -Dtest=SoakTest -Djerlang.soak.seconds=86400 -Djerlang.soak.workers=32 test`.
-   **1.0.0 ships without the 24 hour run.** That is a decision, not an oversight:
-   a hosted CI job is killed after six hours, so the day-long run needs a machine
-   that stays up for a day, and 1.0 was not going to wait on hardware it does not
-   have. What was measured on the tagged commit is the same test at 330 seconds
-   and 32 workers: 233 million messages delivered, the reported heap holding at
-   196 MB for the whole load, the registry draining back to its baseline process
-   count, and a final live heap of 4 MB. CI runs a shorter soak every night, and
-   the 24 hour run is the exit test of [the 1.1 milestone](roadmap.md#11-the-24-hour-gate)
-   rather than a gate this tag met. The residual
-   risk is stated rather than dismissed: a leak slow enough to hide behind ten
-   minutes of load — under a megabyte a minute — would ship untested.
+2. **Soak at target load.** For 1.1.0, run the same test at the 1,800-second
+   duration CI uses nightly:
+   `mvn -Dtest=SoakTest -Djerlang.soak.seconds=1800 -Djerlang.soak.workers=32 test`.
+   **The 24 hour run is not part of the 1.1.0 gate.** That is a decision, not an
+   oversight: a hosted CI job is killed after six hours, so the day-long run
+   needs a machine that stays up for a day. 1.0.0 also shipped without it. What
+   was measured on the tagged commit was the same test at 330 seconds and 32
+   workers: 233 million messages delivered, the reported heap holding at 196 MB
+   for the whole load, the registry draining back to its baseline process count,
+   and a final live heap of 4 MB. The 24 hour run is deferred, not a gate for
+   1.1.0. The shorter run still leaves a residual risk, which is stated rather
+   than dismissed: a leak slow enough to hide behind the run — under a megabyte
+   a minute — would ship untested.
 
    The soak fails on a process leak, on descriptor growth where the platform
    reports descriptors, and on heap growth past 256 MB, checked once after the
@@ -235,7 +235,7 @@ measured on the commit being tagged:
    rather than against the empty node. That reference exists because a run at 32
    workers showed the live set reaching about 200 MB within two minutes and then
    staying there while another 40 million messages went through: the runtime's
-   stacks and queues grow to a high-water mark, and comparing a day-long run
+   stacks and queues grow to a high-water mark, and comparing a long run
    against startup would have measured that warm-up rather than a leak. The heap
    is not asserted while the load runs, because there the number is not
    trustworthy: `System.gc()` returns without a full collection when one is

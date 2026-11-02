@@ -312,10 +312,48 @@ public final class Tracing {
     }
 
     /**
+     * Called before a function starts. Returns the pattern that matched, so
+     * the caller can emit return_to after it returns.
+     *
+     * @deprecated use {@link #beforeCallDecision(Process, FunctionSignature, Term)}
+     *             for trace body actions and return_from/exception_from values.
+     */
+    @Deprecated
+    public static Pattern beforeCall(Process process, FunctionSignature signature, Term args) {
+        if (!anyPattern || !process.traceFlag(CALL)) {
+            return null;
+        }
+        Pattern pattern = pattern(signature);
+        if (pattern == null || !pattern.enabled()) {
+            return null;
+        }
+        pattern.calls.incrementAndGet();
+        process.trace(Tuple.of(TRACE, process.pid(), CALL,
+            Tuple.of(signature.module(), signature.function(), args)));
+        return pattern;
+    }
+
+    /**
+     * Emit the legacy return_to event for a pattern returned by
+     * {@link #beforeCall(Process, FunctionSignature, Term)}.
+     *
+     * @deprecated use {@link #afterCall(Process, FunctionSignature, Term, Throwable)}
+     *             for return_from and exception_from events.
+     */
+    @Deprecated
+    public static void afterCall(Process process, FunctionSignature signature, Pattern pattern) {
+        if (pattern == null || !pattern.returnTrace()) {
+            return;
+        }
+        process.trace(Tuple.of(TRACE, process.pid(), RETURN_TO,
+            Tuple.of(signature.module(), signature.function(), signature.fun_arity())));
+    }
+
+    /**
      * Called before a function starts. Returns the per-call decision, so the
      * return path knows which actions the matching clause selected.
      */
-    public static Decision beforeCall(Process process, FunctionSignature signature, Term args) {
+    public static Decision beforeCallDecision(Process process, FunctionSignature signature, Term args) {
         if (!anyPattern || !process.traceFlag(CALL)) {
             return null;
         }

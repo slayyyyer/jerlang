@@ -71,7 +71,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 
 **Tests**
 
-- A 555-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
+- A 556-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
 
 ### What does not work yet
 

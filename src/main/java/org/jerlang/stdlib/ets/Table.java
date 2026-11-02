@@ -86,8 +86,14 @@ public abstract class Table {
      */
     public abstract void delete(Term key);
 
-    /** Remove exactly this object, used by match_delete and select_delete. */
-    public abstract void remove(Tuple object);
+    /**
+     * Remove exactly this object, used by match_delete and select_delete. The
+     * built-in tables override this; the concrete default keeps subclasses
+     * compiled before the method existed binary compatible.
+     */
+    public void remove(Tuple object) {
+        throw new UnsupportedOperationException("remove");
+    }
 
     /**
      * Store one object. The key is the tuple element at this table's key

@@ -48,12 +48,12 @@ public class TracingTest {
         Tracing.pattern(Tuple.of(signature.module(), signature.function(),
             signature.fun_arity()), specification, List.nil);
 
-        assertNotNull(Tracing.beforeCall(target, signature,
+        assertNotNull(Tracing.beforeCallDecision(target, signature,
             List.of(Integer.of(1), Integer.of(2))));
         assertEquals(Tuple.of(Atom.of("custom"), Integer.of(1)), target.last());
 
         assertNull("a non-matching argument list must not trace",
-            Tracing.beforeCall(target, signature,
+            Tracing.beforeCallDecision(target, signature,
                 List.of(Integer.of(1), Integer.of(3))));
 
         Tracing.afterReturn(target, signature, Integer.of(7));
@@ -70,7 +70,7 @@ public class TracingTest {
         Tracing.pattern(Tuple.of(signature.module(), signature.function(),
             signature.fun_arity()), specification, List.nil);
 
-        assertNotNull(Tracing.beforeCall(target, signature,
+        assertNotNull(Tracing.beforeCallDecision(target, signature,
             List.of(Integer.of(1), Integer.of(2))));
         Tracing.afterCall(target, signature, null, new Error(Atom.of("boom")));
 
@@ -89,11 +89,31 @@ public class TracingTest {
         Tracing.pattern(Tuple.of(signature.module(), signature.function(),
             signature.fun_arity()), specification, List.nil);
 
-        assertNotNull(Tracing.beforeCall(target, signature,
+        assertNotNull(Tracing.beforeCallDecision(target, signature,
             List.of(Integer.of(1), Integer.of(2))));
         assertNull(target.last());
         Tracing.afterReturn(target, signature, Integer.of(7));
         assertNull(target.last());
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    public void legacyPatternApiStillEmitsCallAndReturnTo() {
+        Tracing.pattern(Tuple.of(signature.module(), signature.function(),
+            signature.fun_arity()), Boolean.am_true,
+            List.of(Atom.of("return_trace")));
+
+        Tracing.Pattern pattern = Tracing.beforeCall(target, signature,
+            List.of(Integer.of(1), Integer.of(2)));
+        assertNotNull(pattern);
+        assertEquals(Tuple.of(Tracing.TRACE, target.pid(), Tracing.CALL,
+            Tuple.of(signature.module(), signature.function(),
+                List.of(Integer.of(1), Integer.of(2)))), target.last());
+
+        Tracing.afterCall(target, signature, pattern);
+        assertEquals(Tuple.of(Tracing.TRACE, target.pid(), Tracing.RETURN_TO,
+            Tuple.of(signature.module(), signature.function(),
+                signature.fun_arity())), target.last());
     }
 
     private static final class RecordingProcess extends Process {

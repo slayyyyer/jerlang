@@ -23,8 +23,8 @@ import org.junit.Assume;
 import org.junit.Test;
 
 /**
- * The soak test the 1.0 exit test requires: a node runs at target load for a
- * configured time and the runtime has to stay flat.
+ * The soak test used by the release flatness check: a node runs at target load
+ * for a configured time and the runtime has to stay flat.
  *
  * "Flat" is measured, not felt. During the run the test samples the metrics and
  * checks the process count against what the worker count implies; after the
@@ -35,13 +35,12 @@ import org.junit.Test;
  *
  * <pre>
  * mvn -Dtest=SoakTest -Djerlang.soak.seconds=60 test
- * mvn -Dtest=SoakTest -Djerlang.soak.seconds=86400 test   # the 1.0 gate
+ * mvn -Dtest=SoakTest -Djerlang.soak.seconds=86400 test   # optional long run
  * </pre>
  *
  * The duration is required, so the suite stays fast by default. The 24 hour run
- * can not live in GitHub Actions: a hosted job is killed after six hours, so
- * the release checklist runs it on a machine that stays up and CI runs a
- * shorter one nightly. That is a limit of the release process, not of this test.
+ * can not live in GitHub Actions: a hosted job is killed after six hours. It is
+ * deferred rather than a 1.1.0 release gate; CI runs the shorter nightly soak.
  */
 public class SoakTest {
 
@@ -106,7 +105,7 @@ public class SoakTest {
             // A run shorter than this has not finished warming up: the live set
             // keeps climbing for about two minutes, so a heap bound taken from a
             // twenty second run would fail on the warm-up rather than on a leak.
-            // Short runs report the numbers; the 24 hour gate asserts them.
+            // Short runs report the numbers; the longer run asserts them.
             boolean assertHeapBound = seconds >= 300;
             long referenceHeap = baselineHeap;
             long referenceProcesses = baselineProcesses;

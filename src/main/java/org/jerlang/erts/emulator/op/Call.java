@@ -22,7 +22,7 @@ public class Call {
     public static Term execute(Process process, Module m, Instruction i, List params) {
         FunctionSignature callee = m.functionAtLabel(i.arg(1).toRegisterIndex().toInt());
         if (callee != null) {
-            Tracing.beforeCall(process, callee,
+            Tracing.beforeCallDecision(process, callee,
                 CallExt.parameters(process, i.arg(0).toInteger()));
             process.pushFrame(new StackFrame(callee.module(), callee.function(),
                 callee.fun_arity().toInt()));

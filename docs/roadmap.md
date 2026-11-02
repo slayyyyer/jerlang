@@ -15,7 +15,7 @@ what the code does today, not against the original intent.
 | ETS | `set`, `ordered_set`, `bag` and `duplicate_bag`, with named tables and `{keypos, N}`. `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work. A table is destroyed with its owner, `give_away` and heirs transfer ownership, table operations are locked, and `update_counter` is atomic across processes. `match_delete` and `select_delete` work. Match specs support patterns, bodies, comparisons, boolean guards, `is_map_key` and arithmetic guards. |
 | OTP behaviours | OTP's unmodified `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and `code` run from an OTP installation. `gen_statem` is not verified. The application controller models `.app` loading, dependencies, included applications, start phases, environment and key bookkeeping; `application_master` itself, distributed takeover and automatic restart of a crashed permanent application are not modelled. A dead tree is reaped when the controller is queried, and its included applications are stopped with it. |
 | Scheduler | One scheduler thread per processor with no balancing. A process gets 1,000 instructions per slice, and a CPU-bound loop in its outermost activation yields at the next instruction boundary; `process_info(reductions)` reports the count. Cross-module tail calls switch instruction streams in place, so a tail loop stays preemptible; a yield inside a nested non-tail call is still deferred until that call returns. Run queues are split by max/high/normal/low priority, and `process_flag(priority, ...)` moves a queued process. All timers use one 512-slot, 1 ms timer wheel. |
-| Tests | 555 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 19 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks, the distribution benchmarks and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Tests | 556 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 19 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks, the distribution benchmarks and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
 | CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, an `otp` job that runs the OTP-backed behaviour tests, and a `conformance` job that installs OTP and enforces the pass-rate floor. |
 | Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
@@ -223,7 +223,7 @@ implemented and runnable. One part of the exit test was waived: the 24 hour soak
 was not run, so the tag was cut on a 330 second soak at target load — 233 million
 messages, heap flat at 196 MB, registry drained, final live heap 4 MB. The
 waiver and the risk it leaves are recorded in [release.md](release.md), and
-closing it is the whole of [1.1](#11-the-24-hour-gate). The fuzzing bullet
+the day-long run is deferred work rather than a 1.1.0 gate. The fuzzing bullet
 below also earned its keep on the way out: the campaign at 20000 iterations found
 three loader defects, including a corrupt `.beam` that hung the loader for 23
 minutes of CPU.
@@ -244,8 +244,8 @@ minutes of CPU.
 * [x] Soak test: configurable duration at target load, with flatness asserted on
   process count, open file descriptors where the platform reports them, and heap
   after collection (`SoakTest`). CI runs thirty minutes nightly; a hosted runner
-  is killed after six hours, so the 24 hour gate runs on a machine that stays up
-  and the release checklist says so.
+  is killed after six hours, so the 24 hour run is deferred and is not a 1.1.0
+  release gate.
 * [x] Fuzzing: the BEAM loader and the ETF decoder, deterministic from a seed,
   in CI at 200 iterations and locally at any count (`BeamLoaderFuzzTest`,
   `EtfFuzzTest`). Distribution framing is covered by
@@ -263,23 +263,22 @@ minutes of CPU.
 **Exit test:** the benchmark table, the fuzzing campaign and a soak at target
 load are green on the commit that is tagged 1.0, and the artifact is installable
 from a clean machine. The day-long soak was dropped from this gate when 1.0
-shipped; that is the difference between what was written here and what was done,
-and it is carried to 1.1 rather than deleted.
+shipped; it remains deferred work and is not a gate for 1.1.0.
 
-### 1.1 — The 24 hour gate
+### Deferred — 24-hour soak
 
 **Goal:** the day-long soak becomes a gate a release can actually be blocked by,
 rather than a command somebody is meant to run on a machine nobody has.
 
-**Status: planned.** 1.0.0 shipped on a 330 second soak. This milestone exists so
-the next release does not inherit the same gap, and it is deliberately small: the
-soak already asserts process count, descriptors and post-drain heap, so the work
-is the machine, the record, and the proof that a failure is caught.
+**Status: deferred.** The 24-hour run is not part of the 1.1.0 release gate.
+1.0.0 also shipped without it, on a 330 second soak. This section records the
+work needed if the day-long gate is scheduled later; until then it is a known
+gap, not a blocker. The shorter target-load soak remains the release check.
 
 * [ ] A runner that stays up for a day, with the JDK, the OTP version and the
   heap it runs with pinned and written down. A hosted CI runner is killed after
   six hours, so this is a self-hosted runner or a dedicated box, and which of the
-  two is a decision this milestone makes rather than inherits.
+  two is a decision this work makes rather than inherits.
 * [ ] A workflow that runs
   `mvn -Dtest=SoakTest -Djerlang.soak.seconds=86400 -Djerlang.soak.workers=32 test`
   on release candidates, archives the log as an artifact, and fails the commit
@@ -301,13 +300,13 @@ is the machine, the record, and the proof that a failure is caught.
   on the same commit where the ordinary run is green. A gate that has only ever
   been green is not evidence that it works.
 * [ ] The 24 hour run recorded in [release.md](release.md) as run, with its
-  result and the hardware it ran on, so the 1.0 waiver ends instead of quietly
-  persisting through the 1.x line.
+  result and the hardware it ran on, so the waiver is closed when this work
+  lands rather than quietly persisting through the 1.x line.
 
-**Exit test:** a 24 hour soak at target load is green on a machine that stayed
-up, its sample stream and log are archived with the release, a deliberately
-injected leak on the same commit fails the same gate, and the release checklist
-contains no waived line.
+**Exit test (when scheduled):** a 24 hour soak at target load is green on a
+machine that stayed up, its sample stream and log are archived with the release,
+a deliberately injected leak on the same commit fails the same gate, and the
+release checklist contains no waived line.
 
 ## Cross-cutting work
 
@@ -378,8 +377,8 @@ credible story; if it does not, the gaps are known and finite.
   larger than Erlang's. Treat it as a separate compatibility track with its own
   corpus after 0.6, not as a side effect of Erlang support.
 * **The 1.0 waiver.** 1.0.0 shipped without the day-long run, so a leak slower
-  than roughly a megabyte a minute would have gone unseen. It is the first item
-  in 1.1 for that reason, and until 1.1 lands the 1.x line carries the same gap
-  and says so in [release.md](release.md).
+  than roughly a megabyte a minute would have gone unseen. It is recorded as
+  deferred work, not a 1.1.0 gate, and the 1.x line carries the same gap and
+  says so in [release.md](release.md).
 * **Hot upgrade.** Deferred, and should be stated as such; production users who
   need it are not served by this runtime yet.

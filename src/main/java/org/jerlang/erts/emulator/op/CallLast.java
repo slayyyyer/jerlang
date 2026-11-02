@@ -36,7 +36,7 @@ public class CallLast {
         proc.popFrame();
         FunctionSignature callee = m.functionAtLabel(i.arg(1).toRegisterIndex().toInt());
         if (callee != null) {
-            Tracing.beforeCall(proc, callee,
+            Tracing.beforeCallDecision(proc, callee,
                 CallExt.parameters(proc, i.arg(0).toInteger()));
             proc.pushFrame(new StackFrame(callee.module(), callee.function(),
                 callee.fun_arity().toInt()));

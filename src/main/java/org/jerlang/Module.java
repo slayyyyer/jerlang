@@ -182,7 +182,7 @@ public class Module {
             if (instructionStream) {
                 process.setCP(0);
             }
-            Tracing.beforeCall(process, signature, params);
+            Tracing.beforeCallDecision(process, signature, params);
             try {
                 Term result = fun.apply(params);
                 if (!instructionStream) {

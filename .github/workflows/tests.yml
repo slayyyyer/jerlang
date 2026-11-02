@@ -8,8 +8,7 @@ on:
   pull_request:
     branches: [master]
   # The nightly soak. A hosted runner is killed after six hours, so this is the
-  # long run that fits; the 24 hour gate from docs/release.md runs on a machine
-  # that stays up.
+  # long run that fits; the 24 hour run is deferred and is not a 1.1.0 gate.
   schedule:
     - cron: '0 3 * * *'
 
