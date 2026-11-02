@@ -1,0 +1,56 @@
+plugins {
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.github.slayyyyer:jerlang:1.0.0'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+application {
+    mainClass = 'example.Supervised'
+}
+
+def ebin = layout.buildDirectory.dir('ebin')
+
+// The application's modules and its .app file. This example runs OTP's own
+// supervisor and application controller, which come from the Erlang/OTP
+// installation, not from this build.
+tasks.register('compileErlang', Exec) {
+    description = 'Compiles the supervision tree and the application module.'
+    group = 'build'
+    def sources = fileTree('src/main/erl') { include '**/*.erl' }
+    def erlc = System.getenv('ERLC') ?: 'erlc'
+    inputs.files sources
+    outputs.dir ebin
+    doFirst {
+        ebin.get().asFile.mkdirs()
+        commandLine([erlc, '-o', ebin.get().asFile.absolutePath]
+            + sources.files.collect { it.absolutePath })
+    }
+}
+
+tasks.register('appFile', Copy) {
+    description = 'Puts the .app resource file next to the modules.'
+    from 'src/main/erl'
+    include '*.app'
+    into ebin
+}
+
+tasks.named('classes') {
+    dependsOn 'compileErlang', 'appFile'
+}
+
+tasks.named('run') {
+    systemProperty 'jerlang.example.ebin', ebin.get().asFile.absolutePath
+    systemProperty 'jerlang.example.otpLib', providers.gradleProperty('otpLib').getOrElse('')
+}

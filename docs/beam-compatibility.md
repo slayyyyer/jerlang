@@ -475,3 +475,22 @@ replace.
 
 - JErlang does not compile Erlang source; `.beam` files must come from `erlc`.
 - The shell still accepts only zero-argument `m:f().` expressions.
+
+## `receive ... after` inside an inbound distribution call
+
+Measured on 1.0.0 against a real OTP 29 peer. In a process created to serve an
+`erpc` call that arrived over distribution, a `receive` with an `after` clause
+does not park: it returns `[]` immediately when the message is not already in the
+mailbox.
+
+| Call | From an inbound `erpc:call` | From Java, in-process |
+|------|:---------------------------:|:---------------------:|
+| `receive never -> got after 200 -> timed_out end` | `[]` in 3.6 ms | `timed_out` in 214 ms |
+| a child sends, the parent receives with `after 200` | `[]` in 0.9 ms | `{got,42}` in 0.9 ms |
+| send to a registered process, receive the reply with `after 200` | `[]` in 1.1 ms | `[a,b]` in 0.6 ms |
+
+A receive whose message is already in the mailbox works in both cases, so the
+defect is the waiting, not delivery. The consequence is concrete: a stateful
+module served to a cluster answers `[]` instead of its state, because every
+request/reply pattern is written this way. The trigger is the arrival path; the
+cause is not established.

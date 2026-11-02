@@ -63,6 +63,7 @@ nav:
       - A chat service over SSE: examples/chat-service.md
       - mnesia over distribution: examples/mnesia-service.md
       - Testing Erlang from JUnit: examples/junit-harness.md
+      - Supervision from Java: examples/supervised-app.md
   - Guides:
       - Java interoperability: java-interop.md
       - Distribution: distribution.md

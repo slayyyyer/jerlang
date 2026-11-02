@@ -243,3 +243,6 @@ jobs:
 
       - name: mnesia-service
         run: cd examples/mnesia-service && gradle --no-daemon installDist
+
+      - name: supervised-app
+        run: cd examples/supervised-app && gradle --no-daemon installDist

@@ -1,6 +1,6 @@
 # Examples
 
-Six programs: the two directions of the Java interop, three services built on the
+Seven programs: the two directions of the Java interop, four services built on the
 published artifact, and a test harness.
 
 ## Which one do I want?
@@ -13,6 +13,7 @@ published artifact, and a test harness.
 | push events to a browser | [`chat-service`](chat-service/README.md) |
 | keep data in mnesia on an OTP node | [`mnesia-service`](mnesia-service/README.md) |
 | test my `.erl` modules from JUnit | [`junit-harness`](junit-harness/README.md) |
+| run a supervision tree, started from Java | [`supervised-app`](supervised-app/README.md) |
 
 | Directory | What it shows |
 | --- | --- |
@@ -22,8 +23,9 @@ published artifact, and a test harness.
 | `chat-service` | The same shape with a push direction: rooms, ETS history and server-sent events through a Java sink Erlang calls. |
 | `mnesia-service` | The data lives in mnesia on an OTP node, reached over distribution with `rpc:call/5`; the JVM node is the HTTP front end. |
 | `junit-harness` | Erlang modules under test in a JUnit 5 suite, no Erlang installation needed to run it. |
+| `supervised-app` | OTP's `application` and `supervisor` running on the JVM: a worker is killed and restarted, with the pid changing. |
 
-All six use `org.jerlang.api.Node`, which owns the runtime: it starts the
+All seven use `org.jerlang.api.Node`, which owns the runtime: it starts the
 schedulers, applies the options and, on `close()`, drains the object handle
 table. `mnesia-service` also names its node with `-sname`, because a distribution
 peer needs an identity.
@@ -50,6 +52,9 @@ gradle run                 # http://127.0.0.1:8080/, 64 streams
 
 cd examples/junit-harness
 gradle test                # compiles the .erl if erlc is present, then the suite
+
+cd examples/supervised-app
+gradle run -PotpLib="$(erl -noshell -eval 'io:format("~s",[code:root_dir()]),halt().')/lib"
 ```
 
 `mnesia-service` also needs the OTP node that owns the table, so it takes two
@@ -63,13 +68,15 @@ erl -sname mnesia_node -setcookie examplecookie -noshell -pa otp -eval 'mnesia_n
 gradle run                 # http://127.0.0.1:8080/, in another terminal
 ```
 
-The Gradle examples need `erlc` to compile the `.erl` files; only `http-service`,
-`chat-service` and `mnesia-service` need Erlang at run time, and `junit-harness`
-needs none at all. See their READMEs and docs pages:
+`erlc` compiles the `.erl` files in every Gradle example. Erlang at **run** time
+is needed by `http-service`, `chat-service` and `mnesia-service` (for the OTP
+node) and by `supervised-app` (for OTP's own `application` and `supervisor`);
+`junit-harness` needs none at all. See their READMEs and docs pages:
 [http-service](http-service/README.md),
 [chat-service](chat-service/README.md),
 [mnesia-service](mnesia-service/README.md),
-[junit-harness](junit-harness/README.md).
+[junit-harness](junit-harness/README.md),
+[supervised-app](supervised-app/README.md).
 
 Expected output:
 
@@ -86,4 +93,5 @@ hello, erlang
 `counter` is an ordinary `gen_server` callback module. The server that runs it is
 OTP's `stdlib`, so `GenServerDemo` adds `stdlib` and `kernel` from the OTP
 installation to the code path. A node that only uses the built-in modules does
-not need that.
+not need that — which is exactly why `supervised-app` takes `-PotpLib=` and
+`http-service` does not.
