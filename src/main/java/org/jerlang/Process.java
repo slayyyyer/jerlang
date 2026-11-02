@@ -209,24 +209,23 @@ public class Process extends ProcessOrPort {
     // erlang:trace/3 flags and the tracer they report to. A process with no
     // flags has an empty set, so the interpreter's hot path is one map check.
     private final Set<Atom> traceFlags = ConcurrentHashMap.newKeySet();
-    private final java.util.Deque<FunctionSignature> tracedCalls =
+    private final java.util.Deque<Tracing.Decision> tracedCalls =
         new java.util.ArrayDeque<>();
     private volatile PID traceTracer = null;
 
-    public void pushTracedCall(FunctionSignature signature) {
-        tracedCalls.push(signature);
+    public void pushTracedCall(FunctionSignature signature, Tracing.Decision decision) {
+        tracedCalls.push(decision);
     }
 
-    public boolean popTracedCall(FunctionSignature signature) {
+    public Tracing.Decision popTracedCall(FunctionSignature signature) {
         if (tracedCalls.isEmpty()) {
-            return false;
+            return null;
         }
-        FunctionSignature top = tracedCalls.peek();
-        if (!top.equals(signature)) {
-            return false;
+        Tracing.Decision top = tracedCalls.peek();
+        if (!top.signature().equals(signature)) {
+            return null;
         }
-        tracedCalls.pop();
-        return true;
+        return tracedCalls.pop();
     }
 
     public Process(PID pid) {

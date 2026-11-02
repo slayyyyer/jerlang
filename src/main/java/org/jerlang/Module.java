@@ -182,13 +182,19 @@ public class Module {
             if (instructionStream) {
                 process.setCP(0);
             }
-            Tracing.Pattern tracePattern = Tracing.beforeCall(process, signature, params);
+            Tracing.beforeCall(process, signature, params);
             try {
-                return fun.apply(params);
-            } finally {
+                Term result = fun.apply(params);
                 if (!instructionStream) {
-                    Tracing.afterCall(process, signature, tracePattern);
+                    Tracing.afterCall(process, signature, result, null);
                 }
+                return result;
+            } catch (RuntimeException failure) {
+                if (!instructionStream) {
+                    Tracing.afterCall(process, signature, null, failure);
+                }
+                throw failure;
+            } finally {
                 process.popSignature();
                 if (instructionStream) {
                     process.setCP(callerCP);

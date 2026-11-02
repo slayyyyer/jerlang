@@ -4,7 +4,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import java.util.ArrayList;
+
+import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Boolean;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
@@ -24,7 +28,6 @@ public class TracingTest {
         Tracing.reset();
         target = new RecordingProcess(9002);
         target.setTraceFlag(Tracing.CALL, true);
-        target.setTraceFlag(Tracing.RETURN_TO, true);
         signature = new FunctionSignature(Atom.of("trace_demo"), Atom.of("f"),
             Integer.of(2));
     }
@@ -35,30 +38,67 @@ public class TracingTest {
     }
 
     @Test
-    public void matchSpecFiltersCallsAndBodySuppliesTheMessage() {
-        Term pattern = List.of(Atom.of("$1"), Integer.of(2));
-        Term body = Tuple.of(Atom.of("message"),
-            Tuple.of(Atom.of("custom"), Atom.of("$1")));
-        Term specification = List.of(Tuple.of(pattern, List.nil, body));
+    public void bodyActionsSelectReturnFromAndMessage() {
+        Term body = List.of(
+            Tuple.of(Atom.of("message"),
+                Tuple.of(Atom.of("custom"), Atom.of("$1"))),
+            Tuple.of(Atom.of("return_trace")));
+        Term specification = List.of(Tuple.of(
+            List.of(Atom.of("$1"), Integer.of(2)), List.nil, body));
         Tracing.pattern(Tuple.of(signature.module(), signature.function(),
-            signature.fun_arity()), specification, List.of(Atom.of("return_trace")));
+            signature.fun_arity()), specification, List.nil);
 
         assertNotNull(Tracing.beforeCall(target, signature,
             List.of(Integer.of(1), Integer.of(2))));
-        assertEquals(Tuple.of(Atom.of("custom"), Integer.of(1)), target.last);
+        assertEquals(Tuple.of(Atom.of("custom"), Integer.of(1)), target.last());
 
         assertNull("a non-matching argument list must not trace",
             Tracing.beforeCall(target, signature,
                 List.of(Integer.of(1), Integer.of(3))));
 
-        Tracing.afterReturn(target, signature);
-        assertEquals(Tuple.of(Tracing.TRACE, target.pid(), Tracing.RETURN_TO,
-            Tuple.of(signature.module(), signature.function(), signature.fun_arity())),
-            target.last);
+        Tracing.afterReturn(target, signature, Integer.of(7));
+        assertEquals(Tuple.of(Tracing.TRACE, target.pid(), Tracing.RETURN_FROM,
+            Tuple.of(signature.module(), signature.function(), signature.fun_arity()),
+            Integer.of(7)), target.last());
+    }
+
+    @Test
+    public void exceptionTraceActionReportsTheClassAndReason() {
+        Term body = List.of(Tuple.of(Atom.of("exception_trace")));
+        Term specification = List.of(Tuple.of(
+            List.of(Atom.of("$1"), Atom.of("$2")), List.nil, body));
+        Tracing.pattern(Tuple.of(signature.module(), signature.function(),
+            signature.fun_arity()), specification, List.nil);
+
+        assertNotNull(Tracing.beforeCall(target, signature,
+            List.of(Integer.of(1), Integer.of(2))));
+        Tracing.afterCall(target, signature, null, new Error(Atom.of("boom")));
+
+        assertEquals(Tuple.of(Tracing.TRACE, target.pid(), Tracing.EXCEPTION_FROM,
+            Tuple.of(signature.module(), signature.function(), signature.fun_arity()),
+            Tuple.of(Atom.of("error"), Atom.of("boom"))), target.last());
+    }
+
+    @Test
+    public void silentActionSuppressesTheCallAndReturnEvents() {
+        Term body = List.of(
+            Tuple.of(Atom.of("message"), Atom.of("hidden")),
+            Tuple.of(Atom.of("silent"), Boolean.am_true));
+        Term specification = List.of(Tuple.of(
+            List.of(Atom.of("$1"), Atom.of("$2")), List.nil, body));
+        Tracing.pattern(Tuple.of(signature.module(), signature.function(),
+            signature.fun_arity()), specification, List.nil);
+
+        assertNotNull(Tracing.beforeCall(target, signature,
+            List.of(Integer.of(1), Integer.of(2))));
+        assertNull(target.last());
+        Tracing.afterReturn(target, signature, Integer.of(7));
+        assertNull(target.last());
     }
 
     private static final class RecordingProcess extends Process {
 
+        private final java.util.List<Term> events = new ArrayList<>();
         private Term last;
 
         RecordingProcess(int number) {
@@ -68,6 +108,11 @@ public class TracingTest {
         @Override
         public void trace(Term event) {
             last = event;
+            events.add(event);
+        }
+
+        Term last() {
+            return last;
         }
 
     }

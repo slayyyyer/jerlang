@@ -1,9 +1,16 @@
 package org.jerlang.erts.dist;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jerlang.type.Atom;
 import org.jerlang.type.Binary;
@@ -17,15 +24,15 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * The distribution row the benchmark suite did not have: encode and decode a
- * real 112-tagged packet with a control term and a binary message.
+ * The distribution benchmark: the 112-tagged codec on its own, and a
+ * loopback transport round trip through a real socket.
  *
- * This measures the codec, not the socket. A two-peer wall-clock benchmark
- * would also include the kernel's TCP stack and two scheduler hand-offs, so it
- * would measure the machine's loopback more than this runtime. The codec is the
- * part that changes with this codebase, and it is the part this row isolates.
+ * The codec row isolates encoding and decoding. The loopback row adds the
+ * kernel's TCP stack and a peer thread, but still excludes a second JVM and
+ * the scheduler hand-offs of a full node-to-node run. Both are opt-in because
+ * they measure the machine.
  *
- * Run it with:
+ * Run with:
  *
  * <pre>
  * mvn -Dtest=DistributionBenchmarkTest -Djerlang.bench=true test
@@ -58,7 +65,6 @@ public class DistributionBenchmarkTest {
         for (int index = 0; index < warmup; index++) {
             sink = DistConnection.decodeFrame(DistConnection.encodeFrame(control, message))[1];
         }
-        assertNotNull(sink);
 
         double[] samples = new double[REPEATS];
         for (int repeat = 0; repeat < REPEATS; repeat++) {
@@ -78,6 +84,95 @@ public class DistributionBenchmarkTest {
         System.out.printf(java.util.Locale.ROOT,
             "encode+decode %d bytes: %.1f ns/op, %,.0f frames/sec%n",
             payload.length, median, 1e9 / median);
+    }
+
+    @Test
+    public void loopbackRoundTripThroughput() throws Exception {
+        PID from = new PID(PEER, 55, 0, 0);
+        Term control = Tuple.of(Integer.of(6), from, List.nil, Atom.of("sink"));
+        Term message = Binary.of(new byte[32]);
+        byte[] payload = DistConnection.encodeFrame(control, message);
+
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+        Thread peer = new Thread(() -> {
+            try (Socket socket = server.accept()) {
+                DataInputStream in = new DataInputStream(socket.getInputStream());
+                DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+                while (true) {
+                    int length;
+                    try {
+                        length = in.readInt();
+                    } catch (EOFException end) {
+                        return;
+                    }
+                    if (length == 0) {
+                        out.writeInt(0);
+                        out.flush();
+                        continue;
+                    }
+                    byte[] request = new byte[length];
+                    in.readFully(request);
+                    out.writeInt(length);
+                    out.write(request);
+                    out.flush();
+                }
+            } catch (Throwable e) {
+                if (!server.isClosed()) {
+                    failure.set(e);
+                }
+            }
+        }, "dist-bench-loopback-peer");
+        peer.setDaemon(true);
+        peer.start();
+
+        try (Socket client = new Socket(InetAddress.getLoopbackAddress(),
+            server.getLocalPort())) {
+            client.setTcpNoDelay(true);
+            DataInputStream in = new DataInputStream(client.getInputStream());
+            DataOutputStream out = new DataOutputStream(client.getOutputStream());
+
+            int warmup = 200;
+            int ops = 2_000;
+            for (int index = 0; index < warmup; index++) {
+                sink = roundTrip(in, out, payload);
+            }
+            assertEquals(message, sink);
+
+            double[] samples = new double[REPEATS];
+            for (int repeat = 0; repeat < REPEATS; repeat++) {
+                long start = System.nanoTime();
+                for (int index = 0; index < ops; index++) {
+                    sink = roundTrip(in, out, payload);
+                }
+                samples[repeat] = (double) (System.nanoTime() - start) / ops;
+            }
+            assertEquals(message, sink);
+            Arrays.sort(samples);
+            double median = samples[samples.length / 2];
+
+            System.out.println("Distribution loopback transport benchmark");
+            System.out.printf(java.util.Locale.ROOT,
+                "round trip %d bytes: %.1f ns/op, %,.0f round trips/sec%n",
+                payload.length, median, 1e9 / median);
+        } finally {
+            server.close();
+            peer.join(3_000);
+        }
+        if (failure.get() != null) {
+            throw new AssertionError("loopback peer failed", failure.get());
+        }
+    }
+
+    private static Term roundTrip(DataInputStream in, DataOutputStream out, byte[] payload)
+        throws IOException {
+        out.writeInt(payload.length);
+        out.write(payload);
+        out.flush();
+        int length = in.readInt();
+        byte[] response = new byte[length];
+        in.readFully(response);
+        return DistConnection.decodeFrame(response)[1];
     }
 
 }

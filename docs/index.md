@@ -57,8 +57,9 @@ Two examples show both directions, and both are compiled and run in CI:
 - **Scheduling.** Reduction accounting and preemption for CPU-bound Erlang
   loops, priorities, and one timer wheel behind `receive ... after` and
   `send_after`.
-- **ETS.** `set` and `ordered_set`, match specs, `update_counter`, ownership
-  transfer, and table destruction on owner exit.
+- **ETS.** `set`, `ordered_set`, `bag` and `duplicate_bag`; match specs;
+  `update_counter`; ownership transfer and heirs; table destruction on owner
+  exit.
 - **Java interop.** The `java` module for reflection from Erlang, and
   `org.jerlang.api.Node` for embedding the runtime in a JVM application.
 
@@ -72,8 +73,8 @@ These are decisions with reasons, not forgotten features:
   legacy `rex` protocol — `rpc` uses `erpc`'s spawn protocol instead.
 - `gen_statem` and the wider standard library are not covered.
 - Nested non-tail CPU-bound calls are not preempted until they return.
-- OTP boot scripts are not interpreted, and `code:ensure_modules_loaded/1`
-  walks its input in order.
+- OTP boot scripts are not interpreted. `code:ensure_modules_loaded/1` loads
+  its input in parallel.
 
 [docs/beam-compatibility.md](beam-compatibility.md) has the per-opcode notes and
 the one remaining language-feature gap (native records).

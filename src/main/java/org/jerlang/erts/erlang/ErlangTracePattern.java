@@ -10,11 +10,12 @@ import org.jerlang.type.Tuple;
 /**
  * erlang:trace_pattern/3.
  *
- * A function, a module or `all` can be instrumented. The match-spec subset is
- * intentionally small: true and a non-empty list enable every call to the
- * function, false and the empty list disable it. The `return_trace` flag adds
- * a return_to event; `local`, `global` and `meta` are accepted so a standard
- * dbg call works.
+ * A function, a module or `all` can be instrumented. `true` and a non-empty
+ * list enable tracing; `false` and the empty list disable it. Match-spec body
+ * action lists are evaluated, including custom messages, return/exception
+ * tracing, silent mode and trace-flag actions. The `return_trace` flag remains
+ * accepted as a pattern-wide return trace; `local`, `global` and `meta` are
+ * accepted so a standard dbg call works.
  */
 public class ErlangTracePattern {
 

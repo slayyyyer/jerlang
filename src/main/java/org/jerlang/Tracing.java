@@ -6,36 +6,40 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.jerlang.erts.erlang.Error;
+import org.jerlang.stdlib.ets.MatchSpec;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Boolean;
+import org.jerlang.type.ImproperList;
 import org.jerlang.type.Integer;
 import org.jerlang.type.List;
 import org.jerlang.type.PID;
+import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
-import org.jerlang.stdlib.ets.MatchSpec;
 
 /**
  * erlang:trace/3 and erlang:trace_pattern/3.
  *
- * Tracing is deliberately small: a process carries the flags it was traced
- * with, and a global pattern table says which functions produce call events.
- * A trace event is an ordinary message to the tracer, so the runtime needs no
- * separate event loop to make `dbg` and a test able to observe calls and
- * messages.
+ * A process carries the flags it was traced with, and a global pattern table
+ * says which functions produce call events. A trace event is an ordinary
+ * message to the tracer, so the runtime needs no separate event loop.
  *
- * Only call, return_to, send and receive are produced. The other OTP trace
- * flags are accepted so a caller can pass a standard flag list, but they do
- * not generate events yet.
+ * The match-spec body is evaluated as a list of actions. `{message, Term}`
+ * replaces the event payload, `{return_trace}` and `{exception_trace}` select
+ * return and exception events for that call, `{silent, Bool}` changes the
+ * process trace mode, and the trace-flag actions update the current process.
  */
 public final class Tracing {
 
     public static final Atom TRACE = Atom.of("trace");
     public static final Atom CALL = Atom.of("call");
     public static final Atom RETURN_TO = Atom.of("return_to");
+    public static final Atom RETURN_FROM = Atom.of("return_from");
+    public static final Atom EXCEPTION_FROM = Atom.of("exception_from");
     public static final Atom SEND = Atom.of("send");
     public static final Atom RECEIVE = Atom.of("receive");
     public static final Atom TRACER = Atom.of("tracer");
+    public static final Atom SILENT = Atom.of("silent");
 
     private static final Set<Atom> FLAGS = ConcurrentHashMap.newKeySet();
     private static final Map<FunctionSignature, Pattern> EXACT = new ConcurrentHashMap<>();
@@ -43,6 +47,9 @@ public final class Tracing {
     private static volatile Pattern ALL = null;
     private static volatile boolean anyPattern = false;
     private static volatile Settings newProcessTrace = null;
+
+    /** The node's trace control word, read and written by match-spec actions. */
+    private static final AtomicLong TRACE_CONTROL_WORD = new AtomicLong();
 
     static {
         for (String flag : new String[] {
@@ -109,6 +116,41 @@ public final class Tracing {
 
         public long calls() {
             return calls.get();
+        }
+
+    }
+
+    /**
+     * The per-call result of evaluating a trace match spec. A trace message
+     * is sent before the call; the return and exception flags decide what is
+     * sent when the activation ends.
+     */
+    public static final class Decision {
+
+        private final FunctionSignature signature;
+        private Term message;
+        private boolean suppress;
+        private boolean returnTrace;
+        private boolean exceptionTrace;
+
+        private Decision(FunctionSignature signature) {
+            this.signature = signature;
+        }
+
+        public FunctionSignature signature() {
+            return signature;
+        }
+
+        public boolean returnTrace() {
+            return returnTrace;
+        }
+
+        public boolean exceptionTrace() {
+            return exceptionTrace;
+        }
+
+        public boolean suppress() {
+            return suppress;
         }
 
     }
@@ -226,8 +268,7 @@ public final class Tracing {
 
     /**
      * `true` and a non-empty match-spec list enable tracing; `false` and the
-     * empty list disable it. The match-spec body is not evaluated yet: every
-     * call to an enabled function produces an event.
+     * empty list disable it. A non-empty body is evaluated as an action list.
      */
     private static Pattern pattern(Term matchSpec, List flags) {
         boolean enabled;
@@ -271,10 +312,10 @@ public final class Tracing {
     }
 
     /**
-     * Called before a function starts. Returns the pattern that matched, so
-     * the caller can emit return_to after it returns.
+     * Called before a function starts. Returns the per-call decision, so the
+     * return path knows which actions the matching clause selected.
      */
-    public static Pattern beforeCall(Process process, FunctionSignature signature, Term args) {
+    public static Decision beforeCall(Process process, FunctionSignature signature, Term args) {
         if (!anyPattern || !process.traceFlag(CALL)) {
             return null;
         }
@@ -282,47 +323,242 @@ public final class Tracing {
         if (pattern == null || !pattern.enabled()) {
             return null;
         }
-        Term message = Tuple.of(TRACE, process.pid(), CALL,
-            Tuple.of(signature.module(), signature.function(), args));
+        Decision decision = new Decision(signature);
+        decision.returnTrace = pattern.returnTrace;
         if (pattern.matchSpec != null) {
-            Term body = pattern.matchSpec.select(args);
-            if (body == null) {
+            boolean matched = pattern.matchSpec.traceActions(args,
+                action -> applyAction(process, decision, action));
+            if (!matched) {
                 return null;
-            }
-            if (body instanceof Tuple && ((Tuple) body).arity() == 2
-                && Atom.of("message").equals(((Tuple) body).element(1))) {
-                message = ((Tuple) body).element(2);
             }
         }
         pattern.calls.incrementAndGet();
-        process.pushTracedCall(signature);
-        process.trace(message);
-        return pattern;
+        process.pushTracedCall(signature, decision);
+        if (!decision.suppress && !process.traceFlag(SILENT)) {
+            Term message = decision.message != null ? decision.message
+                : Tuple.of(TRACE, process.pid(), CALL,
+                    Tuple.of(signature.module(), signature.function(), args));
+            process.trace(message);
+        }
+        return decision;
     }
 
-    public static void afterCall(Process process, FunctionSignature signature, Pattern pattern) {
-        boolean traced = process.popTracedCall(signature);
-        if (pattern == null || !traced || !pattern.returnTrace()
-            || !process.traceFlag(RETURN_TO)) {
+    /**
+     * The matching body actions. A trace body is an action list, but a single
+     * action tuple is accepted for the older form this runtime used.
+     */
+    private static void applyAction(Process process, Decision decision, Term action) {
+        if (action instanceof Atom) {
+            if (Atom.of("return_trace").equals(action)) {
+                decision.returnTrace = true;
+            } else if (Atom.of("exception_trace").equals(action)) {
+                decision.returnTrace = true;
+                decision.exceptionTrace = true;
+            }
             return;
         }
-        process.trace(Tuple.of(TRACE, process.pid(), RETURN_TO,
-            Tuple.of(signature.module(), signature.function(), signature.fun_arity())));
+        if (!(action instanceof Tuple) || ((Tuple) action).arity() == 0) {
+            return;
+        }
+        Tuple call = (Tuple) action;
+        if (!(call.element(1) instanceof Atom)) {
+            return;
+        }
+        String name = call.element(1).toString();
+        switch (name) {
+        case "message":
+            if (call.arity() == 2) {
+                Term value = evaluateTerm(process, call.element(2));
+                if (Boolean.am_false.equals(value)) {
+                    decision.suppress = true;
+                } else if (Boolean.am_true.equals(value)) {
+                    decision.suppress = false;
+                    decision.message = null;
+                } else {
+                    decision.message = value;
+                }
+            }
+            break;
+        case "return_trace":
+            decision.returnTrace = true;
+            break;
+        case "exception_trace":
+            decision.returnTrace = true;
+            decision.exceptionTrace = true;
+            break;
+        case "silent":
+            if (call.arity() == 2) {
+                Term value = call.element(2);
+                if (Boolean.am_true.equals(value) || Boolean.am_false.equals(value)) {
+                    process.setTraceFlag(SILENT, Boolean.am_true.equals(value));
+                }
+            }
+            break;
+        case "display":
+            if (call.arity() == 2) {
+                System.out.println(evaluateTerm(process, call.element(2)));
+            }
+            break;
+        case "enable_trace":
+            if (call.arity() == 2) {
+                applyTraceFlags(process, call.element(2), true);
+            }
+            break;
+        case "disable_trace":
+            if (call.arity() == 2) {
+                applyTraceFlags(process, call.element(2), false);
+            }
+            break;
+        case "trace":
+            if (call.arity() == 3) {
+                applyTraceFlags(process, call.element(2), false);
+                applyTraceFlags(process, call.element(3), true);
+            }
+            break;
+        case "set_tcw":
+            if (call.arity() == 2 && call.element(2) instanceof Integer) {
+                TRACE_CONTROL_WORD.set(((Integer) call.element(2)).toLong());
+            }
+            break;
+        default:
+            // caller, caller_line, current_stacktrace, process_dump,
+            // get_seq_token and set_seq_token are meaningful only when their
+            // return value is used by another action. They are evaluated by
+            // evaluateTerm where possible; a bare action is a no-op.
+            break;
+        }
+    }
+
+    private static void applyTraceFlags(Process process, Term flags, boolean enable) {
+        if (flags instanceof Atom) {
+            process.setTraceFlag((Atom) flags, enable);
+        } else if (flags instanceof List) {
+            List list = (List) flags;
+            while (list.length() > 0) {
+                if (list.head() instanceof Atom) {
+                    process.setTraceFlag((Atom) list.head(), enable);
+                }
+                list = list.tail();
+            }
+        }
+    }
+
+    /**
+     * Evaluate the action expressions that produce a value: caller,
+     * current_stacktrace, process_dump, get_tcw and set_tcw. Everything else
+     * is rebuilt with the same shape so a message can contain those values.
+     */
+    private static Term evaluateTerm(Process process, Term expression) {
+        if (expression instanceof Tuple) {
+            Tuple tuple = (Tuple) expression;
+            if (tuple.arity() == 1 && tuple.element(1) instanceof Atom) {
+                String name = tuple.element(1).toString();
+                switch (name) {
+                case "caller":
+                    return caller(process);
+                case "caller_line":
+                    FunctionSignature caller = callerSignature(process);
+                    return caller == null ? Atom.of("undefined")
+                        : Tuple.of(caller.module(), caller.function(),
+                            caller.fun_arity(), Atom.of("undefined"));
+                case "current_stacktrace":
+                    return process.stacktrace();
+                case "process_dump":
+                    return Str.of(process.toString());
+                case "get_tcw":
+                    return new Integer(java.math.BigInteger.valueOf(TRACE_CONTROL_WORD.get()));
+                default:
+                    return expression;
+                }
+            }
+            Tuple result = new Tuple(tuple.arity());
+            for (int index = 1; index <= tuple.arity(); index++) {
+                result.set(index, evaluateTerm(process, tuple.element(index)));
+            }
+            return result;
+        }
+        if (expression instanceof List) {
+            List list = (List) expression;
+            java.util.List<Term> elements = new java.util.ArrayList<>();
+            while (list.length() > 0) {
+                elements.add(evaluateTerm(process, list.head()));
+                list = list.tail();
+            }
+            Term result = List.nil;
+            for (int index = elements.size() - 1; index >= 0; index--) {
+                result = new List(elements.get(index), (List) result);
+            }
+            return result;
+        }
+        if (expression instanceof ImproperList) {
+            ImproperList list = (ImproperList) expression;
+            return new ImproperList(evaluateTerm(process, list.head()),
+                evaluateTerm(process, list.tail()));
+        }
+        return expression;
+    }
+
+    private static FunctionSignature callerSignature(Process process) {
+        FunctionSignature signature = process.signature();
+        return signature;
+    }
+
+    private static Term caller(Process process) {
+        FunctionSignature caller = callerSignature(process);
+        return caller == null ? Atom.of("undefined")
+            : Tuple.of(caller.module(), caller.function(), caller.fun_arity());
+    }
+
+    public static void afterCall(Process process, FunctionSignature signature, Term result,
+        Throwable failure) {
+        Decision decision = process.popTracedCall(signature);
+        if (decision == null) {
+            return;
+        }
+        if (failure != null) {
+            if (decision.exceptionTrace && !process.traceFlag(SILENT)) {
+                process.trace(Tuple.of(TRACE, process.pid(), EXCEPTION_FROM,
+                    Tuple.of(signature.module(), signature.function(), signature.fun_arity()),
+                    exceptionReason(failure)));
+            }
+        } else if (decision.returnTrace && !decision.suppress
+            && !process.traceFlag(SILENT)) {
+            process.trace(Tuple.of(TRACE, process.pid(), RETURN_FROM,
+                Tuple.of(signature.module(), signature.function(), signature.fun_arity()),
+                result));
+        }
+        if (process.traceFlag(RETURN_TO) && !decision.suppress) {
+            process.trace(Tuple.of(TRACE, process.pid(), RETURN_TO,
+                Tuple.of(signature.module(), signature.function(), signature.fun_arity())));
+        }
     }
 
     /**
      * A local return has no Java caller to run afterCall. The frame about to
-     * be popped names the function, so it can emit the same event.
+     * be popped names the function, and X0 holds its result.
      */
-    public static void afterReturn(Process process, FunctionSignature signature) {
-        Pattern pattern = pattern(signature);
-        boolean traced = process.popTracedCall(signature);
-        if (pattern == null || !traced || !pattern.returnTrace()
-            || !process.traceFlag(RETURN_TO)) {
+    public static void afterReturn(Process process, FunctionSignature signature, Term result) {
+        Decision decision = process.popTracedCall(signature);
+        if (decision == null) {
             return;
         }
-        process.trace(Tuple.of(TRACE, process.pid(), RETURN_TO,
-            Tuple.of(signature.module(), signature.function(), signature.fun_arity())));
+        if (decision.returnTrace && !decision.suppress && !process.traceFlag(SILENT)) {
+            process.trace(Tuple.of(TRACE, process.pid(), RETURN_FROM,
+                Tuple.of(signature.module(), signature.function(), signature.fun_arity()),
+                result));
+        }
+        if (process.traceFlag(RETURN_TO) && !decision.suppress) {
+            process.trace(Tuple.of(TRACE, process.pid(), RETURN_TO,
+                Tuple.of(signature.module(), signature.function(), signature.fun_arity())));
+        }
+    }
+
+    private static Term exceptionReason(Throwable failure) {
+        if (failure instanceof Error) {
+            Error error = (Error) failure;
+            return Tuple.of(error.exceptionClass(), error.reason());
+        }
+        return Tuple.of(Atom.of("error"), Str.of(String.valueOf(failure)));
     }
 
     /** Clear the global pattern table; used by tests and by a fresh node. */
@@ -332,6 +568,7 @@ public final class Tracing {
         ALL = null;
         anyPattern = false;
         newProcessTrace = null;
+        TRACE_CONTROL_WORD.set(0);
     }
 
     private static Pattern pattern(FunctionSignature signature) {

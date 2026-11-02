@@ -19,7 +19,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.jerlang.stdlib.Code;
 import org.jerlang.type.Atom;
+import org.jerlang.type.Term;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,12 +35,16 @@ import org.junit.Test;
 public class ConcurrentLoadingTest {
 
     private static final Atom MODULE = Atom.of("constructs_demo");
+    private static final Atom OTHER = Atom.of("compare_demo");
     private static final Path SOURCE = Paths.get("src/test/resources/constructs_demo.beam");
+    private static final Path OTHER_SOURCE = Paths.get("src/test/resources/compare_demo.beam");
     private static final Path LOCAL = Paths.get("constructs_demo.beam");
+    private static final Path OTHER_LOCAL = Paths.get("compare_demo.beam");
 
     @Before
     public void copyFixture() throws Exception {
         Files.copy(SOURCE, LOCAL, StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(OTHER_SOURCE, OTHER_LOCAL, StandardCopyOption.REPLACE_EXISTING);
         ModuleRegistry.reset();
     }
 
@@ -46,6 +52,7 @@ public class ConcurrentLoadingTest {
     public void cleanup() throws Exception {
         ModuleRegistry.reset();
         Files.deleteIfExists(LOCAL);
+        Files.deleteIfExists(OTHER_LOCAL);
     }
 
     @Test
@@ -74,6 +81,14 @@ public class ConcurrentLoadingTest {
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    @Test
+    public void ensureModulesLoadedLoadsEveryName() {
+        Term result = Code.ensure_modules_loaded(org.jerlang.type.List.of(MODULE, OTHER));
+        assertEquals(Atom.of("ok"), result);
+        assertNotNull(ModuleRegistry.loaded(MODULE));
+        assertNotNull(ModuleRegistry.loaded(OTHER));
     }
 
 }

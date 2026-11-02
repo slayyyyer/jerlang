@@ -7,7 +7,7 @@ what the code does today, not against the original intent.
 
 | Area | State |
 |------|-------|
-| BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` searches a code path built from the working directory, `-pa`, `-pz` and `ERL_LIBS`, and `code:which/1`, `lib_dir/1,2`, `priv_dir/1`, `root_dir/0`, `load_file/1`, `ensure_loaded/1`, `ensure_modules_loaded/1`, `is_loaded/1`, `get_path/0`, `add_patha/1`, `add_pathz/1`, `del_path/1`, `replace_path/2`, `stick_dir/1`, `unstick_dir/1` and `is_sticky/1` report and change it. Independent loads are thread safe and may run concurrently; `ensure_modules_loaded/1` walks its argument in order. OTP boot scripts are not interpreted. |
+| BEAM loading | All significant chunks of an OTP 29 `.beam` file are parsed. `ModuleLoader` searches a code path built from the working directory, `-pa`, `-pz` and `ERL_LIBS`, and `code:which/1`, `lib_dir/1,2`, `priv_dir/1`, `root_dir/0`, `load_file/1`, `ensure_loaded/1`, `ensure_modules_loaded/1`, `is_loaded/1`, `get_path/0`, `add_patha/1`, `add_pathz/1`, `del_path/1`, `replace_path/2`, `stick_dir/1`, `unstick_dir/1` and `is_sticky/1` report and change it. Independent loads are thread safe, and `ensure_modules_loaded/1` loads its argument in parallel. OTP boot scripts are not interpreted. |
 | Interpreter | 161 opcode handlers; 191 opcodes known, 30 of them deprecated. Binary matching and construction, records and record updates, `get_hd`/`get_tl`, `bif3`, the coverage line opcodes and the native-record opcodes all have handlers. Native records as a data type are not implemented: constructing one raises a named error. |
 | BIFs | 75 `erlang` BIF modules. `lists`, `maps`, `binary`, `string`, `unicode`-adjacent helpers, `base64`, `math`, `timer`, `beam_lib` exist. |
 | Kernel | `gen_tcp`, `gen_udp`, `inet`, `net_adm`, `net_kernel`, `rpc`, `os`, and a `file` module with three functions. |
@@ -15,7 +15,7 @@ what the code does today, not against the original intent.
 | ETS | `set`, `ordered_set`, `bag` and `duplicate_bag`, with named tables and `{keypos, N}`. `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work. A table is destroyed with its owner, `give_away` and heirs transfer ownership, table operations are locked, and `update_counter` is atomic across processes. `match_delete` and `select_delete` work. Match specs support patterns, bodies, comparisons, boolean guards, `is_map_key` and arithmetic guards. |
 | OTP behaviours | OTP's unmodified `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and `code` run from an OTP installation. `gen_statem` is not verified. The application controller models `.app` loading, dependencies, included applications, start phases, environment and key bookkeeping; `application_master` itself, distributed takeover and automatic restart of a crashed permanent application are not modelled. A dead tree is reaped when the controller is queried, and its included applications are stopped with it. |
 | Scheduler | One scheduler thread per processor with no balancing. A process gets 1,000 instructions per slice, and a CPU-bound loop in its outermost activation yields at the next instruction boundary; `process_info(reductions)` reports the count. Cross-module tail calls switch instruction streams in place, so a tail loop stays preemptible; a yield inside a nested non-tail call is still deferred until that call returns. Run queues are split by max/high/normal/low priority, and `process_flag(priority, ...)` moves a queued process. All timers use one 512-slot, 1 ms timer wheel. |
-| Tests | 551 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 18 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks, the distribution codec benchmark and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Tests | 555 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 19 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks, the distribution benchmarks and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
 | CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, an `otp` job that runs the OTP-backed behaviour tests, and a `conformance` job that installs OTP and enforces the pass-rate floor. |
 | Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
@@ -95,8 +95,8 @@ from an OTP 29 installation without changes.
   `code:is_loaded/1`.~~ `code:ensure_loaded/1`, `code:ensure_modules_loaded/1`,
   `code:replace_path/2`, the sticky directory functions (`stick_dir/1`,
   `unstick_dir/1`, `is_sticky/1`) also work. Independent loads are thread
-  safe and may run concurrently; `code:ensure_modules_loaded/1` walks its
-  argument in order. OTP boot scripts are not interpreted.
+  safe and may run concurrently; `code:ensure_modules_loaded/1` loads its
+  argument in parallel. OTP boot scripts are not interpreted.
 * ~~Fill the BIF gaps the standard library needs.~~ `erlang:error/3` with the
   caller's arguments, `persistent_term`, `io:format`, `io_lib:format`, the
   `unicode` module and `min/max` are implemented, and OTP's `logger`
@@ -151,8 +151,9 @@ on every push and pull request.
   queues are strict priority order, and a queued process moves when its
   priority changes.
 * [x] Basic tracing: `erlang:trace/3` and `erlang:trace_pattern/3` for call,
-  send and receive events, enough for `dbg` and for tests. The match-spec body
-  is not evaluated yet; an enabled function traces every call.
+  return, send and receive events, enough for `dbg` and for tests. Match-spec
+  bodies run as action lists: `{message, ...}`, `{return_trace}`,
+  `{exception_trace}`, `{silent, Bool}`, display and trace-flag actions work.
 
 **Exit test:** with twice as many CPU-bound processes as schedulers, a ping
 process keeps p99 wakeup latency under 50 ms (`SchedulerFairnessTest`, and the
@@ -230,10 +231,10 @@ minutes of CPU.
 * [x] Benchmark suite: startup, function call, message passing, binary
   operations and ETS, measured against OTP 29 on the same machine from the same
   Erlang source (`BeamBenchTest`), with both numbers published in
-  [benchmarks.md](benchmarks.md). Distribution throughput is measured at the codec
-  boundary by `DistributionBenchmarkTest`: 2,082.7 ns/op for an 80-byte frame,
-  about 480k frames/sec. That excludes the socket and scheduler hand-offs, so
-  it is a codec number rather than a two-peer wall-clock claim.
+  [benchmarks.md](benchmarks.md). Distribution throughput is measured by
+  `DistributionBenchmarkTest` at two levels: 1,589.7 ns/op for the 80-byte
+  frame codec, and 44,975.6 ns for a loopback socket round trip. The loopback
+  row includes the kernel TCP stack and a peer thread, but not a second JVM.
 * [x] Budgets set from that baseline, with the roadmap's own example enforced:
   message throughput must stay within 5x BEAM (measured 0.20x) and the CI `bench`
   job fails the build outside it. Interpreted-operation ratios are recorded and

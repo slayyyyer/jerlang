@@ -18,8 +18,9 @@ public class Return {
         // The function this frame belongs to returns to its caller. The
         // signature has to be read before the frame is popped.
         FunctionSignature signature = proc.signature();
+        Term result = proc.getX(0);
         proc.popFrame();
-        Tracing.afterReturn(proc, signature);
+        Tracing.afterReturn(proc, signature, result);
         Integer cp = Integer.of(proc.getCP());
         proc.setCP(0); // reset
         return cp;

@@ -50,14 +50,14 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 - A single timer wheel for `receive ... after`, `erlang:send_after`, `erlang:start_timer` and `timer:send_after`, with `cancel_timer` and `read_timer`.
 - `process_info/1,2` reports the operator fields, including memory, current function, `max_heap_size` and `message_queue_data`, and `process_flag/2` handles priority, heap size and queue data.
 - Priority queues run max, high, normal and low work in that order.
-- `erlang:trace/3` and `erlang:trace_pattern/3` emit call, send and receive events to a tracer.
+- `erlang:trace/3` and `erlang:trace_pattern/3` emit call, return, send and receive events to a tracer, with match-spec action lists for filtering, custom messages, return and exception tracing.
 
 **ETS**
 
-- `set` and `ordered_set` tables, with named tables and `{keypos, N}`.
-- `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work.
-- A table is destroyed when its owner terminates, `give_away` moves the ownership first, and `update_counter` is atomic across processes.
-- Match specs support the whole pattern language, bodies and the common guards.
+- `set`, `ordered_set`, `bag` and `duplicate_bag` tables, with named tables and `{keypos, N}`.
+- `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select`, `give_away`, `match_delete` and `select_delete` work.
+- A table is destroyed when its owner terminates; `give_away` and heirs transfer ownership, and `update_counter` is atomic across processes.
+- Match specs support the whole pattern language, bodies, `is_map_key`, arithmetic guards and the common type tests.
 
 **Code server**
 
@@ -71,7 +71,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 
 **Tests**
 
-- A 551-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 18 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
+- A 555-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
 
 ### What does not work yet
 
@@ -80,7 +80,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 - **`application_master`** is not modelled: distributed takeover and automatic restart of a crashed permanent application are missing.
 - **Fair scheduling across nested non-tail calls.** A CPU-bound loop in a nested cross-module call is not preempted until that call returns; cross-module tail calls are trampolined and do yield.
 - **Timer precision.** Timers are bounded by the timer wheel's 1 ms tick and the scheduler wakeup, not by an OS timer pool; a 10 ms timer is checked against a 250 ms bound.
-- **Code loading.** Independent module loads are thread safe and may run concurrently; `code:ensure_modules_loaded/1` walks its argument in order, and OTP boot scripts are not interpreted.
+- **Code loading.** Independent module loads are thread safe and `code:ensure_modules_loaded/1` loads its argument in parallel; OTP boot scripts are not interpreted.
 
 [docs/beam-compatibility.md](docs/beam-compatibility.md) keeps the per-opcode notes and documents the one remaining language-feature gap.
 

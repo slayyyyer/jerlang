@@ -145,41 +145,77 @@ public class Code {
     }
 
     /**
-     * Load several modules. Module loading and the atom table are safe for
-     * concurrent callers, but this function walks its argument in order.
-     * `ok` means every module is loaded, otherwise the result lists the
-     * modules that failed with their reason.
+     * Load several modules. Each name is loaded on its own worker, so a
+     * boot script or an embedding host does not pay the sum of every module
+     * load. Results are collected in the input order and `ok` means every
+     * module is loaded; otherwise the result lists the failures in order.
      *
      * http://www.erlang.org/doc/man/code.html#ensure_modules_loaded-1
      */
     public static Term ensure_modules_loaded(Term modules) {
-        java.util.List<Term> failures = new java.util.ArrayList<>();
         List entries = modules.toList();
+        java.util.List<Atom> names = new java.util.ArrayList<>();
         while (entries.length() > 0) {
             Term entry = entries.head();
             if (!(entry instanceof Atom)) {
                 throw Error.badarg;
             }
-            Atom module = (Atom) entry;
-            if (ModuleRegistry.loaded(module) == null) {
-                Term result = load_file(module);
+            names.add((Atom) entry);
+            entries = entries.tail();
+        }
+        if (names.isEmpty()) {
+            return Atom.of("ok");
+        }
+
+        int workers = java.lang.Math.min(names.size(),
+            java.lang.Math.max(2, Runtime.getRuntime().availableProcessors()));
+        java.util.concurrent.ExecutorService pool =
+            java.util.concurrent.Executors.newFixedThreadPool(workers, runnable -> {
+                Thread thread = new Thread(runnable, "jerlang-code-loader");
+                thread.setDaemon(true);
+                return thread;
+            });
+        try {
+            java.util.List<java.util.concurrent.Callable<Term>> tasks =
+                new java.util.ArrayList<>();
+            for (Atom module : names) {
+                tasks.add(() -> ModuleRegistry.loaded(module) == null
+                    ? load_file(module)
+                    : Tuple.of(Atom.of("module"), module));
+            }
+            java.util.List<java.util.concurrent.Future<Term>> results =
+                pool.invokeAll(tasks);
+
+            java.util.List<Term> failures = new java.util.ArrayList<>();
+            for (int index = 0; index < names.size(); index++) {
+                Term result;
+                try {
+                    result = results.get(index).get();
+                } catch (java.util.concurrent.ExecutionException e) {
+                    result = Tuple.of(Atom.of("error"), Tuple.of(Atom.of("load_failed"),
+                        Str.of(String.valueOf(e.getCause()))));
+                }
                 if (!(result instanceof Tuple) || ((Tuple) result).arity() != 2
                     || !Atom.of("module").equals(((Tuple) result).element(1))) {
                     Term reason = result instanceof Tuple && ((Tuple) result).arity() == 2
                         ? ((Tuple) result).element(2) : result;
-                    failures.add(Tuple.of(module, reason));
+                    failures.add(Tuple.of(names.get(index), reason));
                 }
             }
-            entries = entries.tail();
+            if (failures.isEmpty()) {
+                return Atom.of("ok");
+            }
+            List list = List.nil;
+            for (int index = failures.size() - 1; index >= 0; index--) {
+                list = new List(failures.get(index), list);
+            }
+            return Tuple.of(Atom.of("error"), list);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new Error(Str.of("code:ensure_modules_loaded/1 interrupted"));
+        } finally {
+            pool.shutdownNow();
         }
-        if (failures.isEmpty()) {
-            return Atom.of("ok");
-        }
-        List list = List.nil;
-        for (int index = failures.size() - 1; index >= 0; index--) {
-            list = new List(failures.get(index), list);
-        }
-        return Tuple.of(Atom.of("error"), list);
     }
 
     /**

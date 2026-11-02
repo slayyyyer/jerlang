@@ -436,17 +436,21 @@ schedulers.
 `return_to` flags and a tracer process; the tracer is the caller unless a
 `{tracer, Pid}` option says otherwise. `erlang:trace_pattern/3` installs a
 match spec for an MFA, a module, or `all`. `true` and a non-empty spec list
-enable tracing; `false` and the empty list disable it. The match-spec body is
-not evaluated yet, so every call to an enabled function produces an event.
+enable tracing; `false` and the empty list disable it. The body is evaluated
+as an action list. `{message, Term}` supplies the event payload,
+`{return_trace}` and `{exception_trace}` select `return_from` and
+`exception_from` events, `{silent, Bool}` controls the process trace mode, and
+`display`, `enable_trace`, `disable_trace` and `trace` actions are supported.
 
-A call event is `{trace, Pid, call, {Module, Function, Args}}`, a send event
-is `{trace, Pid, send, Message, To}`, and a receive event is
+A call event is `{trace, Pid, call, {Module, Function, Args}}`, a return event
+is `{trace, Pid, return_from, {Module, Function, Arity}, Value}`, an exception
+event is `{trace, Pid, exception_from, {Module, Function, Arity}, {Class, Reason}}`,
+a send event is `{trace, Pid, send, Message, To}`, and a receive event is
 `{trace, Pid, receive, Message}`. Local tail calls (`call_only`, `call_last`),
 cross-module tail calls that use the trampoline, and calls that run through
-`Module.apply` all report a call event. `return_trace` is emitted for the
-`Module.apply` path only; local returns do not report `return_to` yet. Trace
-messages are never traced themselves, so a tracer that reads them cannot feed
-itself.
+`Module.apply` all report a call event. Local returns report their own
+`return_from` and `return_to` events. Trace messages are never traced
+themselves, so a tracer that reads them cannot feed itself.
 
 ## What still blocks other programs
 

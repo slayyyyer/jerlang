@@ -155,6 +155,45 @@ public final class MatchSpec {
         return false;
     }
 
+    /**
+     * Evaluate a tracing match specification. Unlike an ETS body, a trace
+     * body is an action list executed for its side effects; the first clause
+     * that matches emits each action through {@code sink}.
+     */
+    public boolean traceActions(Term target, java.util.function.Consumer<Term> sink) {
+        for (Clause clause : clauses) {
+            java.util.Map<java.lang.Integer, Term> bindings = new HashMap<>();
+            if (!match(clause.pattern, target, bindings)) {
+                continue;
+            }
+            if (!guards(clause.guards, bindings, target)) {
+                continue;
+            }
+            emitActions(clause.body, bindings, target, sink);
+            return true;
+        }
+        return false;
+    }
+
+    private static void emitActions(Term body, java.util.Map<java.lang.Integer, Term> bindings,
+        Term whole, java.util.function.Consumer<Term> sink) {
+        if (isNil(body)) {
+            return;
+        }
+        if (body instanceof List) {
+            List rest = (List) body;
+            while (isCons(rest)) {
+                sink.accept(expand(rest.head(), bindings, whole));
+                rest = rest.tail();
+            }
+            if (!isNil(rest)) {
+                sink.accept(expand(rest, bindings, whole));
+            }
+            return;
+        }
+        sink.accept(expand(body, bindings, whole));
+    }
+
     // ------------------------------------------------------------------
     // Patterns
 
