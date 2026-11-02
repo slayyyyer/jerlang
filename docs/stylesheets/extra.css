@@ -111,14 +111,16 @@
   color: var(--md-default-fg-color);
 }
 
-/* The one loud thing: a static chromatic split on the page title */
+/* The one loud thing: a offset sticker shadow on the page title.
+   Kept to one side, translucent and thin so the letterforms stay crisp. */
 .md-typeset h1 {
-  font-size: clamp(2.4rem, 6vw, 3.6rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.02;
-  margin: 0.2em 0 0.5em;
-  text-shadow: 3px 0 var(--jl-gum), -3px 0 var(--jl-ice);
+  font-size: clamp(1.9rem, 4.2vw, 2.6rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.12;
+  margin: 0 0 0.8em;
+  color: var(--md-default-fg-color);
+  text-shadow: 2px 2px 0 rgba(255, 111, 181, 0.55);
 }
 
 .md-typeset h2 {
@@ -265,7 +267,7 @@
     box-shadow: 3px 3px 0 rgba(183, 140, 255, 0.35);
   }
   .md-typeset h1 {
-    text-shadow: 2px 0 var(--jl-gum), -2px 0 var(--jl-ice);
+    text-shadow: 1px 1px 0 rgba(255, 111, 181, 0.55);
   }
 }
 
