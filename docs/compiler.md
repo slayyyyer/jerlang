@@ -185,6 +185,8 @@ update; binary and map comprehensions; `maybe` and `?=`; named funs and
 with an ID. The pass count is the metric and it is published, the way the
 conformance pass rate already is.
 
+Status: started. The scanner is in `org.jerlang.compiler.scan`. Tokens have the shape `erl_scan` gives them, categories and line annotations included, and `ScannerOtpTest` compares every token of the 105 checked-in sources with `erl_scan:string/3` on OTP 29: 105 files, no disagreement. Sigils are the one OTP 27 token form not implemented yet, and a tilde outside a string is an error rather than a guess; no checked-in source uses one. Next is `epp`, which has to expand macros, resolve includes and emit the `{attribute,_,file,_}` forms, then the parser, compared with `epp:parse_file/1` term by term.
+
 ### A4 — Lint: accept what `erlc` accepts
 
 Scope: unsafe variables across clauses and branches, unbound variables in
