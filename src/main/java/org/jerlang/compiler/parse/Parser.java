@@ -45,17 +45,22 @@ public final class Parser {
 
     private static final Set<String> BUILTIN_TYPES = new HashSet<>(Arrays.asList(
         "any/0", "none/0", "atom/0", "map/0", "integer/0", "float/0",
-        "list/1", "nonempty_list/1", "maybe_improper_list/2",
+        "list/0", "list/1", "nonempty_list/0", "nonempty_list/1",
+        "maybe_improper_list/0", "maybe_improper_list/2", "record/0",
         "nonempty_improper_list/2", "nonempty_maybe_improper_list/2",
         "tuple/0", "pid/0", "port/0", "reference/0", "fun/0", "module/0",
         "node/0", "mfa/0", "arity/0", "identifier/0", "iodata/0", "iolist/0",
         "boolean/0", "byte/0", "char/0", "nil/0", "string/0",
         "nonempty_string/0", "number/0", "timeout/0", "no_return/0",
-        "binary/0", "bitstring/0", "dynamic/0"));
+        "binary/0", "bitstring/0", "dynamic/0", "term/0", "non_neg_integer/0",
+        "pos_integer/0", "neg_integer/0", "nonempty_binary/0",
+        "nonempty_bitstring/0", "function/0"));
 
     private final List<Token> tokens;
     private int index;
     private boolean allowRemote = true;
+    private final java.util.Set<Term> groupedTypes =
+        java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<Term, Boolean>());
 
     private Parser(List<Token> tokens) {
         this.tokens = tokens;
@@ -179,13 +184,17 @@ public final class Parser {
     }
 
     private boolean isClauseEnd() {
-        return isSymbol(";") || isCategory(DOT) || isSymbol("end")
-            || isSymbol("after") || isSymbol("catch") || isSymbol("else");
+        // catch/after/end are expression prefixes or terminators of nested
+        // expressions; only a semicolon or the form dot ends a function
+        // clause body. Stopping at catch split clauses such as
+        // `catch file:close(D);` into a second, bogus clause.
+        return isSymbol(";") || isCategory(DOT);
     }
 
     // ------------------------------------------------------------ attributes
 
     private Term attribute() {
+        boolean generated = peek().generated();
         expectSymbol("-");
         Token nameToken = next();
         String name = nameToken.category().toString();
@@ -198,12 +207,18 @@ public final class Parser {
             return moduleAttribute(line);
         case "export":
             return exportAttribute(line, "export");
+        case "export_type":
+            return exportAttribute(line, "export_type");
+        case "optional_callbacks":
+            return exportAttribute(line, "optional_callbacks");
+        case "nifs":
+            return exportAttribute(line, "nifs");
         case "import":
             return importAttribute(line);
         case "import_record":
             return importRecordAttribute(line);
         case "file":
-            return fileAttribute(line);
+            return fileAttribute(line, generated);
         case "record":
             return recordAttribute(line);
         case "spec":
@@ -238,10 +253,19 @@ public final class Parser {
         List<Term> exports = new ArrayList<>();
         if (!isSymbol("]")) {
             while (true) {
-                Token function = expectCategory(ATOM);
-                expectSymbol("/");
-                Token arity = expectCategory(INTEGER);
-                exports.add(Tuple.of(Atom.of(function.value().toString()), arity.value()));
+                if (isSymbol("{")) {
+                    next();
+                    Token function = expectCategory(ATOM);
+                    expectSymbol(",");
+                    Token arity = expectCategory(INTEGER);
+                    expectSymbol("}");
+                    exports.add(Tuple.of(Atom.of(function.value().toString()), arity.value()));
+                } else {
+                    Token function = expectCategory(ATOM);
+                    expectSymbol("/");
+                    Token arity = expectCategory(INTEGER);
+                    exports.add(Tuple.of(Atom.of(function.value().toString()), arity.value()));
+                }
                 if (isSymbol(",")) {
                     next();
                     continue;
@@ -292,15 +316,21 @@ public final class Parser {
             Tuple.of(Atom.of(module.value().toString()), normalise(records)));
     }
 
-    private Term fileAttribute(int line) {
+    private Term fileAttribute(int line, boolean generated) {
         expectSymbol("(");
         Token file = expectCategory(STRING);
         expectSymbol(",");
         Token fileLine = expectCategory(INTEGER);
         expectSymbol(")");
         expectDot();
-        return tuple(atom("attribute", line), Atom.of("file"),
-            tuple(file.value(), fileLine.value()));
+        Term annotation = generated ? generatedAnnotation(line) : Integer.of(line);
+        return Tuple.of(Atom.of("attribute"), annotation, Atom.of("file"),
+            tuple(org.jerlang.type.Str.convert(file.value().toList()), fileLine.value()));
+    }
+
+    private static Term generatedAnnotation(int line) {
+        return list(Tuple.of(Atom.of("generated"), Atom.of("true")),
+            Tuple.of(Atom.of("location"), Integer.of(line)));
     }
 
     private Term recordAttribute(int line) {
@@ -328,22 +358,26 @@ public final class Parser {
 
     private Term recordDeclarationField() {
         Token name = expectName();
-        int line = name.line();
-        Term field = tuple(atom("record_field", line), atom(nameOf(name), line));
+        Term fieldName = atomLiteral(name);
+        Term field = tuple(atom("record_field", annotationOf(fieldName)), fieldName);
         if (isSymbol("=")) {
             next();
             Term value = expr(0);
-            field = tuple(atom("record_field", line), atom(nameOf(name), line), value);
+            field = tuple(atom("record_field", annotationOf(fieldName)), fieldName, value);
         }
         if (isSymbol("::")) {
             next();
             Term type = topType();
-            return tuple(atom("typed_record_field", line), field, type);
+            return Tuple.of(Atom.of("typed_record_field"), field, type);
         }
         return field;
     }
 
     private Term typeAttribute(int line, String tag) {
+        boolean wrapped = isSymbol("(");
+        if (wrapped) {
+            next();
+        }
         Token name = expectCategory(ATOM);
         List<Term> parameters = new ArrayList<>();
         if (isSymbol("(")) {
@@ -363,6 +397,9 @@ public final class Parser {
         }
         expectSymbol("::");
         Term type = topType();
+        if (wrapped) {
+            expectSymbol(")");
+        }
         expectDot();
         return tuple(atom("attribute", line), Atom.of(tag),
             Tuple.of(Atom.of(name.value().toString()), type, list(parameters)));
@@ -380,7 +417,8 @@ public final class Parser {
         if (isSymbol(":")) {
             next();
             remote = true;
-            module = ((Atom) expectCategory(ATOM).value()).toString();
+            module = ((Atom) function.value()).toString();
+            function = expectCategory(ATOM);
         }
         List<Term> types = new ArrayList<>();
         while (true) {
@@ -419,9 +457,8 @@ public final class Parser {
                 expectSymbol("::");
                 Term type = topType();
                 constraints.add(tuple(atom("type", variable.line()),
-                    atom("constraint", variable.line()),
-                    list(tuple(atom("atom", variable.line()),
-                        atomLiteral("is_subtype", variable.line())), list(variable(variable), type))));
+                    Atom.of("constraint"), list(tuple(atom("atom", variable.line()),
+                        Atom.of("is_subtype")), list(variable(variable), type))));
             } else {
                 Token name = expectCategory(ATOM);
                 expectSymbol("(");
@@ -439,9 +476,9 @@ public final class Parser {
                 expectSymbol(")");
                 if (name.value().toString().equals("is_subtype") && arguments.size() == 1) {
                     constraints.add(tuple(atom("type", name.line()),
-                        atom("constraint", name.line()),
+                        Atom.of("constraint"),
                         list(tuple(atom("atom", name.line()),
-                            atomLiteral("is_subtype", name.line())), list(arguments))));
+                            Atom.of("is_subtype")), list(arguments))));
                 } else {
                     throw error(name.line(), "unsupported type constraint");
                 }
@@ -452,17 +489,78 @@ public final class Parser {
             }
             break;
         }
-        return tuple(atom("type", lineOf(funType)), atom("bounded_fun", lineOf(funType)),
+        return tuple(atom("type", lineOf(funType)), Atom.of("bounded_fun"),
             list(funType, list(constraints)));
     }
 
     private static int specArity(Term type) {
+        if (!(type instanceof Tuple)) {
+            return 0;
+        }
         if (isTuple(type, "type", "bounded_fun")) {
-            type = type.toTuple().element(3).toList().head();
+            Term inner = type.toTuple().element(4);
+            if (!(inner instanceof org.jerlang.type.List)
+                || inner.toList() == org.jerlang.type.List.nil) {
+                return 0;
+            }
+            type = inner.toList().head();
         }
         Tuple tuple = type.toTuple();
-        Term args = tuple.element(4).toList().head();
-        return args.toTuple().element(3).toList().length();
+        if (tuple.arity() < 4) {
+            return 0;
+        }
+        Term types = tuple.element(4);
+        if (!(types instanceof org.jerlang.type.List)
+            || types.toList() == org.jerlang.type.List.nil) {
+            return 0;
+        }
+        Term args = types.toList().head();
+        if (!(args instanceof Tuple)) {
+            return 0;
+        }
+        Tuple product = args.toTuple();
+        if (product.arity() < 4) {
+            return 0;
+        }
+        Term arguments = product.element(4);
+        return arguments instanceof org.jerlang.type.List
+            ? arguments.toList().length() : 0;
+    }
+
+    private Term mapType() {
+        Token hash = expectSymbol("#");
+        expectSymbol("{");
+        if (isSymbol("}")) {
+            next();
+            return tuple(atom("type", hash.line()), Atom.of("map"),
+                list(new ArrayList<>()));
+        }
+        List<Term> fields = new ArrayList<>();
+        while (true) {
+            Term key = topType();
+            String tag;
+            Token operator;
+            if (isSymbol("=>")) {
+                operator = next();
+                tag = "map_field_assoc";
+            } else if (isSymbol(":=")) {
+                operator = next();
+                tag = "map_field_exact";
+            } else {
+                throw error(peek().line(), "expected => or := in a map type");
+            }
+            Term value = topType();
+            fields.add(tuple(atom("type", operator.line()), Atom.of(tag),
+                list(key, value)));
+            if (isSymbol(",")) {
+                next();
+                continue;
+            }
+            break;
+        }
+        expectSymbol("}");
+        return tuple(atom("type", hash.line()), Atom.of("map"),
+            list(fields));
     }
 
     private Term wildAttribute(int line, String name) {
@@ -480,6 +578,10 @@ public final class Parser {
                 }
             }
             expectSymbol(")");
+        } else if (!isSymbol(".")) {
+            // OTP 27 allows -moduledoc "..." and -doc "..." without
+            // parentheses. erl_parse still reports the value, not a flag.
+            values.add(expr(0));
         } else {
             values.add(atomLiteral("true", line));
         }
@@ -488,7 +590,11 @@ public final class Parser {
         if (values.size() == 1) {
             value = normalise(attributeFarity(values.get(0)));
         } else {
-            value = normalise(tuple(values.toArray(new Term[0])));
+            List<Term> normalised = new ArrayList<>();
+            for (Term item : values) {
+                normalised.add(normalise(attributeFarity(item)));
+            }
+            value = Tuple.of(normalised.toArray(new Term[0]));
         }
         return tuple(atom("attribute", line), Atom.of(name), value);
     }
@@ -561,7 +667,7 @@ public final class Parser {
             boolean rightAssociative = isRightAssociative(operator);
             Term right = expr(rightAssociative ? precedence : precedence + 1);
             if (operator.equals("=")) {
-                left = tuple(atom("match", lineOf(left)), left, right);
+                left = tuple(atom("match", firstAnnotation(left)), left, right);
             } else {
                 left = tuple(atom("op", operatorToken.line()),
                     Atom.of(operator), left, right);
@@ -586,6 +692,10 @@ public final class Parser {
     }
 
     private Term prefix() {
+        if (isSymbol("catch")) {
+            Token catchToken = next();
+            return tuple(atom("catch", catchToken.line()), expr(0));
+        }
         if (isSymbol("+") || isSymbol("-") || isSymbol("bnot") || isSymbol("not")) {
             Token operator = next();
             Term argument = expr(600);
@@ -606,12 +716,14 @@ public final class Parser {
             return tuple(Atom.of(category), Integer.of(token.line()), token.value());
         case "atom":
             next();
-            return atomLiteral(token.value().toString(), token.line());
+            return atomLiteral(token);
         case "var":
             next();
             return variable(token);
         case "string":
             return string();
+        case "sigil_prefix":
+            return sigil();
         case "(":
             next();
             Term inner = expr(0);
@@ -658,6 +770,24 @@ public final class Parser {
         return tuple(atom("string", first.line()), list(terms));
     }
 
+    private Term sigil() {
+        Token prefix = next();
+        Token string = expectCategory(STRING);
+        expectCategory("sigil_suffix");
+        List<Term> characters = elements(string.value());
+        String name = prefix.value().toString();
+        if (name.equals("s") || name.equals("S")) {
+            return tuple(atom("string", prefix.line()), list(characters));
+        }
+        if (name.isEmpty() || name.equals("b") || name.equals("B")) {
+            Term value = tuple(atom("string", prefix.line()), list(characters));
+            Term element = tuple(atom("bin_element", prefix.line()), value,
+                Atom.of("default"), list(Atom.of("utf8")));
+            return tuple(atom("bin", prefix.line()), list(element));
+        }
+        throw error(prefix.line(), "illegal sigil prefix");
+    }
+
     private static void appendString(List<Integer> values, Token token) {
         org.jerlang.type.List list = token.value().toList();
         while (list != org.jerlang.type.List.nil) {
@@ -697,8 +827,11 @@ public final class Parser {
         // every later cons with the expression that starts it.
         Term result = tail;
         for (int position = expressions.size() - 1; position >= 0; position--) {
-            int line = position == 0 ? open.line() : lineOf(expressions.get(position));
-            result = tuple(atom("cons", line), expressions.get(position), result);
+            Term expression = expressions.get(position);
+            Term annotation = position == 0 ? Integer.of(open.line())
+                : firstAnnotation(expression);
+            result = tuple(Atom.of("cons"), annotation,
+                expressions.get(position), result);
         }
         return result;
     }
@@ -801,6 +934,15 @@ public final class Parser {
             if (!isSymbol("}")) {
                 while (true) {
                     fields.add(mapField());
+                    if (isSymbol("||")) {
+                        Token bar = next();
+                        if (left != null || fields.size() != 1) {
+                            throw error(bar.line(), "malformed map comprehension");
+                        }
+                        List<Term> qualifiers = mapQualifiers();
+                        expectSymbol("}");
+                        return tuple(atom("mc", line), fields.get(0), list(qualifiers));
+                    }
                     if (isSymbol(",")) {
                         next();
                         continue;
@@ -827,10 +969,10 @@ public final class Parser {
             Token field = expectCategory(ATOM);
             if (left == null) {
                 return tuple(atom("record_index", line),
-                    Atom.of(record), atom(field.value().toString(), field.line()));
+                    Atom.of(record), atomLiteral(field));
             }
             return tuple(atom("record_field", line), left,
-                Atom.of(record), atom(field.value().toString(), field.line()));
+                Atom.of(record), atomLiteral(field));
         }
         expectSymbol("{");
         List<Term> fields = new ArrayList<>();
@@ -855,7 +997,9 @@ public final class Parser {
         Token name = expectName();
         expectSymbol("=");
         Term value = expr(0);
-        return tuple(atom("record_field", name.line()), atom(nameOf(name), name.line()), value);
+        Term field = name.category().equals(VAR)
+            ? variable(name) : atomLiteral(name);
+        return tuple(atom("record_field", annotationOf(field)), field, value);
     }
 
     private Term mapField() {
@@ -902,8 +1046,8 @@ public final class Parser {
             }
             expectSymbol("->");
             List<Term> body = expressionsUntil(";", "end");
-            int line = lineOf(elements(guards.get(0)).get(0));
-            clauses.add(tuple(atom("clause", line), list(new ArrayList<>()),
+            Term annotation = firstAnnotation(elements(guards.get(0)).get(0));
+            clauses.add(tuple(atom("clause", annotation), list(new ArrayList<>()),
                 list(guards), list(body)));
             if (isSymbol(";")) {
                 next();
@@ -950,8 +1094,8 @@ public final class Parser {
             List<Term> guards = guard();
             expectSymbol("->");
             List<Term> body = expressionsUntil(stops);
-            clauses.add(tuple(atom("clause", lineOf(pattern)), list(pattern),
-                listOfLists(guards), list(body)));
+            clauses.add(tuple(Atom.of("clause"), firstAnnotation(pattern),
+                list(pattern), listOfLists(guards), list(body)));
             if (isSymbol(";")) {
                 next();
                 continue;
@@ -1089,7 +1233,7 @@ public final class Parser {
         }
         expectSymbol("end");
         if (named != null) {
-            return tuple(atom("named_fun", funLine), atom(named.toString(), funLine),
+            return tuple(atom("named_fun", funLine), Atom.of(named.toString()),
                 list(clauses));
         }
         return tuple(atom("fun", funLine), Tuple.of(Atom.of("clauses"), list(clauses)));
@@ -1126,21 +1270,7 @@ public final class Parser {
     private List<Term> qualifiers(String close) {
         List<Term> qualifiers = new ArrayList<>();
         while (!isSymbol(close)) {
-            Term qualifier = expr(0);
-            if (isSymbol("<-")) {
-                Token operator = next();
-                qualifier = tuple(atom("generate", operator.line()), qualifier, expr(0));
-            } else if (isSymbol("<=")) {
-                Token operator = next();
-                qualifier = tuple(atom("b_generate", operator.line()), qualifier, expr(0));
-            } else if (isSymbol("<:-")) {
-                Token operator = next();
-                qualifier = tuple(atom("generate_strict", operator.line()), qualifier, expr(0));
-            } else if (isSymbol("<:=")) {
-                Token operator = next();
-                qualifier = tuple(atom("b_generate_strict", operator.line()), qualifier, expr(0));
-            }
-            qualifiers.add(qualifier);
+            qualifiers.add(qualifierGroup(false));
             if (isSymbol(",")) {
                 next();
                 continue;
@@ -1148,6 +1278,75 @@ public final class Parser {
             break;
         }
         return qualifiers;
+    }
+
+    private List<Term> mapQualifiers() {
+        List<Term> qualifiers = new ArrayList<>();
+        while (!isSymbol("}")) {
+            qualifiers.add(qualifierGroup(true));
+            if (isSymbol(",")) {
+                next();
+                continue;
+            }
+            break;
+        }
+        return qualifiers;
+    }
+
+    /**
+     * A qualifier is one generator or filter. Two generators joined by && are
+     * a zip generator; erl_parse wraps the whole group in {zip,Line,List}.
+     */
+    private Term qualifierGroup(boolean map) {
+        Term qualifier = qualifier(map);
+        if (!isSymbol("&&")) {
+            return qualifier;
+        }
+        Token operator = next();
+        List<Term> zipped = new ArrayList<>();
+        zipped.add(qualifier);
+        Term right = qualifier(map);
+        zipped.add(right);
+        while (isSymbol("&&")) {
+            next();
+            right = qualifier(map);
+            zipped.add(right);
+        }
+        // erl_parse anchors a zip on the && when it ends the comprehension,
+        // but on its final generator when a comma follows.
+        return tuple(atom("zip", isSymbol(",") ? lineOf(right) : operator.line()),
+            list(zipped));
+    }
+
+    private Term qualifier(boolean map) {
+        Term qualifier = expr(0);
+        if (isSymbol(":=")) {
+            Token operator = next();
+            Term value = expr(0);
+            boolean strict = isSymbol("<:-") || isSymbol("<:=");
+            if (!strict && !isSymbol("<-")) {
+                throw error(peek().line(), "expected <- after a map generator value");
+            }
+            next();
+            Term source = expr(0);
+            Term field = tuple(atom("map_field_exact", operator.line()), qualifier, value);
+            return tuple(atom(strict ? "m_generate_strict" : "m_generate", operator.line()),
+                field, source);
+        }
+        if (isSymbol("<-")) {
+            Token operator = next();
+            return tuple(atom("generate", operator.line()), qualifier, expr(0));
+        } else if (isSymbol("<=")) {
+            Token operator = next();
+            return tuple(atom("b_generate", operator.line()), qualifier, expr(0));
+        } else if (isSymbol("<:-")) {
+            Token operator = next();
+            return tuple(atom("generate_strict", operator.line()), qualifier, expr(0));
+        } else if (isSymbol("<:=")) {
+            Token operator = next();
+            return tuple(atom("b_generate_strict", operator.line()), qualifier, expr(0));
+        }
+        return qualifier;
     }
 
     private List<Term> argumentsAfterOpen() {
@@ -1168,10 +1367,13 @@ public final class Parser {
 
     private List<Term> expressionsUntil(String... stops) {
         List<Term> expressions = new ArrayList<>();
-        while (!atAny(stops)) {
+        boolean required = true;
+        while (required || !atAny(stops)) {
             expressions.add(expr(0));
+            required = false;
             if (isSymbol(",")) {
                 next();
+                required = true;
                 continue;
             }
             break;
@@ -1303,7 +1505,8 @@ public final class Parser {
         if (isCategory(VAR) && lookahead(1).category().equals(Atom.of("::"))) {
             Token variable = next();
             expectSymbol("::");
-            return tuple(atom("ann_type", variable.line()), variable(variable), topType());
+            return tuple(atom("ann_type", variable.line()),
+                list(variable(variable), topType()));
         }
         Term left = type(0);
         while (isSymbol("|")) {
@@ -1315,23 +1518,36 @@ public final class Parser {
     }
 
     private Term liftUnion(Term left, Term right) {
-        if (isTuple(right, "type", "union")) {
-            Tuple union = right.toTuple();
-            List<Term> members = elements(union.element(3));
-            members.add(0, left);
-            return tuple(atom("type", lineOf(left)), atom("union", lineOf(left)), list(members));
+        List<Term> members = new ArrayList<>();
+        addUnionMembers(members, left, true);
+        addUnionMembers(members, right, false);
+        return tuple(atom("type", lineOf(left)), Atom.of("union"), list(members));
+    }
+
+    private void addUnionMembers(List<Term> members, Term value, boolean keepGroup) {
+        if ((!keepGroup || !groupedTypes.contains(value))
+            && isTuple(value, "type", "union")) {
+            members.addAll(elements(value.toTuple().element(4)));
+        } else {
+            members.add(value);
         }
-        return tuple(atom("type", lineOf(left)), atom("union", lineOf(left)),
-            list(left, right));
     }
 
     private Term type(int minimum) {
+        Term left;
         if (isSymbol("+") || isSymbol("-") || isSymbol("bnot") || isSymbol("not")) {
             Token operator = next();
-            return tuple(atom("op", operator.line()),
+            left = tuple(atom("op", operator.line()),
                 Atom.of(operator.category().toString()), type(600));
+        } else if (isCategory(VAR)
+            && lookahead(1).category().equals(Atom.of("::"))) {
+            Token variable = next();
+            expectSymbol("::");
+            left = tuple(atom("ann_type", variable.line()),
+                list(variable(variable), topType()));
+        } else {
+            left = typePrimary();
         }
-        Term left = typePrimary();
         while (true) {
             if (!more()) {
                 break;
@@ -1344,8 +1560,8 @@ public final class Parser {
             Token operator = next();
             Term right = type(name.equals("..") ? precedence + 1 : precedence + 1);
             if (name.equals("..")) {
-                left = tuple(atom("type", lineOf(left)), atom("range", lineOf(left)),
-                    left, right);
+                left = tuple(atom("type", lineOf(left)), Atom.of("range"),
+                    list(left, right));
             } else {
                 left = tuple(atom("op", operator.line()),
                     Atom.of(name), left, right);
@@ -1397,7 +1613,7 @@ public final class Parser {
             return listType();
         }
         if (isSymbol("#")) {
-            return recordType();
+            return isSymbol("{", 1) ? mapType() : recordType();
         }
         if (isSymbol("{")) {
             return tupleType();
@@ -1412,6 +1628,7 @@ public final class Parser {
             next();
             Term type = topType();
             expectSymbol(")");
+            groupedTypes.add(type);
             return type;
         }
         throw error(token.line(), "unexpected token in type: " + token.category());
@@ -1436,8 +1653,8 @@ public final class Parser {
             }
             expectSymbol(")");
             return tuple(atom("remote_type", name.line()),
-                atom(name.value().toString(), name.line()),
-                atom(function.value().toString(), function.line()), list(arguments));
+                list(atom(name.value().toString(), name.line()),
+                    atom(function.value().toString(), function.line()), list(arguments)));
         }
         if (isSymbol("(")) {
             next();
@@ -1445,15 +1662,15 @@ public final class Parser {
                 next();
                 String typeName = name.value().toString();
                 if (typeName.equals("tuple")) {
-                    return tuple(atom("type", name.line()), atom("tuple", name.line()),
+                    return tuple(atom("type", name.line()), Atom.of("tuple"),
                         Atom.of("any"));
                 }
                 if (typeName.equals("map")) {
-                    return tuple(atom("type", name.line()), atom("map", name.line()),
+                    return tuple(atom("type", name.line()), Atom.of("map"),
                         Atom.of("any"));
                 }
                 return tuple(atom(typeTag(typeName, 0), name.line()),
-                    atom(typeName, name.line()), list(new ArrayList<>()));
+                    Atom.of(typeName), list(new ArrayList<>()));
             }
             List<Term> arguments = new ArrayList<>();
             while (true) {
@@ -1468,16 +1685,16 @@ public final class Parser {
             String typeName = name.value().toString();
             String tag = typeName.equals("tuple") ? "type" : typeTag(typeName, arguments.size());
             return tuple(atom(tag, name.line()),
-                atom(typeName, name.line()), list(arguments));
+                Atom.of(typeName), list(arguments));
         }
-        return atomLiteral(name.value().toString(), name.line());
+        return atomLiteral(name);
     }
 
     private Term listType() {
         Token open = expectSymbol("[");
         if (isSymbol("]")) {
             next();
-            return tuple(atom("type", open.line()), atom("nil", open.line()),
+            return tuple(atom("type", open.line()), Atom.of("nil"),
                 list(new ArrayList<>()));
         }
         Term type = topType();
@@ -1485,10 +1702,11 @@ public final class Parser {
             next();
             expectSymbol("...");
             expectSymbol("]");
-            return tuple(atom("type", open.line()), atom("nonempty_list", open.line()), type);
+            return tuple(atom("type", open.line()), Atom.of("nonempty_list"),
+                list(type));
         }
         expectSymbol("]");
-        return tuple(atom("type", open.line()), atom("list", open.line()), type);
+        return tuple(atom("type", open.line()), Atom.of("list"), list(type));
     }
 
     private Term tupleType() {
@@ -1505,7 +1723,7 @@ public final class Parser {
             }
         }
         expectSymbol("}");
-        return tuple(atom("type", open.line()), atom("tuple", open.line()), list(types));
+        return tuple(atom("type", open.line()), Atom.of("tuple"), list(types));
     }
 
     private Term recordType() {
@@ -1519,7 +1737,7 @@ public final class Parser {
                 Token field = expectCategory(ATOM);
                 expectSymbol("::");
                 Term type = topType();
-                fields.add(tuple(atom("type", field.line()), atom("field_type", field.line()),
+                fields.add(tuple(atom("type", field.line()), Atom.of("field_type"),
                     list(atom(field.value().toString(), field.line()), type)));
                 if (isSymbol(",")) {
                     next();
@@ -1529,7 +1747,7 @@ public final class Parser {
             }
         }
         expectSymbol("}");
-        return tuple(atom("type", hash.line()), atom("record", hash.line()), list(fields));
+        return tuple(atom("type", hash.line()), Atom.of("record"), list(fields));
     }
 
     private Term binaryType() {
@@ -1540,19 +1758,25 @@ public final class Parser {
             if (isCategory(VAR)) {
                 next();
                 expectSymbol(":");
-                base = topType();
-            }
-            if (isSymbol(",")) {
-                next();
-                expectCategory(VAR);
-                expectSymbol(":");
-                expectCategory(VAR);
-                expectSymbol("*");
-                unit = topType();
+                if (isCategory(VAR) && isSymbol("*", 1)) {
+                    next();
+                    next();
+                    unit = topType();
+                } else {
+                    base = topType();
+                    if (isSymbol(",")) {
+                        next();
+                        expectCategory(VAR);
+                        expectSymbol(":");
+                        expectCategory(VAR);
+                        expectSymbol("*");
+                        unit = topType();
+                    }
+                }
             }
         }
         expectSymbol(">>");
-        return tuple(atom("type", open.line()), atom("binary", open.line()),
+        return tuple(atom("type", open.line()), Atom.of("binary"),
             list(base, unit));
     }
 
@@ -1561,10 +1785,46 @@ public final class Parser {
         expectSymbol("(");
         if (isSymbol(")")) {
             next();
-            return tuple(atom("type", fun.line()), atom("fun", fun.line()),
+            return tuple(atom("type", fun.line()), Atom.of("fun"),
                 list(new ArrayList<>()));
         }
+        if (isSymbol("(")) {
+            // fun((A) -> B): the product has its own parentheses, unlike the
+            // argument list of a spec, which is already the outer one.
+            Token productOpen = next();
+            Term product = funProduct(productOpen);
+            expectSymbol("->");
+            Term result = topType();
+            expectSymbol(")");
+            return tuple(atom("type", fun.line()), Atom.of("fun"),
+                list(product, result));
+        }
         return funTypeAfterOpen(fun);
+    }
+
+    private Term funProduct(Token open) {
+        if (isSymbol(")")) {
+            next();
+            return tuple(atom("type", open.line()), Atom.of("product"),
+                list(new ArrayList<>()));
+        }
+        if (isSymbol("...")) {
+            next();
+            expectSymbol(")");
+            return tuple(atom("type", open.line()), Atom.of("any"));
+        }
+        List<Term> arguments = new ArrayList<>();
+        while (true) {
+            arguments.add(topType());
+            if (isSymbol(",")) {
+                next();
+                continue;
+            }
+            break;
+        }
+        expectSymbol(")");
+        return tuple(atom("type", open.line()), Atom.of("product"),
+            list(arguments));
     }
 
     /**
@@ -1579,11 +1839,11 @@ public final class Parser {
     private Term funTypeAfterOpen(Token open) {
         Term product;
         if (isSymbol(")")) {
-            product = tuple(atom("type", open.line()), atom("product", open.line()),
+            product = tuple(atom("type", open.line()), Atom.of("product"),
                 list(new ArrayList<>()));
         } else if (isSymbol("...")) {
             next();
-            product = tuple(atom("type", open.line()), atom("any", open.line()));
+            product = tuple(atom("type", open.line()), Atom.of("any"));
         } else {
             List<Term> arguments = new ArrayList<>();
             while (true) {
@@ -1594,13 +1854,13 @@ public final class Parser {
                 }
                 break;
             }
-            product = tuple(atom("type", open.line()), atom("product", open.line()),
+            product = tuple(atom("type", open.line()), Atom.of("product"),
                 list(arguments));
         }
         expectSymbol(")");
         expectSymbol("->");
         Term result = topType();
-        return tuple(atom("type", open.line()), atom("fun", open.line()),
+        return tuple(atom("type", open.line()), Atom.of("fun"),
             list(product, result));
     }
 
@@ -1627,6 +1887,27 @@ public final class Parser {
         return tuple(Atom.of("atom"), Integer.of(line), Atom.of(name));
     }
 
+    private static Term atom(String name, Term annotation) {
+        return tuple(Atom.of("atom"), annotation, Atom.of(name));
+    }
+
+    private Term atomLiteral(Token token) {
+        String name = token.value().toString();
+        if (token.value() instanceof Atom
+            && (token.value().equals(Atom.of("maybe"))
+                || token.value().equals(Atom.of("else")))) {
+            String text = token.text();
+            if (!text.startsWith("'")) {
+                text = "'" + name + "'";
+            }
+            return tuple(Atom.of("atom"),
+                list(tuple(Atom.of("text"), org.jerlang.type.Str.of(text)),
+                    tuple(Atom.of("location"), Integer.of(token.line()))),
+                (Atom) token.value());
+        }
+        return atomLiteral(name, token.line());
+    }
+
     private static Term atomLiteral(String name, int line) {
         return atom(name, line);
     }
@@ -1645,8 +1926,7 @@ public final class Parser {
         // rather than repeating the line argument at every construction site.
         if (terms.length >= 1 && terms[0] instanceof Tuple) {
             Tuple first = (Tuple) terms[0];
-            if (first.arity() == 3 && isAtomValue(first.element(1), "atom")
-                && first.element(2) instanceof Integer) {
+            if (first.arity() == 3 && isAtomValue(first.element(1), "atom")) {
                 Term[] node = new Term[terms.length + 1];
                 node[0] = first.element(3);
                 node[1] = first.element(2);
@@ -1679,9 +1959,92 @@ public final class Parser {
         return elements;
     }
 
+    private static Term annotationOf(Term term) {
+        if (term instanceof Tuple && ((Tuple) term).arity() >= 2) {
+            return ((Tuple) term).element(2);
+        }
+        throw new IllegalArgumentException("no annotation on " + term);
+    }
+
+    /**
+     * erl_parse:first_anno/1. modify_anno1/3 visits a node's annotation before
+     * its children, so an equally placed later child annotation wins the tie.
+     */
+    private static Term firstAnnotation(Term term) {
+        List<Term> annotations = new ArrayList<>();
+        collectAnnotations(term, annotations);
+        Term first = null;
+        int location = java.lang.Integer.MAX_VALUE;
+        for (Term annotation : annotations) {
+            int candidate = annotationLocation(annotation);
+            if (candidate <= location) {
+                first = annotation;
+                location = candidate;
+            }
+        }
+        if (first == null) {
+            throw new IllegalArgumentException("no annotation on " + term);
+        }
+        return first;
+    }
+
+    private static void collectAnnotations(Term term, List<Term> annotations) {
+        if (term instanceof org.jerlang.type.List) {
+            for (Term element : elements(term)) {
+                collectAnnotations(element, annotations);
+            }
+            return;
+        }
+        if (!(term instanceof Tuple)) {
+            return;
+        }
+        Tuple tuple = term.toTuple();
+        if (isAtomValue(tuple.element(1), "unit")) {
+            // Binary element types carry literal metadata such as {unit,8};
+            // its second element is a value, not an annotation.
+            return;
+        }
+        if (tuple.arity() >= 2) {
+            Term annotation = tuple.element(2);
+            if (annotation instanceof Integer
+                || annotation instanceof org.jerlang.type.List) {
+                annotations.add(annotation);
+            }
+        }
+        for (int index = 3; index <= tuple.arity(); index++) {
+            collectAnnotations(tuple.element(index), annotations);
+        }
+    }
+
+    private static int annotationLocation(Term annotation) {
+        if (annotation instanceof Integer) {
+            return ((Integer) annotation).toInt();
+        }
+        if (annotation instanceof org.jerlang.type.List) {
+            for (Term item : elements(annotation)) {
+                if (isTuple(item, "location") && item.toTuple().arity() >= 2
+                    && item.toTuple().element(2) instanceof Integer) {
+                    return ((Integer) item.toTuple().element(2)).toInt();
+                }
+            }
+        }
+        return java.lang.Integer.MAX_VALUE;
+    }
+
     private static int lineOf(Term term) {
         if (term instanceof Tuple && ((Tuple) term).arity() >= 2) {
-            return ((Integer) ((Tuple) term).element(2)).toInt();
+            Term annotation = ((Tuple) term).element(2);
+            if (annotation instanceof Integer) {
+                return ((Integer) annotation).toInt();
+            }
+            if (annotation instanceof org.jerlang.type.List) {
+                for (Term item : elements(annotation)) {
+                    if (isTuple(item, "location") && item.toTuple().arity() >= 2
+                        && item.toTuple().element(2) instanceof Integer) {
+                        return ((Integer) item.toTuple().element(2)).toInt();
+                    }
+                }
+            }
         }
         throw new IllegalArgumentException("no line on " + term);
     }
@@ -1733,6 +2096,10 @@ public final class Parser {
 
     private boolean isSymbol(String name) {
         return more() && peek().category().equals(Atom.of(name));
+    }
+
+    private boolean isSymbol(String name, int offset) {
+        return more() && lookahead(offset).category().equals(Atom.of(name));
     }
 
     private boolean isCategory(String name) {
@@ -1839,15 +2206,81 @@ public final class Parser {
                 Map map = new Map();
                 for (Term field : elements(tuple.element(3))) {
                     Tuple pair = field.toTuple();
-                    map.set(normalise(pair.element(3)), normalise(pair.element(4)));
+                    map.set(normalise(pair.element(3)),
+                        normalise(attributeFarity(pair.element(4))));
                 }
                 return map;
+            case "op":
+                if (tuple.arity() == 5 && isAtomValue(tuple.element(3), "/")) {
+                    Term left = tuple.element(4);
+                    Term right = tuple.element(5);
+                    boolean atom = left instanceof Atom || isTuple(left, "atom");
+                    boolean integer = right instanceof Integer || isTuple(right, "integer");
+                    if (atom && integer) {
+                        return Tuple.of(normalise(left), normalise(right));
+                    }
+                }
+                return expression;
+            case "call":
+            case "remote":
+            case "var":
+                // These are expressions embedded in an attribute value, for
+                // example the function in -doc(#{equiv => f(...)}), not
+                // literal terms to flatten.
+                return expression;
+            case "bin":
+                Term binary = literalBinary(tuple);
+                return binary == null ? expression : binary;
             default:
                 break;
             }
         }
         throw error(expression instanceof Tuple ? lineOf(expression) : 1,
             "cannot normalise " + expression);
+    }
+
+    private Term literalBinary(Tuple binary) {
+        List<java.lang.Integer> bytes = new ArrayList<>();
+        for (Term segment : elements(binary.element(3))) {
+            if (!isTuple(segment, "bin_element")
+                || segment.toTuple().arity() != 5) {
+                return null;
+            }
+            Tuple element = segment.toTuple();
+            Term types = element.element(5);
+            boolean utf8 = false;
+            if (types instanceof org.jerlang.type.List) {
+                for (Term type : elements(types)) {
+                    utf8 |= isAtomValue(type, "utf8");
+                }
+            }
+            if (!element.element(4).equals(Atom.of("default"))
+                || !(types.equals(Atom.of("default")) || utf8)
+                || !isTuple(element.element(3), "string")) {
+                return null;
+            }
+            for (Term character : elements(element.element(3).toTuple().element(3))) {
+                if (!(character instanceof org.jerlang.type.Integer)) {
+                    return null;
+                }
+                int codePoint = ((org.jerlang.type.Integer) character).toInt();
+                if (utf8) {
+                    for (byte value : new String(Character.toChars(codePoint))
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8)) {
+                        bytes.add(value & 0xFF);
+                    }
+                } else if (codePoint <= 0xFF) {
+                    bytes.add(codePoint);
+                } else {
+                    return null;
+                }
+            }
+        }
+        int[] value = new int[bytes.size()];
+        for (int index = 0; index < value.length; index++) {
+            value[index] = bytes.get(index);
+        }
+        return new org.jerlang.type.Binary(value);
     }
 
     private static final class ParseException extends RuntimeException {

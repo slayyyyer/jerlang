@@ -31,13 +31,17 @@ import org.jerlang.type.Term;
  * comment or the end of the source. That is the rule that lets R#record.field
  * scan as a field access and makes the final dot of a module a dot token.
  *
- * Sigils (OTP 27) are not implemented yet; a tilde outside a string is
- * reported rather than guessed at.
+ * Triple-quoted strings (EEP 64) are scanned as one string token. The
+ * indentation of the closing delimiter is stripped from every content line,
+ * and the lines are joined with newlines; that is what erl_scan returns, not
+ * the block of source text. Sigils (OTP 27) are three tokens: sigil_prefix,
+ * the string, and sigil_suffix. Keeping them separate is what lets the parser
+ * reject an illegal prefix without re-scanning the string.
  */
 public final class Scanner {
 
     private static final Set<String> KEYWORDS = new HashSet<>(Arrays.asList(
-        "after", "andalso", "band", "bnot", "bor", "bsl", "bsr", "bxor",
+        "after", "andalso", "band", "begin", "bnot", "bor", "bsl", "bsr", "bxor",
         "case", "catch", "cond", "div", "else", "end", "fun", "if", "let",
         "maybe", "not", "of", "or", "orelse", "receive", "rem", "try",
         "when", "xor"));
@@ -46,7 +50,7 @@ public final class Scanner {
     // .. over the field access dot.
     private static final String[] OPERATORS = {
         "=:=", "=/=", "...",
-        "->", "=>", ":=", "::", "||", "<-", "=<", "<=", ">=", "==", "/=",
+        "->", "=>", ":=", "::", "||", "&&", "<:-", "<:=", "<-", "=<", "<=", ">=", "==", "/=",
         "++", "--", "<<", ">>", "?=", "..",
         "+", "-", "*", "/", "=", "<", ">", "!", ",", ";", ":", ".", "?",
         "#", "(", ")", "[", "]", "{", "}", "|"
@@ -59,6 +63,8 @@ public final class Scanner {
     private static final Atom CHAR = Atom.of("char");
     private static final Atom STRING = Atom.of("string");
     private static final Atom DOT = Atom.of("dot");
+    private static final Atom SIGIL_PREFIX = Atom.of("sigil_prefix");
+    private static final Atom SIGIL_SUFFIX = Atom.of("sigil_suffix");
 
     private final String source;
     private final List<Token> tokens;
@@ -105,7 +111,15 @@ public final class Scanner {
                 continue;
             }
             if (character == '"') {
-                string();
+                if (source.startsWith("\"\"\"", index)) {
+                    tripleString();
+                } else {
+                    string();
+                }
+                continue;
+            }
+            if (character == '~') {
+                sigil();
                 continue;
             }
             if (character == '\'') {
@@ -171,6 +185,49 @@ public final class Scanner {
             if (baseDigits.isEmpty()) {
                 throw error("base " + base + " needs digits");
             }
+            if (peek() == '.' && digitValue(peek(1)) >= 0
+                && digitValue(peek(1)) < base) {
+                index++;
+                int fractionStart = index;
+                while (index < source.length()) {
+                    char character = source.charAt(index);
+                    if (character == '_' || digitValue(character) >= 0
+                        && digitValue(character) < base) {
+                        index++;
+                    } else {
+                        break;
+                    }
+                }
+                String fraction = source.substring(fractionStart, index).replace("_", "");
+                if (fraction.isEmpty() || peek() != '#') {
+                    throw error("base " + base + " needs a based float exponent");
+                }
+                index++;
+                if (peek() != 'e' && peek() != 'E') {
+                    throw error("expected e after # in a based float");
+                }
+                index++;
+                boolean negative = false;
+                if (peek() == '+' || peek() == '-') {
+                    negative = peek() == '-';
+                    index++;
+                }
+                int exponentStart = index;
+                skipDigits();
+                String exponentText = source.substring(exponentStart, index).replace("_", "");
+                if (exponentText.isEmpty()) {
+                    throw error("based float exponent needs digits");
+                }
+                double whole = new BigInteger(baseDigits, base).doubleValue();
+                double part = new BigInteger(fraction, base).doubleValue()
+                    / Math.pow(base, fraction.length());
+                double exponent = java.lang.Double.parseDouble(exponentText);
+                if (negative) {
+                    exponent = -exponent;
+                }
+                add(FLOAT, startLine, Float.of((whole + part) * Math.pow(base, exponent)));
+                return;
+            }
             add(INTEGER, startLine, new Integer(new BigInteger(baseDigits, base)));
             return;
         }
@@ -207,6 +264,62 @@ public final class Scanner {
         return isDigit(sign);
     }
 
+    private void singleQuotedSigil() {
+        int startLine = line;
+        index++;
+        List<java.lang.Integer> codePoints = new ArrayList<>();
+        while (true) {
+            if (index >= source.length()) {
+                throw error("unterminated sigil string");
+            }
+            char character = source.charAt(index);
+            if (character == '\'') {
+                index++;
+                break;
+            }
+            if (character == '\\') {
+                index++;
+                int codePoint = escape();
+                if (codePoint >= 0) {
+                    codePoints.add(codePoint);
+                }
+            } else {
+                int codePoint = source.codePointAt(index);
+                index += Character.charCount(codePoint);
+                if (codePoint == '\n') {
+                    line++;
+                }
+                codePoints.add(codePoint);
+            }
+        }
+        add(STRING, startLine, codePointList(codePoints));
+    }
+
+    /**
+     * Uppercase sigils and backtick-delimited sigils are raw: backslashes have
+     * no escape meaning, so ~B"\\" is the one-character string backslash.
+     */
+    private void rawSigilString(char delimiter) {
+        int startLine = line;
+        index++;
+        List<java.lang.Integer> codePoints = new ArrayList<>();
+        while (true) {
+            if (index >= source.length()) {
+                throw error("unterminated sigil string");
+            }
+            int codePoint = source.codePointAt(index);
+            index += Character.charCount(codePoint);
+            if (codePoint == delimiter) {
+                break;
+            }
+            if (codePoint == '\n') {
+                line++;
+            }
+            codePoints.add(codePoint);
+        }
+        add(STRING, startLine, codePointList(codePoints));
+    }
+
     private void string() {
         int startLine = line;
         index++;
@@ -236,6 +349,180 @@ public final class Scanner {
             }
         }
         add(STRING, startLine, codePointList(codePoints));
+    }
+
+    /**
+     * A sigil is ~Prefix"String"Suffix. erl_scan keeps the three pieces as
+     * separate tokens; the parser decides whether the prefix is legal and
+     * what value it denotes. A prefix is one optional letter, and the suffix
+     * is the run of letters and digits after the closing quote.
+     */
+    private void sigil() {
+        int startLine = line;
+        int start = index;
+        index++;
+        String prefix = "";
+        if (index < source.length() && Character.isLetter(source.charAt(index))) {
+            prefix = String.valueOf(source.charAt(index));
+            index++;
+        }
+        tokens.add(new Token(SIGIL_PREFIX, startLine, Atom.of(prefix),
+            source.substring(start, index)));
+
+        tokenStart = index;
+        boolean raw = !prefix.isEmpty() && Character.isUpperCase(prefix.charAt(0));
+        if (source.startsWith("\"\"\"", index)) {
+            tripleString();
+        } else if (index < source.length() && source.charAt(index) == '"') {
+            if (raw) {
+                rawSigilString('"');
+            } else {
+                string();
+            }
+        } else if (index < source.length() && source.charAt(index) == '\'') {
+            if (raw) {
+                rawSigilString('\'');
+            } else {
+                singleQuotedSigil();
+            }
+        } else if (index < source.length() && source.charAt(index) == '`') {
+            rawSigilString('`');
+        } else {
+            throw error("a sigil must be followed by a string");
+        }
+
+        int suffixLine = line;
+        int suffixStart = index;
+        while (index < source.length()
+            && Character.isLetterOrDigit(source.charAt(index))) {
+            index++;
+        }
+        List<java.lang.Integer> suffix = new ArrayList<>();
+        for (int at = suffixStart; at < index; at++) {
+            suffix.add((int) source.charAt(at));
+        }
+        tokens.add(new Token(SIGIL_SUFFIX, suffixLine, codePointList(suffix),
+            source.substring(suffixStart, index)));
+    }
+
+    /**
+     * A triple-quoted string opens with """ followed by a newline (only
+     * horizontal whitespace is allowed between them). Every content line is
+     * dedented by the indentation of the closing delimiter; blank lines are
+     * allowed to be empty even when the closing delimiter is indented. The
+     * last line before the delimiter has no trailing newline in the value.
+     */
+    private void tripleString() {
+        int startLine = line;
+        int quotes = quoteCount(index);
+        index += quotes;
+        while (index < source.length() && (source.charAt(index) == ' '
+            || source.charAt(index) == '\t' || source.charAt(index) == '\r')) {
+            index++;
+        }
+        if (index >= source.length() || source.charAt(index) != '\n') {
+            throw error("a triple-quoted string must start with \"\"\" and a newline");
+        }
+        index++;
+        line++;
+
+        int contentStart = index;
+        int contentLine = line;
+        String indent = closingIndent(contentStart, quotes);
+        List<java.lang.Integer> codePoints = new ArrayList<>();
+        boolean first = true;
+        while (true) {
+            if (index >= source.length()) {
+                throw error("unterminated triple-quoted string");
+            }
+            if (source.startsWith(indent, index)
+                && quoteCount(index + indent.length()) >= quotes) {
+                index += indent.length() + quotes;
+                break;
+            }
+
+            int lineStart = index;
+            int end = source.indexOf('\n', lineStart);
+            if (end < 0) {
+                end = source.length();
+            }
+            int contentEnd = end;
+            if (contentEnd > lineStart && source.charAt(contentEnd - 1) == '\r') {
+                contentEnd--;
+            }
+            boolean blank = true;
+            for (int at = lineStart; at < contentEnd; at++) {
+                char character = source.charAt(at);
+                if (character != ' ' && character != '\t' && character != '\r') {
+                    blank = false;
+                    break;
+                }
+            }
+
+            int from;
+            if (blank && lineStart + indent.length() > contentEnd) {
+                from = contentEnd;
+            } else {
+                if (!source.startsWith(indent, lineStart)) {
+                    throw error("triple-quoted string line is indented less than its closing delimiter");
+                }
+                from = lineStart + indent.length();
+            }
+
+            if (!first) {
+                codePoints.add(10);
+            }
+            first = false;
+            index = from;
+            while (index < contentEnd) {
+                int codePoint = source.codePointAt(index);
+                index += Character.charCount(codePoint);
+                codePoints.add(codePoint);
+            }
+
+            if (index < source.length() && source.charAt(index) == '\r') {
+                index++;
+            }
+            if (index < source.length() && source.charAt(index) == '\n') {
+                index++;
+                line++;
+            }
+        }
+        add(STRING, startLine, codePointList(codePoints));
+    }
+
+    /**
+     * The closing delimiter is the first line whose first non-whitespace
+     * characters are """. Its leading whitespace is the indentation every
+     * non-blank content line must have.
+     */
+    private String closingIndent(int from, int quotes) {
+        int at = from;
+        while (at < source.length()) {
+            int lineStart = at;
+            int cursor = at;
+            while (cursor < source.length()
+                && (source.charAt(cursor) == ' ' || source.charAt(cursor) == '\t')) {
+                cursor++;
+            }
+            if (quoteCount(cursor) >= quotes) {
+                return source.substring(lineStart, cursor);
+            }
+            int end = source.indexOf('\n', cursor);
+            if (end < 0) {
+                break;
+            }
+            at = end + 1;
+        }
+        throw error("unterminated triple-quoted string");
+    }
+
+    private int quoteCount(int at) {
+        int count = 0;
+        while (at + count < source.length() && source.charAt(at + count) == '"') {
+            count++;
+        }
+        return count;
     }
 
     private void quotedAtom() {

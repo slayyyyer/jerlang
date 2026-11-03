@@ -30,20 +30,33 @@ public final class Token {
     private final int line;
     private final Term value;
     private final String text;
+    private final boolean generated;
+    private final String sourceText;
 
     Token(Atom category, int line, Term value) {
-        this(category, line, value, null);
+        this(category, line, value, null, false, null);
     }
 
     Token(Atom category, int line) {
-        this(category, line, null, null);
+        this(category, line, null, null, false, null);
     }
 
     Token(Atom category, int line, Term value, String text) {
+        this(category, line, value, text, false, null);
+    }
+
+    Token(Atom category, int line, Term value, String text, boolean generated) {
+        this(category, line, value, text, generated, null);
+    }
+
+    Token(Atom category, int line, Term value, String text, boolean generated,
+        String sourceText) {
         this.category = category;
         this.line = line;
         this.value = value;
         this.text = text;
+        this.generated = generated;
+        this.sourceText = sourceText;
     }
 
     public Atom category() {
@@ -79,8 +92,29 @@ public final class Token {
         return value.toString();
     }
 
+    public boolean generated() {
+        return generated;
+    }
+
+    /**
+     * The spelling of the macro argument this token came from, when the token
+     * has been forwarded through another macro. ??Arg uses this rather than
+     * the expanded tokens, so ?MODULE stays visible in the assertion text.
+     */
+    public String sourceText() {
+        return sourceText;
+    }
+
+    public Token withSourceText(String source) {
+        return new Token(category, line, value, text, generated, source);
+    }
+
     public Token withLine(int newLine) {
-        return new Token(category, newLine, value, text);
+        return new Token(category, newLine, value, text, generated, sourceText);
+    }
+
+    public Token asGenerated() {
+        return new Token(category, line, value, text, true, sourceText);
     }
 
     public Term toTerm() {

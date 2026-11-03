@@ -39,10 +39,10 @@ import org.jerlang.type.Integer;
  * is why a macro written on line two and used on line twenty produces tokens
  * on line twenty: the line belongs to the use, not the definition.
  *
- * Not implemented yet: -include_lib resolution and -file's generated
- * annotations. Both are named in the A3 gap list rather than approximated;
- * -include_lib needs OTP's library layout, and -file needs annotations on
- * tokens rather than plain line numbers.
+ * -include_lib is resolved against the application directories of each
+ * library root, the same layout OTP uses under lib: app-version/rest. The root
+ * is supplied by the caller because a compiler, unlike epp, has no code path
+ * of its own to consult.
  */
 public final class Preprocessor {
 
@@ -54,13 +54,19 @@ public final class Preprocessor {
     private static final Atom DOT = Atom.of("dot");
 
     private final List<String> includePath;
+    private final List<String> libraryPath;
+    private final int otpRelease;
     private final Map<String, Macro> macros = new LinkedHashMap<>();
+    private Atom functionName;
+    private int functionArity;
     private final List<List<Token>> forms = new ArrayList<>();
     private final Set<Path> open = new HashSet<>();
     private final Deque<String> files = new ArrayDeque<>();
 
-    private Preprocessor(List<String> includePath) {
+    private Preprocessor(List<String> includePath, List<String> libraryPath, int otpRelease) {
         this.includePath = includePath;
+        this.libraryPath = libraryPath;
+        this.otpRelease = otpRelease;
     }
 
     /**
@@ -72,7 +78,26 @@ public final class Preprocessor {
     }
 
     public static List<List<Token>> scanFile(Path file, List<String> includePath) throws IOException {
-        Preprocessor preprocessor = new Preprocessor(includePath);
+        return scanFile(file, includePath, Collections.emptyList());
+    }
+
+    /**
+     * Preprocess one source, resolving -include_lib against the application
+     * directories directly under each library root (usually OTP's lib).
+     */
+    public static List<List<Token>> scanFile(Path file, List<String> includePath,
+        List<String> libraryPath) throws IOException {
+        return scanFile(file, includePath, libraryPath, 0);
+    }
+
+    /**
+     * Preprocess with the OTP release the compiler is targeting. epp reports
+     * ?OTP_RELEASE as an integer, so the value is a compiler input, not a
+     * property of this source tree.
+     */
+    public static List<List<Token>> scanFile(Path file, List<String> includePath,
+        List<String> libraryPath, int otpRelease) throws IOException {
+        Preprocessor preprocessor = new Preprocessor(includePath, libraryPath, otpRelease);
         // epp records the name it was given, and the oracle is given absolute
         // paths. Resolving here keeps ?FILE and every -file form absolute even
         // when the caller passed a path relative to the working directory.
@@ -100,6 +125,7 @@ public final class Preprocessor {
             int offset = 0;
             int index = 0;
             boolean active = true;
+            String logical = fileName;
             Deque<Condition> conditions = new ArrayDeque<>();
 
             while (index < tokens.size()) {
@@ -109,6 +135,7 @@ public final class Preprocessor {
                 String directive = directive(form);
                 if (directive == null) {
                     if (active) {
+                        bindFunction(form);
                         forms.add(expand(form, 0));
                     }
                     continue;
@@ -126,14 +153,24 @@ public final class Preprocessor {
                     break;
                 case "include":
                     if (active) {
-                        include(form, file, tokens, index, offset, eofLine, crlf);
+                        include(form, file, tokens, index, offset, eofLine, crlf, false,
+                            logical);
                     }
                     break;
                 case "include_lib":
                     if (active) {
-                        throw error(form.get(0).line(), "-include_lib is not supported yet");
+                        include(form, file, tokens, index, offset, eofLine, crlf, true,
+                            logical);
                     }
                     break;
+                case "if": {
+                    Condition condition = new Condition();
+                    condition.parentActive = active;
+                    condition.condition = ifExpression(form);
+                    conditions.push(condition);
+                    active = active && condition.condition;
+                    break;
+                }
                 case "ifdef":
                 case "ifndef": {
                     Condition condition = new Condition();
@@ -163,10 +200,14 @@ public final class Preprocessor {
                     active = condition.parentActive;
                     break;
                 }
+                case "feature":
+                    // epp consumes -feature and emits no attribute form.
+                    break;
                 case "file":
                     if (active) {
-                        forms.add(expand(form, 0));
+                        forms.add(generated(expand(form, 0)));
                         offset = fileOffset(form, offset);
+                        logical = stringValue(form.get(3));
                     }
                     break;
                 case "module":
@@ -231,36 +272,60 @@ public final class Preprocessor {
             throw error(line, "expected , before the macro body");
         }
         List<Token> body = new ArrayList<>(form.subList(index + 1, form.size() - 2));
-        if (macros.containsKey(name)) {
-            throw error(line, "macro '" + name + "' is already defined");
-        }
-        macros.put(name, new Macro(name, parameters, body));
+        // epp permits a redefinition (it warns and uses the new body). This
+        // matters for headers that define a helper differently under
+        // alternative compiler options.
+        int arity = parameters == null ? -1 : parameters.size();
+        macros.put(macroKey(name, arity), new Macro(name, parameters, body));
     }
 
     private void undef(List<Token> form) {
         if (form.size() < 6 || !isName(form.get(3))) {
             throw error(form.get(0).line(), "malformed -undef");
         }
-        macros.remove(((Atom) form.get(3).value()).toString());
+        String name = ((Atom) form.get(3).value()).toString();
+        macros.keySet().removeIf(key -> belongsTo(key, name));
     }
 
     private void include(List<Token> form, Path file, List<Token> tokens, int next,
-        int offset, int eofLine, boolean crlf) throws IOException {
+        int offset, int eofLine, boolean crlf, boolean library, String logical)
+        throws IOException {
         if (form.size() < 6 || !form.get(3).category().equals(STRING)) {
             throw error(form.get(0).line(), "malformed -include");
         }
         String name = stringValue(form.get(3));
-        Path resolved = resolve(file, name, form.get(0).line());
+        Path resolved = library ? resolveLibrary(name, form.get(0).line())
+            : resolve(file, name, form.get(0).line());
         String included = includeDisplay(resolved);
         forms.add(fileForm(included, 1));
         process(resolved, included, false);
-        // epp leaves its location on the include line when the parent source
-        // uses CRLF, and on the line of the next token when it uses LF. That
-        // is a quirk of erl_scan's CRLF handling, but the -file form is part
-        // of the token stream, so it has to be reproduced.
-        int line = crlf ? form.get(0).line()
-            : next < tokens.size() ? tokens.get(next).line() + offset : eofLine + offset;
-        forms.add(fileForm(files.peek(), line));
+        // epp restores the parent location on the line immediately after the
+        // include directive, unless a trailing comment keeps the directive's
+        // line as the last token line. For CRLF sources erl_scan reports the
+        // directive line instead.
+        String parent = files.peek();
+        int directive = form.get(0).line() - offset;
+        boolean trailingComment = hasTrailingComment(file, directive);
+        int line = crlf || trailingComment ? directive : directive + 1;
+        forms.add(fileForm(parent, line));
+        if (offset != 0) {
+            forms.add(generated(fileForm(logical, line + offset, line, true)));
+        }
+    }
+
+    private static boolean hasTrailingComment(Path file, int line) {
+        try {
+            java.util.List<String> lines = java.nio.file.Files.readAllLines(file,
+                java.nio.charset.StandardCharsets.UTF_8);
+            if (line <= 0 || line > lines.size()) {
+                return false;
+            }
+            String text = lines.get(line - 1);
+            int dot = text.lastIndexOf('.');
+            return dot >= 0 && dot + 1 < text.length();
+        } catch (IOException ignored) {
+            return false;
+        }
     }
 
     private Path resolve(Path file, String name, int line) {
@@ -269,15 +334,53 @@ public final class Preprocessor {
             path = file.getParent().resolve(path);
         }
         if (Files.isRegularFile(path)) {
-            return path.normalize();
+            return path;
         }
         for (String directory : includePath) {
             Path candidate = Paths.get(directory).resolve(name);
             if (Files.isRegularFile(candidate)) {
-                return candidate.normalize();
+                return candidate;
             }
         }
         throw error(line, "cannot find include '" + name + "'");
+    }
+
+    /**
+     * An -include_lib name is App/Rest, and epp replaces App with the first
+     * App-* directory on the code path. Sorting makes the choice deterministic
+     * when a lib root holds more than one version.
+     */
+    private Path resolveLibrary(String name, int line) throws IOException {
+        int slash = name.indexOf('/');
+        if (slash <= 0 || slash == name.length() - 1) {
+            throw error(line, "malformed -include_lib '" + name + "'");
+        }
+        String app = name.substring(0, slash);
+        String rest = name.substring(slash + 1);
+        for (String root : libraryPath) {
+            Path directory = Paths.get(root);
+            Path exact = directory.resolve(app).resolve(rest);
+            if (Files.isRegularFile(exact)) {
+                return exact.normalize();
+            }
+            try (java.util.stream.Stream<Path> applications = Files.list(directory)) {
+                List<Path> candidates = applications
+                    .filter(Files::isDirectory)
+                    .filter(path -> path.getFileName().toString().startsWith(app + "-"))
+                    .sorted()
+                    .collect(java.util.stream.Collectors.toList());
+                for (Path candidate : candidates) {
+                    Path include = candidate.resolve(rest);
+                    if (Files.isRegularFile(include)) {
+                        return include.normalize();
+                    }
+                }
+            } catch (java.io.UncheckedIOException ignored) {
+                // A missing or unreadable root is just a miss; the error below
+                // names the include, which is what the source can act on.
+            }
+        }
+        throw error(line, "cannot find include_lib '" + name + "'");
     }
 
     private boolean condition(List<Token> form, boolean positive) {
@@ -288,8 +391,172 @@ public final class Preprocessor {
         if (!name.category().equals(ATOM) && !name.category().equals(VAR)) {
             throw error(form.get(0).line(), "-ifdef needs a macro name");
         }
-        boolean defined = macros.containsKey(((Atom) name.value()).toString());
+        boolean defined = isDefined(((Atom) name.value()).toString());
         return positive == defined;
+    }
+
+    private boolean ifExpression(List<Token> form) {
+        if (form.size() < 6 || !form.get(2).category().equals(Atom.of("("))) {
+            throw error(form.get(0).line(), "malformed -if");
+        }
+        List<Token> expression = new ArrayList<>(form.subList(3, form.size() - 2));
+        expression = expand(expression, 0);
+        IfParser parser = new IfParser(expression);
+        boolean value = parser.parseOr();
+        if (parser.index != expression.size()) {
+            throw error(form.get(0).line(), "unsupported -if expression");
+        }
+        return value;
+    }
+
+    private final class IfParser {
+
+        private final List<Token> tokens;
+        private int index;
+
+        IfParser(List<Token> tokens) {
+            this.tokens = tokens;
+        }
+
+        boolean parseOr() {
+            boolean value = parseAnd();
+            while (word("orelse")) {
+                index++;
+                boolean right = parseAnd();
+                value = value || right;
+            }
+            return value;
+        }
+
+        boolean parseAnd() {
+            boolean value = parseNot();
+            while (word("andalso")) {
+                index++;
+                boolean right = parseNot();
+                value = value && right;
+            }
+            return value;
+        }
+
+        boolean parseNot() {
+            if (word("not")) {
+                index++;
+                return !parseNot();
+            }
+            return parsePrimary();
+        }
+
+        boolean parsePrimary() {
+            if (index >= tokens.size()) {
+                throw error(0, "empty -if expression");
+            }
+            if (isSymbol(tokens.get(index), "(")) {
+                index++;
+                boolean value = parseOr();
+                if (index >= tokens.size() || !isSymbol(tokens.get(index), ")")) {
+                    throw error(tokens.get(index - 1).line(), "expected ) in -if");
+                }
+                index++;
+                return value;
+            }
+            Token token = tokens.get(index);
+            if (token.category().equals(ATOM)) {
+                String name = token.value().toString();
+                index++;
+                if (name.equals("true")) {
+                    return true;
+                }
+                if (name.equals("false")) {
+                    return false;
+                }
+                if (name.equals("defined")) {
+                    if (index >= tokens.size() || !isSymbol(tokens.get(index), "(")) {
+                        throw error(token.line(), "defined needs a macro name");
+                    }
+                    index++;
+                    if (index >= tokens.size() || !isName(tokens.get(index))) {
+                        throw error(token.line(), "defined needs a macro name");
+                    }
+                    String macro = ((Atom) tokens.get(index).value()).toString();
+                    index++;
+                    if (index >= tokens.size() || !isSymbol(tokens.get(index), ")")) {
+                        throw error(token.line(), "defined needs a closing parenthesis");
+                    }
+                    index++;
+                    return isDefined(macro);
+                }
+            }
+            throw error(token.line(), "unsupported -if expression");
+        }
+
+        private boolean word(String value) {
+            if (index >= tokens.size()) {
+                return false;
+            }
+            Token token = tokens.get(index);
+            String text = isName(token)
+                ? token.value().toString() : token.category().toString();
+            return text.equals(value);
+        }
+    }
+
+    /**
+     * ?FUNCTION_NAME and ?FUNCTION_ARITY belong to the function being scanned,
+     * not to a macro definition. A function form starts with its name and
+     * argument list; the first matching close parenthesis ends that head.
+     */
+    private void bindFunction(List<Token> form) {
+        if (form.size() < 4 || !form.get(0).category().equals(ATOM)
+            || !isSymbol(form.get(1), "(")) {
+            return;
+        }
+        int parens = 0;
+        int brackets = 0;
+        int braces = 0;
+        int binaries = 0;
+        int commas = 0;
+        boolean arguments = false;
+        boolean closed = false;
+        for (int index = 1; index < form.size(); index++) {
+            Token token = form.get(index);
+            if (isSymbol(token, ")")) {
+                if (parens == 1 && brackets == 0 && braces == 0 && binaries == 0) {
+                    closed = true;
+                    break;
+                }
+                parens--;
+                continue;
+            }
+            if (parens == 1 && brackets == 0 && braces == 0 && binaries == 0) {
+                if (isSymbol(token, ",")) {
+                    commas++;
+                } else {
+                    // A sole map, list, tuple, or binary argument has no atom
+                    // at the top level, but [] and #{} are still arguments.
+                    arguments = true;
+                }
+            }
+            if (isSymbol(token, "(")) {
+                parens++;
+            } else if (isSymbol(token, "[")) {
+                brackets++;
+            } else if (isSymbol(token, "]")) {
+                brackets--;
+            } else if (isSymbol(token, "{")) {
+                braces++;
+            } else if (isSymbol(token, "}")) {
+                braces--;
+            } else if (isSymbol(token, "<<")) {
+                binaries++;
+            } else if (isSymbol(token, ">>")) {
+                binaries--;
+            }
+        }
+        if (!closed) {
+            return;
+        }
+        functionName = (Atom) form.get(0).value();
+        functionArity = arguments ? commas + 1 : 0;
     }
 
     private void bindModule(List<Token> form) {
@@ -298,8 +565,10 @@ public final class Preprocessor {
             throw error(form.get(0).line(), "malformed -module");
         }
         Atom name = (Atom) form.get(3).value();
-        macros.put("MODULE", new Macro("MODULE", null,
+        macros.put(macroKey("MODULE", -1), new Macro("MODULE", null,
             Collections.singletonList(Token.of(ATOM, form.get(3).line(), name))));
+        macros.put(macroKey("MODULE_STRING", -1), new Macro("MODULE_STRING", null,
+            Collections.singletonList(Token.string(name.toString(), form.get(3).line()))));
     }
 
     private int fileOffset(List<Token> form, int offset) {
@@ -345,41 +614,69 @@ public final class Preprocessor {
                 index++;
                 continue;
             }
-            Macro macro = macros.get(name);
-            if (macro == null) {
-                throw error(line, "undefined macro '" + name + "'");
+            if (name.equals("FUNCTION_NAME")) {
+                if (functionName == null) {
+                    throw error(line, "?FUNCTION_NAME outside a function");
+                }
+                expanded.add(Token.of(ATOM, line, functionName));
+                index++;
+                continue;
+            }
+            if (name.equals("FUNCTION_ARITY")) {
+                if (functionName == null) {
+                    throw error(line, "?FUNCTION_ARITY outside a function");
+                }
+                expanded.add(Token.of(INTEGER, line, Integer.of(functionArity)));
+                index++;
+                continue;
+            }
+            if (name.equals("OTP_RELEASE")) {
+                if (otpRelease <= 0) {
+                    throw error(line, "?OTP_RELEASE needs a target release");
+                }
+                expanded.add(Token.of(INTEGER, line, Integer.of(otpRelease)));
+                index++;
+                continue;
             }
             int after = index + 2;
             boolean call = after < tokens.size() && isSymbol(tokens.get(after), "(");
-            if (macro.parameters() == null) {
-                if (call) {
-                    throw error(line, "macro '" + name + "' does not take arguments");
+            if (!call) {
+                Macro macro = macros.get(macroKey(name, -1));
+                if (macro == null) {
+                    throw error(line, "undefined macro '" + name + "'");
                 }
-                expanded.addAll(expand(substitute(macro, null, line), depth + 1));
+                expanded.addAll(expand(substitute(macro, null, null, line), depth + 1));
                 index = after - 1;
             } else {
-                if (!call) {
-                    throw error(line, "macro '" + name + "' needs arguments");
-                }
                 Arguments arguments = arguments(tokens, after, line);
-                if (arguments.arguments.size() != macro.parameters().size()) {
-                    throw error(line, "macro '" + name + "' expects "
-                        + macro.parameters().size() + " arguments, got "
-                        + arguments.arguments.size());
+                Macro macro = macros.get(macroKey(name, arguments.arguments.size()));
+                if (macro == null) {
+                    Macro object = macros.get(macroKey(name, -1));
+                    if (object != null) {
+                        // An object macro can expand to a callable expression;
+                        // epp leaves the following argument list in place.
+                        expanded.addAll(expand(substitute(object, null, null, line), depth + 1));
+                        index = after - 1;
+                        continue;
+                    }
+                    throw error(line, "undefined macro '" + name + "'");
                 }
                 List<List<Token>> values = new ArrayList<>();
                 for (List<Token> argument : arguments.arguments) {
                     values.add(expand(argument, depth + 1));
                 }
-                expanded.addAll(expand(substitute(macro, values, line), depth + 1));
+                expanded.addAll(expand(substitute(macro, values, arguments.arguments, line),
+                    depth + 1));
                 index = arguments.next - 1;
             }
         }
         return expanded;
     }
 
-    private List<Token> substitute(Macro macro, List<List<Token>> values, int line) {
+    private List<Token> substitute(Macro macro, List<List<Token>> values,
+        List<List<Token>> raw, int line) {
         List<Token> substituted = new ArrayList<>();
+        int currentLine = line;
         for (int index = 0; index < macro.body().size(); index++) {
             Token token = macro.body().get(index);
             if (isSymbol(token, "?") && index + 2 < macro.body().size()
@@ -390,18 +687,29 @@ public final class Preprocessor {
                 if (position < 0) {
                     throw error(line, "??" + parameter + " is not a macro parameter");
                 }
-                substituted.add(Token.string(join(values.get(position)), line));
+                List<Token> argument = values.get(position);
+                List<Token> source = raw == null ? argument : raw.get(position);
+                substituted.add(Token.string(spelling(source), currentLine));
                 index += 2;
                 continue;
             }
             if (macro.parameters() != null && token.category().equals(VAR)) {
                 int position = macro.parameters().indexOf(((Atom) token.value()).toString());
                 if (position >= 0) {
-                    substituted.addAll(values.get(position));
+                    List<Token> argument = values.get(position);
+                    String source = spelling(raw == null ? argument : raw.get(position));
+                    List<Token> marked = new ArrayList<>();
+                    for (Token value : argument) {
+                        marked.add(value.withSourceText(source));
+                    }
+                    substituted.addAll(marked);
+                    if (!argument.isEmpty()) {
+                        currentLine = argument.get(argument.size() - 1).line();
+                    }
                     continue;
                 }
             }
-            substituted.add(token.withLine(line));
+            substituted.add(token.withLine(currentLine));
         }
         return substituted;
     }
@@ -409,7 +717,11 @@ public final class Preprocessor {
     private Arguments arguments(List<Token> tokens, int open, int line) {
         List<List<Token>> arguments = new ArrayList<>();
         List<Token> current = new ArrayList<>();
-        int depth = 0;
+        int parens = 0;
+        int brackets = 0;
+        int braces = 0;
+        int binaries = 0;
+        int blocks = 0;
         int index = open + 1;
         if (index < tokens.size() && isSymbol(tokens.get(index), ")")) {
             return new Arguments(arguments, index + 1);
@@ -417,16 +729,44 @@ public final class Preprocessor {
         while (index < tokens.size()) {
             Token token = tokens.get(index);
             if (isSymbol(token, "(")) {
-                depth++;
+                parens++;
                 current.add(token);
             } else if (isSymbol(token, ")")) {
-                if (depth == 0) {
+                if (parens == 0 && brackets == 0 && braces == 0 && binaries == 0
+                    && blocks == 0) {
                     arguments.add(current);
                     return new Arguments(arguments, index + 1);
                 }
-                depth--;
+                parens--;
                 current.add(token);
-            } else if (isSymbol(token, ",") && depth == 0) {
+            } else if (isSymbol(token, "[")) {
+                brackets++;
+                current.add(token);
+            } else if (isSymbol(token, "]")) {
+                brackets--;
+                current.add(token);
+            } else if (isSymbol(token, "{")) {
+                braces++;
+                current.add(token);
+            } else if (isSymbol(token, "}")) {
+                braces--;
+                current.add(token);
+            } else if (isSymbol(token, "<<")) {
+                binaries++;
+                current.add(token);
+            } else if (isSymbol(token, ">>")) {
+                binaries--;
+                current.add(token);
+            } else if (isBlockEnd(token)) {
+                if (blocks > 0) {
+                    blocks--;
+                }
+                current.add(token);
+            } else if (isBlockStart(token) || isAnonymousFun(tokens, index)) {
+                blocks++;
+                current.add(token);
+            } else if (isSymbol(token, ",") && parens == 0 && brackets == 0
+                && braces == 0 && binaries == 0 && blocks == 0) {
                 arguments.add(current);
                 current = new ArrayList<>();
             } else {
@@ -469,12 +809,51 @@ public final class Preprocessor {
         return token.category().equals(Atom.of(name));
     }
 
+    private static boolean isBlockStart(Token token) {
+        return isSymbol(token, "begin") || isSymbol(token, "case")
+            || isSymbol(token, "if") || isSymbol(token, "receive")
+            || isSymbol(token, "try") || isSymbol(token, "maybe")
+            || isSymbol(token, "cond") || isSymbol(token, "let");
+    }
+
+    private static boolean isBlockEnd(Token token) {
+        return isSymbol(token, "end");
+    }
+
+    private static boolean isAnonymousFun(List<Token> tokens, int index) {
+        if (!isSymbol(tokens.get(index), "fun") || index + 1 >= tokens.size()) {
+            return false;
+        }
+        if (isSymbol(tokens.get(index + 1), "(")) {
+            return true;
+        }
+        return isName(tokens.get(index + 1)) && index + 2 < tokens.size()
+            && isSymbol(tokens.get(index + 2), "(");
+    }
+
     /**
      * A macro is named by a variable or an atom: -define(MODULE, ...) and
      * -define(module, ...) are both legal, and ?MODULE names the first.
      */
     private static boolean isName(Token token) {
         return token.category().equals(ATOM) || token.category().equals(VAR);
+    }
+
+    private static String macroKey(String name, int arity) {
+        return name + "/" + arity;
+    }
+
+    private static boolean belongsTo(String key, String name) {
+        return key.startsWith(name + "/");
+    }
+
+    private boolean isDefined(String name) {
+        for (String key : macros.keySet()) {
+            if (belongsTo(key, name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String currentFile() {
@@ -523,28 +902,80 @@ public final class Preprocessor {
         return value.toString();
     }
 
+    /**
+     * The source spelling of an argument. Tokens forwarded through a macro
+     * carry the spelling of the argument they originally came from.
+     */
+    private static String spelling(List<Token> tokens) {
+        StringBuilder text = new StringBuilder();
+        for (int index = 0; index < tokens.size();) {
+            Token token = tokens.get(index);
+            String part;
+            if (token.sourceText() != null) {
+                part = token.sourceText();
+                String source = part;
+                index++;
+                while (index < tokens.size()
+                    && source.equals(tokens.get(index).sourceText())) {
+                    index++;
+                }
+            } else {
+                part = token.category().equals(INTEGER)
+                    ? token.value().toString() : token.text();
+                index++;
+            }
+            if (text.length() > 0) {
+                text.append(' ');
+            }
+            text.append(part);
+        }
+        return text.toString();
+    }
+
     private static String join(List<Token> tokens) {
         StringBuilder text = new StringBuilder();
         for (Token token : tokens) {
             if (text.length() > 0) {
                 text.append(' ');
             }
-            text.append(token.text());
+            text.append(token.category().equals(INTEGER)
+                ? token.value().toString() : token.text());
         }
         return text.toString();
     }
 
+    private static List<Token> shift(List<Token> tokens, int delta) {
+        List<Token> shifted = new ArrayList<>();
+        for (Token token : tokens) {
+            shifted.add(token.withLine(token.line() + delta));
+        }
+        return shifted;
+    }
+
+    private static List<Token> generated(List<Token> tokens) {
+        List<Token> marked = new ArrayList<>();
+        for (Token token : tokens) {
+            marked.add(token.asGenerated());
+        }
+        return marked;
+    }
+
     private static List<Token> fileForm(String file, int line) {
+        return fileForm(file, line, line, false);
+    }
+
+    private static List<Token> fileForm(String file, int line, int annotationLine,
+        boolean generated) {
         List<Token> form = new ArrayList<>();
-        form.add(symbol("-", line));
-        form.add(atom("file", line));
-        form.add(symbol("(", line));
-        form.add(Token.string(file, line));
-        form.add(symbol(",", line));
-        form.add(Token.of(INTEGER, line, Integer.of(line)));
-        form.add(symbol(")", line));
-        form.add(Token.of(DOT, line));
-        return form;
+        form.add(symbol("-", annotationLine));
+        form.add(atom("file", annotationLine));
+        form.add(symbol("(", annotationLine));
+        form.add(Token.string(file, annotationLine));
+        form.add(symbol(",", annotationLine));
+        form.add(Token.of(INTEGER, annotationLine, Integer.of(line)));
+        form.add(symbol(")", annotationLine));
+        form.add(Token.of(DOT, annotationLine));
+        return generated ? generated(form) : form;
     }
 
     private static Token symbol(String name, int line) {

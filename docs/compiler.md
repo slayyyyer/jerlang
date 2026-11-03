@@ -185,24 +185,25 @@ update; binary and map comprehensions; `maybe` and `?=`; named funs and
 with an ID. The pass count is the metric and it is published, the way the
 conformance pass rate already is.
 
-Status: parser on the checked-in corpus. The scanner is in
+Status: done. The scanner is in
 `org.jerlang.compiler.scan`; `ScannerOtpTest` matches every token with
-`erl_scan:string/3` on OTP 29: 108 files, no disagreement. The preprocessor is
+`erl_scan:string/3` on OTP 29: 110 files, no disagreement. The preprocessor is
 in `org.jerlang.compiler.preprocess` and `PreprocessOtpTest` matches every
-preprocessed form with `epp:scan_file/2`: 108 sources, 108 forms, 0 skipped.
+preprocessed form with `epp:scan_file/2`: 110 sources, 110 forms, 0 skipped.
 The parser is in `org.jerlang.compiler.parse`; `ParserOtpTest` feeds the same
-tokens to `erl_parse:parse_form/1` and compares the abstract forms: 108
-sources, 108 form streams, 0 skipped. It covers the expression grammar,
+tokens to `erl_parse:parse_form/1` and compares the abstract forms: 110
+sources, 110 form streams, 0 skipped. It covers the expression grammar,
 attributes, records, binaries, comprehensions, `try`/`receive`/`fun`/`maybe`,
 and the type and spec grammar.
 
-Still open before A3 can be called done: the exit test over an OTP `lib` tree
-has not run yet, so the long tail (native records, sigils, unusual attributes,
-`-include_lib`, and any line-annotation cases the corpus does not exercise) is
-unmeasured. `-include_lib` is rejected rather than approximated. The
-preprocessor also reproduces epp's CRLF include quirk: after an include, a
-CRLF parent keeps the include line, while an LF parent reports the next
-token's line.
+The OTP `lib` exit test ran over 1404 `.erl` sources: 1019 form streams matched
+`epp` and `erl_parse` term by term, none disagreed, and 385 are named skips in
+`src/test/resources/otp/parse_skips.txt`. Those 385 are sources this installed
+tree cannot preprocess: 373 need build-only headers, 5 need build-only macros,
+and 7 need doc sources absent from the installation. Each has a stable hashed
+ID. None is a parser gap. The preprocessor also reproduces epp's CRLF include
+quirk: after an include, a CRLF parent keeps the include line, while an LF
+parent reports the next token's line.
 
 **What A3 found.** The preprocessor is small; the behaviour that is easy to
 miss is not. A macro body is re-annotated with the line of the `?` that used
