@@ -63,7 +63,8 @@ public class CodegenInterpreterTest {
             "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1,",
             "         len/1, greet/0, reverse/1, is_hello/1, classify/1, pick/1,",
             "         sign/1, alt/1, no_case/1, no_if/0, make_map/1, map_a/1,",
-            "         map_other/0, map_value/1, safe/1, safe_of/1, uncaught/1, risky/1]).",
+            "         map_other/0, map_value/1, safe/1, safe_of/1, uncaught/1, risky/1,",
+            "         logic/2, negate/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -119,7 +120,9 @@ public class CodegenInterpreterTest {
             "    end.",
             "risky(0) -> throw(zero);",
             "risky(1) -> error(badarg);",
-            "risky(X) -> X."), StandardCharsets.UTF_8);
+            "risky(X) -> X.",
+            "logic(A, B) -> {A andalso B, A orelse B}.",
+            "negate(X) -> -X."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         Path beam = directory.resolve("codegen_sample.beam");
@@ -180,6 +183,15 @@ public class CodegenInterpreterTest {
             apply(module, "safe_of", 1, Integer.ZERO));
         assertEquals(Atom.of("badarg"), apply(module, "safe_of", 1, Integer.ONE));
         assertError(module, "uncaught", 1, Atom.of("zero"), Integer.ZERO);
+        assertEquals(org.jerlang.type.Tuple.of(Atom.of("false"), Atom.of("true")),
+            apply(module, "logic", 2, Atom.of("true"), Atom.of("false")));
+        assertEquals(org.jerlang.type.Tuple.of(Atom.of("false"), Atom.of("true")),
+            apply(module, "logic", 2, Atom.of("false"), Atom.of("true")));
+        assertEquals(org.jerlang.type.Tuple.of(Atom.of("x"), Atom.of("true")),
+            apply(module, "logic", 2, Atom.of("true"), Atom.of("x")));
+        assertEquals(org.jerlang.type.Tuple.of(Atom.of("false"), Atom.of("x")),
+            apply(module, "logic", 2, Atom.of("false"), Atom.of("x")));
+        assertEquals(Integer.of(-3), apply(module, "negate", 1, Integer.of(3)));
         try {
             apply(module, "only_zero", 1, Integer.of(1));
             fail("expected function_clause");

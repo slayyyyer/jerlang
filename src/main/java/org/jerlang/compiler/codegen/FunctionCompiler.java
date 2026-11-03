@@ -400,7 +400,7 @@ final class FunctionCompiler {
         case "match":
             return bind(tuple.element(3), value(tuple.element(4)));
         case "op":
-            return arithmetic(tuple);
+            return operator(tuple);
         case "call":
             return call(tuple);
         case "block":
@@ -745,8 +745,57 @@ final class FunctionCompiler {
         return destination;
     }
 
-    private Term arithmetic(Tuple tuple) {
+    private Term operator(Tuple tuple) {
         String operator = tuple.element(3).toAtom().toString();
+        if (operator.equals("andalso") || operator.equals("orelse")) {
+            return logical(tuple, operator.equals("andalso"));
+        }
+        if (tuple.arity() == 4) {
+            return unary(operator, tuple);
+        }
+        return arithmetic(operator, tuple);
+    }
+
+    private Term logical(Tuple tuple, boolean andAlso) {
+        Term left = value(tuple.element(4));
+        int rightLabel = label();
+        int badarg = label();
+        int end = label();
+        Term result = newY();
+        Term shortCircuit = atom(Atom.of(andAlso ? "false" : "true"));
+        emit(Opcode.is_boolean, f(badarg), left);
+        // `test` jumps on failure: a non-matching value must evaluate the right side.
+        emit(Opcode.is_eq_exact, f(rightLabel), left, shortCircuit);
+        emit(Opcode.move, shortCircuit, result);
+        emit(Opcode.jump, f(end));
+
+        emit(Opcode.label, Integer.of(rightLabel));
+        Term right = value(tuple.element(5));
+        emit(Opcode.move, right, result);
+        emit(Opcode.jump, f(end));
+
+        emit(Opcode.label, Integer.of(badarg));
+        int error = module.importIndex(Atom.of("erlang"), Atom.of("error"), 1);
+        emit(Opcode.move, atom(Atom.of("badarg")), x(0));
+        emit(Opcode.call_ext, Integer.of(1), Integer.of(error));
+        emit(Opcode.label, Integer.of(end));
+        return result;
+    }
+
+    private Term unary(String operator, Tuple tuple) {
+        if (!operator.equals("+") && !operator.equals("-")) {
+            throw unsupported("unary operator " + operator);
+        }
+        Term operand = value(tuple.element(4));
+        int importIndex = module.importIndex(Atom.of(operator), 2);
+        emit(Opcode.gc_bif2, f(0), Integer.of(0), Integer.of(importIndex),
+            integer(org.jerlang.type.Integer.ZERO), operand, x(0));
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
+    }
+
+    private Term arithmetic(String operator, Tuple tuple) {
         if (!isArithmetic(operator)) {
             throw unsupported("operator " + operator);
         }

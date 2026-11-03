@@ -271,7 +271,8 @@ Status: in progress. The first vertical slice emits a complete BEAM container
 for functions, clauses, literal patterns (integer, atom, tuple, list, string,
 map and `nil`), guard sequences and alternatives, arithmetic BIFs, auto-imported
 BIFs, local and remote calls, tuple/list/string/map construction, `case`/`if`,
-and `try ... of ... catch` without `after`. Remote calls go through `ImpT` and
+`try ... of ... catch` without `after`, short-circuit `andalso`/`orelse`, and
+unary `+`/`-`. Remote calls go through `ImpT` and
 `call_ext`; maps start from `maps:new/0` and update with `put_map_assoc`. Values
 that survive a call are kept in Y registers; every operation result gets a
 fresh Y slot, and X registers are used only for arguments and BIF results.
@@ -283,9 +284,10 @@ Two end-to-end tests consume the same file through independent paths.
 `CodegenOtpTest` writes a module and asks OTP 29 to load it and call exported
 functions: recursion, guards, tuple/list/string/map construction, list/string/
 map patterns, case/if branches, guard alternatives, local and remote calls,
-try/catch and try/of/catch error and throw paths, and unmatched function/case/if
-expressions (which must raise `function_clause`, `case_clause` and `if_clause`)
-all agree with `erlc` behaviour.
+try/catch and try/of/catch error and throw paths, short-circuit booleans,
+unary arithmetic, and unmatched function/case/if expressions (which must raise
+`function_clause`, `case_clause` and `if_clause`) all agree with `erlc`
+behaviour.
 `CodegenInterpreterTest` loads that file through `ModuleLoader`, registers it,
 and makes the same calls through JErlang. Both are green as of 2026-11-03.
 
@@ -306,7 +308,10 @@ the runtime helper prepends, so map update and `get_map_elements` operand
 pairs must be reversed before encoding or the map is built with the wrong
 keys. Auto-imported BIF names such as `throw/1` and `error/1` must become
 `call_ext` to `erlang`, not local calls; the code generator uses the same OTP
-29 table as the linter.
+29 table as the linter. A fourth trap is the `f` operand of a `test`
+instruction: it is the failure target, not the success target. Putting the
+short-circuit result there inverted every `andalso`/`orelse`; the direct truth
+table through OTP exposed it before the tests were accepted.
 
 **Exit test:** recompile the checked-in corpus with JErlang, run the existing
 suite against the recompiled modules, and diff behaviour against the `erlc`
