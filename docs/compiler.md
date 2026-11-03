@@ -271,7 +271,7 @@ Status: in progress. The first vertical slice emits a complete BEAM container
 for functions, clauses, literal patterns (integer, atom, tuple, list, string,
 map and `nil`), guard sequences and alternatives, arithmetic BIFs, auto-imported
 BIFs, local and remote calls, tuple/list/string/map construction, `case`/`if`,
-`try ... of ... catch` without `after`, short-circuit `andalso`/`orelse`, and
+`try ... of ... catch` with or without `after`, short-circuit `andalso`/`orelse`, and
 unary `+`/`-`. Remote calls go through `ImpT` and
 `call_ext`; maps start from `maps:new/0` and update with `put_map_assoc`. Values
 that survive a call are kept in Y registers; every operation result gets a
