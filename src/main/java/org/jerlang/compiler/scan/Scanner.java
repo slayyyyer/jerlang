@@ -64,6 +64,7 @@ public final class Scanner {
     private final List<Token> tokens;
     private int index;
     private int line;
+    private int tokenStart;
 
     private Scanner(String source) {
         this.source = source;
@@ -78,6 +79,7 @@ public final class Scanner {
 
     private List<Token> run() {
         while (index < source.length()) {
+            tokenStart = index;
             char character = source.charAt(index);
             if (character == '\n') {
                 line++;
@@ -423,11 +425,11 @@ public final class Scanner {
     }
 
     private void add(Atom category, int startLine) {
-        tokens.add(new Token(category, startLine));
+        tokens.add(new Token(category, startLine, null, source.substring(tokenStart, index)));
     }
 
     private void add(Atom category, int startLine, Term value) {
-        tokens.add(new Token(category, startLine, value));
+        tokens.add(new Token(category, startLine, value, source.substring(tokenStart, index)));
     }
 
     private ScanException error(String message) {

@@ -185,7 +185,30 @@ update; binary and map comprehensions; `maybe` and `?=`; named funs and
 with an ID. The pass count is the metric and it is published, the way the
 conformance pass rate already is.
 
-Status: started. The scanner is in `org.jerlang.compiler.scan`. Tokens have the shape `erl_scan` gives them, categories and line annotations included, and `ScannerOtpTest` compares every token of the 105 checked-in sources with `erl_scan:string/3` on OTP 29: 105 files, no disagreement. Sigils are the one OTP 27 token form not implemented yet, and a tilde outside a string is an error rather than a guess; no checked-in source uses one. Next is `epp`, which has to expand macros, resolve includes and emit the `{attribute,_,file,_}` forms, then the parser, compared with `epp:parse_file/1` term by term.
+Status: front half. The scanner is in `org.jerlang.compiler.scan`. Tokens have
+the shape `erl_scan` gives them, categories and line annotations included, and
+`ScannerOtpTest` compares every token of the checked-in sources with
+`erl_scan:string/3` on OTP 29: 108 files, no disagreement. The preprocessor is
+in `org.jerlang.compiler.preprocess`: `-define` and `-undef`, parameterized
+macros, `??Arg` stringification, `?MODULE`/`?FILE`/`?LINE`, `-include`, nested
+`-ifdef`/`-ifndef`/`-else`/`-endif`, and the leading and include-surrounding
+`-file` forms. `PreprocessOtpTest` compares every form with `epp:scan_file/2`
+on OTP 29: 108 sources, 108 forms, 0 skipped. Gaps are named rather than
+approximated: `-include_lib` resolution, the generated annotations `epp` puts
+on a `-file` directive, and sigils. No checked-in source uses the first two,
+and a tilde outside a string is an error. Next is the parser, compared with
+`epp:parse_file/1` term by term.
+
+**What A3 found.** The preprocessor is small; the behaviour that is easy to
+miss is not. A macro body is re-annotated with the line of the `?` that used
+it, not the line it was written on, or every warning inside a macro points at
+the header. Macro names are variables as well as atoms, so `?MODULE` is a
+`var` token named `MODULE` and a table keyed only by atom finds nothing.
+`??Arg` is the argument's tokens joined with one space, each written as it
+appeared, quotes included. Finally, `filename:join/2` lowercases the drive
+letter on Windows, so epp's include `-file` name starts `c:/` even when the
+source path started `C:/`; matching it is part of the token stream, not
+politeness.
 
 ### A4 — Lint: accept what `erlc` accepts
 

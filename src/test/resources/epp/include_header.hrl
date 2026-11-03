@@ -1,0 +1,2 @@
+-define(HEADER_VALUE, 40).
+-define(HEADER_FUN(A), A + 2).
