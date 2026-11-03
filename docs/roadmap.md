@@ -52,7 +52,9 @@ Explicit non-goals for 1.0:
   code is the replacement for NIFs; bridging to OpenSSL is a separate project.
 * Hot code upgrade and OTP release handling.
 * `global` name registration and multi-node `global` locks.
-* Bytecode compilation as a prerequisite for correctness.
+* Bytecode compilation as a prerequisite for correctness. That boundary holds
+  for the 1.x line; 2.0 adds a compiler as a separate track, planned in
+  [compiler.md](compiler.md).
 
 ## Milestones
 
@@ -382,3 +384,15 @@ credible story; if it does not, the gaps are known and finite.
   says so in [release.md](release.md).
 * **Hot upgrade.** Deferred, and should be stated as such; production users who
   need it are not served by this runtime yet.
+
+## 2.0 — compiling Erlang source
+
+1.x reads what `erlc` produces. 2.0 adds the other half: an Erlang source
+compiler that emits standard OTP 29 `.beam` files, so a JVM-only deployment
+does not need an Erlang installation to build its own modules, and the
+interpreter gets a second, independent reader of the format it already parses.
+
+The plan, its milestones, its definition of "BEAM compatible" and the
+agent-adjusted estimates are in [compiler.md](compiler.md). Nothing in that
+track is a prerequisite for a 1.x release, and the 1.x compatibility bar is
+unchanged.

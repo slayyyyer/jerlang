@@ -1,0 +1,364 @@
+# Compiling Erlang source to BEAM
+
+1.x reads the `.beam` files that `erlc` produces. 2.0 is the version where
+JErlang also produces them: an Erlang source compiler that emits standard OTP
+29 `.beam` files, so a JVM-only deployment does not need an Erlang installation
+to build its own modules.
+
+This document is the plan for that work. It is written to be executed by
+agents, so it records the decisions that would otherwise be re-litigated in
+every session, and it defines done as an executable check rather than a
+judgement. It describes work on the `v2.0.0-alpha` branch.
+
+## Two things called a compiler
+
+They are not the same project and only one is in scope:
+
+* **Source to BEAM** — the subject of this document. JErlang becomes a
+  toolchain, and the interpreter gains a second, independent implementation of
+  the format it already parses.
+* **BEAM to JVM bytecode** — a JIT. This was the original roadmap's "0.5
+  Compiler", deferred because nothing measured the interpreter as too slow and
+  because it freezes semantics work. It is still deferred; it is performance
+  work, not compatibility work, and it is tracked separately.
+
+## Definition of done
+
+"BEAM compatible" here means exactly these, in this order. Anything weaker is a
+disassembler, not a compiler.
+
+1. `beam_lib:chunks/2` on OTP 29 accepts the file.
+2. `code:load_binary/3` on a real OTP 29 node loads it without an error.
+3. A module built by JErlang behaves like the same module built by `erlc`:
+   same exports, same return values, same `try`/`catch` classes and reasons.
+4. Stacktraces name the same file, line, function and arity.
+5. `beam_lib:md5/1` of the file agrees with the digest the compiler records for
+   its own funs, so a `fun` created in a JErlang-compiled module survives a
+   round trip through distribution and `term_to_binary`.
+6. JErlang itself loads and runs the file. The interpreter is the second
+   consumer and a regression net, never the judge of correctness.
+
+**Byte-identical output is not a goal.** Matching `erlc` byte for byte would
+mean reimplementing `beam_ssa_opt` exactly, for no semantic gain. Semantic
+equivalence plus OTP acceptance is the bar, and any deviation from it is a bug.
+
+## What already exists
+
+The output half of a compiler is largely specified by code that reads the
+format, which is why the first milestone is cheap.
+
+| Component | Where | What it gives the compiler |
+|---|---|---|
+| Opcode table | `src/main/java/org/jerlang/Opcode.java` | All 191 numbers from `genop.tab` with declared arity, which is the table the emitter indexes. |
+| Operand codec, decode direction | `AbstractReader.decodeArg`, `InstructionReader` | The packed small/11-bit/27-bit integer forms, `a` as a 1-based atom index with 0 meaning `nil`, and the `z` extended forms (inline list, float register, allocation list, literal index, typed register, float). The encoder is its inverse. |
+| Chunk readers | `src/main/java/org/jerlang/stdlib/beam_lib/*ChunkReader.java` | One reader per chunk: `Atom`/`AtU8` (including OTP 28's negative count and compact lengths), `Attr`, `CInf`, `Code`, `ExpT`, `FunT`, `ImpT`, `Line`, `LitT`, `LocT`, `StrT`, `Abst`. Each one is the writer's specification. |
+| Term encoding | `ExternalTermWriter` | Literal table terms, and the `Abst` chunk, which is term-encoded abstract forms. |
+| Fun digest | `BeamLibMD5`, `ChunkId.sortOrder` | The `beam_lib:md5/1` digest and the chunk ordering it depends on. Emitting a wrong digest makes every fun in the module fail with `badfun` on a peer. |
+| Loader and model | `ModuleLoader.loadBeamData`, `BeamData`, `Module` | A read path from file to instructions that the assembler and the disassembler both build on. |
+| Conformance harness | `ConformanceReport`, `PassRateTest`, `src/test/erl/corpus` | The classification and skip-list pattern the compiler's harness should copy. |
+
+## What does not exist
+
+* **No writer of any kind.** There is no `*Writer` in `beam_lib`, no IFF
+  container writer, and no instruction encoder. This is the whole of milestone
+  A1.
+* **No carrier for unknown chunks.** `BeamLibInfo` drops every chunk whose
+  `ChunkId.skip()` is true (`Dbgi`, `Meta`, `Type`, the HiPE chunks), and
+  `BeamData` has no field for them. A round trip of any real OTP file will
+  therefore lose bytes and the md5 will not match until `BeamData` (or a
+  writer-only carrier) holds those chunks as opaque payloads. Do this first;
+  the exit test finds it immediately otherwise.
+* **No front end.** There is no scanner, preprocessor, parser, abstract format,
+  or linter: a search for `Lexer|Parser|Scanner|Ast|ErlParser` finds nothing.
+  This is milestones A3 and A4, and most of the work.
+* **No command.** There is no `jerlc`, no `JerlangCompiler` entry point and no
+  `-o`/`-I`/`-D` option handling.
+
+## Pipeline and where the code goes
+
+```
+.erl source
+   |  scan          org.jerlang.compiler.scan
+   |  preprocess    org.jerlang.compiler.preprocess   (-define, -include, -ifdef)
+   v  parse         org.jerlang.compiler.parse        -> erl_parse abstract forms
+ forms
+   |  lint          org.jerlang.compiler.lint         -> errors, warnings
+   |  codegen       org.jerlang.compiler.codegen      -> instructions + tables
+   v  emit          org.jerlang.stdlib.beam_lib       -> .beam bytes
+.beam
+```
+
+Format code stays in `org.jerlang.stdlib.beam_lib`, next to the readers it
+mirrors, so a reader and its writer are always edited together. Compiler logic
+lives in the new `org.jerlang.compiler` package. That package is public API, so
+it lands on 2.0.0 and not before.
+
+The abstract format is the internal IR, not a hand-rolled node hierarchy: it is
+documented, stable, what OTP's own back end consumes, and it makes "is my
+parser right" a term-by-term diff against `erl_parse:parse_form/1` instead of a
+judgement call.
+
+Core Erlang is skipped in the first cut. Abstract forms go to instructions
+directly. That is defensible because the interpreter does not care how the
+module was optimized, and it avoids implementing a full intermediate language
+before anything runs. Revisit only if a correctness problem turns out to need
+it.
+
+## Milestones
+
+Each milestone has one exit test, and it is done when that test runs in CI. The
+existing roadmap's discipline applies unchanged.
+
+### A1 — Assembler: read a `.beam`, write it back
+
+Scope: IFF container (`FOR1`, length, `BEAM`, 4-byte-aligned chunks with the
+`ChunkId.sortOrder` order), one writer per chunk, the inverse operand encoder,
+opaque pass-through for skipped chunks, and the fun digest.
+
+**Exit test:** for every module in a checked-in corpus of files built by OTP
+29.1.2, the re-emitted file has the same `beam_lib:md5/1`, and a real OTP node
+loads and runs it. Corpus targets the 1366 modules of an OTP installation,
+filtered only by "the reader can load it today".
+
+This is the highest-value milestone in the plan: it forces the container, atom
+table, literal table, line table, lambda table and operand encoding to be right,
+needs no parser, and its oracle is a single hash comparison that cannot be
+argued with.
+
+### A2 — Disassembler
+
+Scope: `.beam` to a textual assembly form and back. Purpose is a debuggable IR
+and golden files, so a codegen bug shows up as a diff instead of a mystery.
+
+**Exit test:** round trip to byte-identical output for the corpus, and every
+disassembly is a stable checked-in fixture.
+
+### A3 — Front end: source to abstract forms
+
+Scope, in this order: scanner; preprocessor; parser; `-file` and line
+annotation parity.
+
+Traps worth naming up front, because each one is a session of its own: OTP 27+
+tokens (numeric separators, sigils, triple-quoted strings); macro arity,
+`??Arg` stringification, `-include_lib` resolution and `-feature`; the
+`{attribute,_,file,_}` and `{eof,_}` forms `epp` emits; ten operator precedence
+levels; guards in every clause position; record access, update and nested
+update; binary and map comprehensions; `maybe` and `?=`; named funs and
+`fun M:F/A`.
+
+**Exit test:** for every `.erl` under an OTP `lib` tree, the forms match
+`erl_parse:parse_form/1` term by term, or the case is in a checked-in skip list
+with an ID. The pass count is the metric and it is published, the way the
+conformance pass rate already is.
+
+### A4 — Lint: accept what `erlc` accepts
+
+Scope: unsafe variables across clauses and branches, unbound variables in
+patterns, illegal guard expressions, duplicate map keys, ambiguous binary
+patterns, `-export` of a missing function, arity and redefinition conflicts,
+and the warnings that make a build noisy in practice (unused, shadowed).
+
+This is the step that is routinely underestimated: the bar is not "compiles",
+it is "accepts and rejects exactly what `erlc` does". Every deviation gets a
+documented line in this file, not a silent pass.
+
+**Exit test:** a two-column table over the corpus (accepted, rejected) that
+matches `erlc`'s verdict on every file, plus `-Werror` behaviour on the warning
+cases.
+
+### A5 — Codegen: abstract forms to instructions
+
+Scope: an assembly IR, label allocation, X/Y register allocation from liveness,
+guard chains and fail labels, `func_info` entry labels for `function_clause`,
+`try`/`catch`/`try_case`/`raise`/`build_stacktrace`, one and several `receive`
+blocks with the 28+ markers, binary matching as `bs_start_match3/4` plus a
+`bs_match` command list, `bs_create_bin` with string segments as `StrT`
+offsets, `make_fun3` with its lambda table and free-variable list, and line
+tables.
+
+The traps that produce wrong answers rather than crashes: a value live across a
+call must be in a Y register or it is clobbered; a fun's `OldUniq` must be zero
+before the digest is taken; a `string` segment is an offset, not inline bytes.
+
+**Exit test:** recompile the checked-in corpus with JErlang, run the existing
+suite against the recompiled modules, and diff behaviour against the `erlc`
+build. Then the strong form of the same test: the `otp` CI job compiles
+`gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and `code` with
+JErlang and boots them.
+
+### A6 — Command and surface
+
+Scope: `jerlang compile` (or `jerlc`), `-o`, `-I`, `-pa`, `-D`, `-W`,
+`+term` options, `.hrl` includes, a public `org.jerlang.compiler.Compiler`
+entry point, and documentation in `getting-started.md`.
+
+2.0.0 is the release that may break API, so this is also where `Instruction`,
+`Opcode.arity()` and `ModuleLoader` get reshaped if the emitter wants them
+different. After 2.0.0 the `japicmp` gate freezes them again.
+
+**Exit test:** CI compiles the corpus with the shipped command and no `erlc` on
+the machine, then runs the suite.
+
+## Timeline, re-estimated for agent execution
+
+The human estimate for A1–A6 was 9–15 months. Agents change the shape of that,
+not just its size, because the work splits cleanly into two kinds.
+
+| Milestone | Human | Agent | Why the ratio differs |
+|---|---|---|---|
+| A1 assembler | 1–2 months | 2–3 weeks | Pure transcription: every writer has a reader next to it, and the oracle is one hash comparison. |
+| A2 disassembler | ~1 month | 4–6 days | Little ambiguity, golden files, no semantics. |
+| A3 front end | 4–5 months | 6–9 weeks | Large but mechanical, parallelizable, and `erl_parse` gives a term-exact oracle. `epp` is the long tail. |
+| A4 lint | included above | 3–5 weeks | A large set of small independent rules, each with a `erlc` verdict to match. |
+| A5 codegen | 6–9 months | 3–4 months | Judgment per failure: every bug is a semantics question and the oracle (does OTP boot it) is slow. |
+| A6 command | 1–2 months | 2–3 weeks | Plumbing. |
+| **Total** | **9–15 months** | **4.5–6 months** | |
+
+In agent terms that is roughly 110–150 agent-days of active work, and 4.5–6
+months of calendar time with one workstream. Two workstreams can overlap after
+A1 lands — back end (A2, then the emitters) and front end (A3, A4) are
+independent until A5 — which buys maybe three to four weeks of wall clock, not
+half the schedule, because A5 is on the critical path and cannot be split far
+without integration cost.
+
+The line count does not explain the schedule. A1–A6 is roughly 25–35k lines,
+which at a few thousand verified lines a day is two to three weeks of writing.
+The other four and a half months are oracles: building them, waiting on them,
+and reading their failures.
+
+### What gets faster, and what does not
+
+Faster than the human estimate, by a lot, when the oracle is exact and offline:
+
+* Transcription of a format that another file in the same package already
+  reads. A1 is the extreme case.
+* Breadth with no coupling: 60 token kinds, 120 productions, 80 lint rules.
+  These parallelize across sessions and do not need one author's mental model.
+* Test scaffolding, fixtures, golden files, skip lists, CI wiring.
+* The edit-compile-test loop itself, which is where most human time goes on
+  mechanical code.
+
+Roughly the human speed, or worse, where the work is judgement:
+
+* Register allocation, guard chains, `try` and `receive` shapes. A plausible
+  wrong answer passes a smoke test and fails two hundred modules later.
+* `epp` corner cases where OTP's behaviour is arguably a bug and the plan has
+  to say whether to match it. Agents pick the locally reasonable option unless
+  the document decides first, which is what this document is for.
+* Debugging across layers: a wrong atom index manifests three subsystems away.
+* Review. Volume of generated code outruns what review absorbs, and the failure
+  mode is silent divergence rather than a slow build.
+
+### Rules that keep the estimate true
+
+1. **Oracle first.** The first commit of every milestone is its harness, not its
+   feature. A milestone with no oracle is a milestone with no schedule.
+2. **Check in the fixtures.** The corpus of `erlc`-built `.beam` files lives in
+   the repository, so the assembler oracle is offline, deterministic and runs
+   in seconds. Anything that needs a live OTP install stays in the nightly
+   `otp` job, not in the inner loop.
+3. **Asymmetric oracles only.** Never validate a writer with its own reader, or
+   a parser with its own printer. The oracle is an `erlc` build, a real OTP
+   node, or OTP's own output, every time. A round trip through code the same
+   session wrote proves nothing and is the most likely way this plan produces a
+   compiler that only agrees with itself.
+4. **Skip lists, not silence.** Every unfixed case is a named entry with an ID
+   and a reason, counted in the exit test. Progress is a number that moves.
+5. **No milestone without a CI job.** A check that only runs on a developer's
+   machine is not an exit test.
+
+### How the work is cut for agents
+
+A work item is one milestone row that can be finished and verified in a single
+session: a chunk writer, one `epp` directive, one lint rule, one instruction
+shape. Larger than that and the session ends with half a subsystem and no green
+test; smaller and the harness costs more than the change.
+
+Every item follows the same contract:
+
+* **Read the exit test first.** If it does not exist yet, writing it is the
+  item.
+* **Land the oracle with the feature**, in the same commit. A feature whose
+  check arrives later is a feature of unknown correctness.
+* **Record the gaps.** Every case the item does not handle becomes a skip-list
+  entry with an ID, or a line in this document. A silently skipped case is a
+  false pass, and false passes are what make the schedule meaningless.
+* **Never weaken a check to finish.** No skipped test, no relaxed assertion, no
+  suppressed warning, no `catch` added to turn a failure green. If the check
+  itself is wrong, fix it in its own commit and say why in the message.
+
+After A1 the work splits into two tracks that touch different files:
+
+| Track | Milestones | Owns |
+|---|---|---|
+| Back end | A2, then the emitters for A5 | `org.jerlang.stdlib.beam_lib`, `org.jerlang.compiler.codegen` |
+| Front end | A3, A4 | `org.jerlang.compiler.scan`, `.preprocess`, `.parse`, `.lint` |
+
+`BeamData` and `Instruction` are shared by both. A1 changes both, so those
+changes land before the split; afterwards an edit to either is a coordination
+point rather than a local choice.
+
+Review, by a person or by a separate review pass with the exit test in hand, is
+the gate rather than the writing. A change that cannot be shown to match OTP's
+behaviour is rejected even when its tests pass. That is deliberately slower than
+merging, because a compiler that agrees only with itself is worse than none.
+
+## Decisions to pin now
+
+These are the choices that would otherwise be made differently in each session:
+
+* **Target OTP 29 formats only.** `AtU8` atoms with compact lengths, uncompressed
+  `LitT`, the lambda table in `FunT`, `make_fun3`. Declare the maximum opcode the
+  emitter actually uses, so an older runtime can still load a simple module.
+* **No optimization pass.** Emit straightforward code. `beam_ssa_opt` parity is
+  explicitly out of scope, and any time spent there is time not spent on A5.
+* **Parse transforms are unsupported in the first cut**, with a clear compile
+  error naming the transform. Running them inside JErlang is feasible precisely
+  because the runtime can execute `erl_syntax`-style code, but it is a stretch
+  goal after A5, not a dependency of it.
+* **Native records are gated on the runtime.** The compiler may only emit the
+  native-record opcodes once the data type exists; today constructing one raises
+  a named error by design.
+* **`-spec`, `-type`, `-callback` are stored, not checked.** `dialyzer` is not
+  in scope.
+* **Version.** `pom.xml` stays at 1.1.0 until `org.jerlang.compiler` becomes
+  public, then moves to 2.0.0-SNAPSHOT. The `japicmp` baseline is refreshed at
+  release, per `docs/release.md`. No session bumps the version on its own.
+
+## Non-goals
+
+Unchanged from 1.x: no NIFs, no hot code upgrade, no OTP release handling, no
+`global`, no TLS distribution. Added for 2.0: no byte-identical output, no type
+checker, no Elixir support, no BEAM-to-JVM JIT, and no compiler feature that
+exists only to make the compiler's own tests pass.
+
+## Risks
+
+* **The `epp` long tail.** Includes, macro arity and `-if` arithmetic are where
+  a front end appears finished long before it is. Budget for it in A3 and keep
+  the acceptance number visible.
+* **X/Y register bugs.** They do not crash; they return garbage under load. The
+  only defence is the corpus, which is why A5's exit test recompiles and runs
+  everything rather than a handful of modules.
+* **Fun identity.** A wrong `OldUniq` or digest ordering shows up as `badfun`
+  over distribution, far from the cause. A1 proves the digest before any fun is
+  generated, which is the cheap order.
+* **Lint scope creep.** `erl_lint` is large. Match the corpus and the common
+  warnings, publish the deviations, and do not chase exotic diagnostics.
+* **Implementation-mirroring tests.** The specific failure mode of agent-written
+  compilers: tests that assert what the code does rather than what OTP does.
+  Rule 3 exists for this.
+* **Documentation drift.** Every decision made mid-milestone goes into this file
+  in the same commit. Otherwise the next session re-derives it differently.
+
+## Working on this branch
+
+* Branch: `v2.0.0-alpha`. Nothing here ships until 2.0.0.
+* Build and test: `mvn -B test`. A single milestone's tests should be runnable
+  with `-Dtest=...` and stay under two minutes.
+* Format code goes in `org.jerlang.stdlib.beam_lib`; compiler code goes in
+  `org.jerlang.compiler`. Tests mirror the package, as they already do.
+* Comments follow `CODE.md`: brackets always, AsciiDoc-style blocks, and a
+  comment explains why the code is shaped that way, not what the next line does.
+* Update this document in the same commit as the decision it records. A
+  milestone's status line changes only when its exit test is green in CI.

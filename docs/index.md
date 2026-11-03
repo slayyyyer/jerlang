@@ -91,3 +91,5 @@ the one remaining language-feature gap (native records).
 - **[Benchmarks](benchmarks.md)** — measured against BEAM on the same machine.
 - **[Roadmap](roadmap.md)** — milestones, and what was dropped from the original
   plan and why.
+- **[Compiling Erlang](compiler.md)** — the 2.0 plan for emitting `.beam` files
+  from Erlang source, and what it costs.
