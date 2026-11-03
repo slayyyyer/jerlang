@@ -51,7 +51,11 @@ public class AtomChunkReader extends AbstractChunkReader<AtomChunk> {
                 ? Atom.of(new String(bytes, StandardCharsets.UTF_8))
                 : Atom.of(bytes));
         }
-        read1Byte(); // null byte
+        // The table ends where the count says it ends. The reader used to read
+        // one more byte here, which never failed because the loader hands it a
+        // stream over the whole file rather than over the chunk: the byte it
+        // consumed belonged to the next chunk id. Assembling needs the real
+        // length, so the read is gone and the chunk ends with the last atom.
         return atomChunk;
     }
 

@@ -138,16 +138,22 @@ tests green.
 | A1.6 | `FunT` lambda table, including `OldUniq` | Byte identity, and `beam_lib:md5/1` unchanged with `FunT` re-encoded |
 | A1.7 | `Line`: filename table and the `a`/`i` items | Byte identity for modules with line information |
 | A1.8 | `Code`: header, instruction stream, and the operand tags and widths the decoder currently discards | `beam_lib:md5/1` identity for the whole corpus with `Code` re-encoded |
-| A1.9 | Corpus and CI gate | A job that asserts md5 identity over the checked-in fixtures and loads the re-emitted files on OTP 29 |
+| A1.9 | Corpus and CI gate | A job that asserts md5 identity over the checked-in fixtures and loads the re-emitted files on OTP 29. The md5 gate is `BeamAssemblerTest`; the OTP load is still to run, see the status line |
 
-Status: A1.1 is done; `BeamFileRoundTripTest` re-emits all 104 checked-in fixtures byte for byte, the 53 gzip-wrapped ones after decompression. A1.2 is next.
+Status: A1 is done. The four A1 tests re-emit all 104 fixtures with the same `beam_lib:md5/1`, re-encode every operand in the corpus, and write the atoms, the tables, `FunT`, `Line` and `Code` back byte for byte. `LitT`, `Attr`, `CInf` and `Abst` are carried unchanged; the reasons are under "What A1 found". The OTP 29 load check has not been run, because there is no Erlang installation on this machine. A2 is next.
 
-A1.1 and A1.8 are the two that carry risk. A1.1 because `Meta` is part of the
-digest, so a writer that drops the chunks the loader ignores produces a
-different module identity; A1.8 because `AbstractReader.decodeArg` returns a
-`Term` and not the bytes it read, so the original tag and width of an operand do
-not survive decoding. A1.2 decides whether that gap can be closed by encoding
-canonically or needs the decoder to retain the encoding.
+A1.1 and A1.8 were the two that carried risk, and both landed as expected. A1.1 because `Meta` is part of the digest, so a writer that drops the chunks the loader ignores produces a different module identity; A1.8 because `AbstractReader.decodeArg` returned a `Term` and not the bytes it read, so the original tag and width of an operand did not survive decoding. A1.2 answered that question: the decoder has to keep the encoding. Two operand kinds lose more than the width, which no canonical encoder can recover: a literal operand decodes to the literal itself, so its index into the literal table is gone, and a typed register decodes to the register, so its type is gone.
+
+### What A1 found
+
+Four things about the format are not visible in the loader, and all four were found by comparing the writers against the corpus:
+
+* The atom table has no terminator. The reader used to read one byte past the last atom and never failed, because the loader gives each reader a stream over the whole file, so the byte it took was the next chunk id. A writer that did not know this grew the chunk by one byte.
+* `Attr`, `CInf` and `Abst` cannot be re-encoded yet. The compiler writes atoms as `ATOM_EXT` with a two byte length; `ExternalTermWriter` writes `SMALL_ATOM_UTF8_EXT` with a one byte length. A 40 byte `Attr` chunk came back as 39.
+* A map keeps its pair order on the wire and `Map` does not. A literal `#{a := 10, b := 2}` came back as `#{b := 2, a := 10}`: the same term, different bytes. This is what blocks `LitT` even where it is uncompressed, and it is a decision for A5: the compiler needs a map that keeps insertion order, or literal order has to be chosen and never re-derived.
+* `LocalFunctionTableChunk.locals()` returns its records reversed, because `List.of` prepends. That is harmless to the loader and fatal to a writer; `records()` returns file order.
+
+The lesson is the shape of the milestone rather than the four bugs: a writer is only correct when it is compared with a file it did not produce. Every one of these would have passed a test that only loads the module.
 
 ### A2 — Disassembler
 

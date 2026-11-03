@@ -48,12 +48,14 @@ public class LineTableChunkReader extends AbstractChunkReader<LineTableChunk> {
         // not an index into the atom chunk.
         int[] filenameIndexes = new int[lineTableChunk.records().length];
         int[] lineNumbers = new int[lineTableChunk.records().length];
+        boolean[] explicitFilename = new boolean[lineTableChunk.records().length];
         int filenameIndex = 0;
 
         for (int index = 0; index < lineTableChunk.records().length; index++) {
             int b = read1Byte();
             if (OpcodeTag.decode(b) == OpcodeTag.a) {
                 filenameIndex = decodeInt(b).toInt();
+                explicitFilename[index] = true;
                 b = read1Byte();
             }
             filenameIndexes[index] = filenameIndex;
@@ -74,7 +76,8 @@ public class LineTableChunkReader extends AbstractChunkReader<LineTableChunk> {
             Atom filename = fname < fnames.length && fnames[fname] != null
                 ? Atom.of(fnames[fname].string())
                 : module;
-            lineTableChunk.records()[index] = new LineRecord(filename, lineNumbers[index]);
+            lineTableChunk.records()[index] = new LineRecord(filename, lineNumbers[index],
+                filenameIndexes[index], explicitFilename[index]);
         }
 
         return lineTableChunk;
