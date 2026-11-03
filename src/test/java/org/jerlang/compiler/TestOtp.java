@@ -28,6 +28,16 @@ public final class TestOtp {
         return Files.isRegularFile(escript) ? escript : null;
     }
 
+    public static Path erlc() {
+        Path erl = erl();
+        if (erl == null) {
+            return null;
+        }
+        Path erlc = erl.resolveSibling(erl.getFileName().toString()
+            .replace("erl", "erlc"));
+        return Files.isRegularFile(erlc) ? erlc : null;
+    }
+
     public static Path erl() {
         Path configured = usable(System.getenv("ERL"));
         if (configured != null) {

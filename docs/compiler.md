@@ -227,6 +227,12 @@ This is the step that is routinely underestimated: the bar is not "compiles",
 it is "accepts and rejects exactly what `erlc` does". Every deviation gets a
 documented line in this file, not a silent pass.
 
+Status: started. `org.jerlang.compiler.lint` indexes module forms and reports
+duplicate definitions, undefined exports, unused local functions and
+`export_all`. `LinterOtpTest` compares the accepted/rejected verdict and
+`-Werror` outcome with `erlc` on a starter table. Expression flow, guards,
+maps and binaries are still open, so A4 is not done.
+
 **Exit test:** a two-column table over the corpus (accepted, rejected) that
 matches `erlc`'s verdict on every file, plus `-Werror` behaviour on the warning
 cases.
