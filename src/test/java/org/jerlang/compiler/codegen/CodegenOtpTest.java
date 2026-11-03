@@ -41,7 +41,8 @@ public class CodegenOtpTest {
             "         len/1, greet/0, reverse/1, is_hello/1, classify/1, pick/1,",
             "         sign/1, alt/1, no_case/1, no_if/0, make_map/1, map_a/1,",
             "         map_other/0, map_value/1, safe/1, safe_of/1, uncaught/1, risky/1,",
-            "         logic/2, negate/1]).",
+            "         logic/2, negate/1, after_value/1, after_error/1, after_throw/1,",
+            "         after_catch/1, after_catch_error/1, after_no_of/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -99,69 +100,95 @@ public class CodegenOtpTest {
             "risky(1) -> error(badarg);",
             "risky(X) -> X.",
             "logic(A, B) -> {A andalso B, A orelse B}.",
-            "negate(X) -> -X."), StandardCharsets.UTF_8);
+            "negate(X) -> -X.",
+            "after_value(X) ->",
+            "    put(after_ran, false),",
+            "    V = try risky(X) after put(after_ran, true) end,",
+            "    {V, get(after_ran)}.",
+            "after_error(X) ->",
+            "    put(after_ran, false),",
+            "    try try risky(X) after put(after_ran, true) end",
+            "    catch error:badarg -> get(after_ran) end.",
+            "after_throw(X) ->",
+            "    put(after_ran, false),",
+            "    try try risky(X) after put(after_ran, true) end",
+            "    catch throw:zero -> get(after_ran) end.",
+            "after_catch(X) ->",
+            "    put(after_ran, false),",
+            "    {try risky(X) catch error:badarg -> caught",
+            "     after put(after_ran, true) end, get(after_ran)}.",
+            "after_catch_error(X) ->",
+            "    put(after_ran, false),",
+            "    try",
+            "        try risky(X) catch error:_ -> error(caught_error)",
+            "        after put(after_ran, true) end",
+            "    catch error:caught_error -> get(after_ran) end.",
+            "after_no_of(X) ->",
+            "    put(after_ran, false),",
+            "    try",
+            "        try risky(X) of only_zero -> ok",
+            "        after put(after_ran, true) end",
+            "    catch error:{try_clause, _} -> get(after_ran) end."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         byte[] beam = Codegen.compile(forms);
         Path beamFile = directory.resolve("codegen_sample.beam");
         Files.write(beamFile, beam);
 
-        String expression = "erlang:display(["
-            + "codegen_sample:add(2, 3), "
-            + "codegen_sample:answer(), "
-            + "codegen_sample:fact(5), "
-            + "codegen_sample:choose(1), "
-            + "codegen_sample:choose(0), "
-            + "codegen_sample:pair(7), "
-            + "codegen_sample:len([a, b, c]), "
-            + "codegen_sample:len([]), "
-            + "codegen_sample:greet(), "
-            + "codegen_sample:reverse([1, 2, 3]), "
-            + "codegen_sample:is_hello([104, 101, 108, 108, 111]), "
-            + "codegen_sample:is_hello([98, 121, 101]), "
-            + "codegen_sample:classify(0), "
-            + "codegen_sample:classify(2), "
-            + "codegen_sample:classify(-1), "
-            + "codegen_sample:pick(1), "
-            + "codegen_sample:pick(2), "
-            + "codegen_sample:sign(1), "
-            + "codegen_sample:sign(-1), "
-            + "codegen_sample:sign(0), "
-            + "codegen_sample:alt(1), "
-            + "codegen_sample:alt(3), "
-            + "try codegen_sample:no_case(other) catch error:{case_clause, other} -> case_clause end, "
-            + "try codegen_sample:no_if() catch error:if_clause -> if_clause end, "
-            + "maps:get(a, codegen_sample:make_map(1)), "
-            + "maps:get(b, codegen_sample:make_map(1)), "
-            + "maps:get(a, codegen_sample:map_a(codegen_sample:make_map(1))), "
-            + "codegen_sample:map_value(codegen_sample:make_map(7)), "
-            + "codegen_sample:map_value(codegen_sample:map_other()), "
-            + "codegen_sample:safe(0), "
-            + "codegen_sample:safe(1), "
-            + "codegen_sample:safe(2), "
-            + "codegen_sample:safe_of(2), "
-            + "codegen_sample:safe_of(0), "
-            + "codegen_sample:safe_of(1), "
-            + "try codegen_sample:uncaught(0) catch throw:zero -> zero end, "
-            + "codegen_sample:logic(true, false), "
-            + "codegen_sample:logic(false, true), "
-            + "codegen_sample:logic(true, x), "
-            + "codegen_sample:logic(false, x), "
-            + "codegen_sample:negate(3), "
-            + "try codegen_sample:only_zero(1) catch error:function_clause -> function_clause end]), halt().";
-        ProcessBuilder builder = new ProcessBuilder(erl.toString(), "-noshell",
-            "-pa", directory.toAbsolutePath().toString(), "-eval", expression);
-        builder.redirectErrorStream(true);
-        Process process = builder.start();
-        String output = new String(process.getInputStream().readAllBytes(),
-            StandardCharsets.UTF_8).replace("\r\n", "\n");
-        assertTrue("OTP did not finish: " + output, process.waitFor(60, TimeUnit.SECONDS));
-        assertEquals(output, 0, process.exitValue());
-        assertEquals("[5,42,120,positive,other,{7,answer},3,0,\"hello\",[3,2,1],true,false,"
-            + "zero,positive,negative,one,other,positive,negative,zero,small,other,"
-            + "case_clause,if_clause,1,2,3,7,none,{throw,zero},{error,badarg},2,"
-            + "{ok,2},{thrown,zero},badarg,zero,{false,true},{false,true},{x,true},"
-            + "{false,x},-3,function_clause]\n", output);
+        String[] groups = {
+            "codegen_sample:add(2, 3), codegen_sample:answer(), codegen_sample:fact(5), "
+                + "codegen_sample:choose(1), codegen_sample:choose(0), codegen_sample:pair(7)",
+            "codegen_sample:len([a, b, c]), codegen_sample:len([]), codegen_sample:greet(), "
+                + "codegen_sample:reverse([1, 2, 3]), "
+                + "codegen_sample:is_hello([104, 101, 108, 108, 111]), "
+                + "codegen_sample:is_hello([98, 121, 101])",
+            "codegen_sample:classify(0), codegen_sample:classify(2), "
+                + "codegen_sample:classify(-1), codegen_sample:pick(1), codegen_sample:pick(2), "
+                + "codegen_sample:sign(1), codegen_sample:sign(-1), codegen_sample:sign(0), "
+                + "codegen_sample:alt(1), codegen_sample:alt(3)",
+            "try codegen_sample:no_case(other) catch error:{case_clause, other} -> case_clause end",
+            "try codegen_sample:no_if() catch error:if_clause -> if_clause end",
+            "maps:get(a, codegen_sample:make_map(1)), "
+                + "maps:get(b, codegen_sample:make_map(1)), "
+                + "maps:get(a, codegen_sample:map_a(codegen_sample:make_map(1))), "
+                + "codegen_sample:map_value(codegen_sample:make_map(7)), "
+                + "codegen_sample:map_value(codegen_sample:map_other())",
+            "codegen_sample:safe(0), codegen_sample:safe(1), codegen_sample:safe(2), "
+                + "codegen_sample:safe_of(2), codegen_sample:safe_of(0), codegen_sample:safe_of(1)",
+            "try codegen_sample:uncaught(0) catch throw:zero -> zero end",
+            "codegen_sample:logic(true, false), codegen_sample:logic(false, true), "
+                + "codegen_sample:logic(true, x), codegen_sample:logic(false, x), "
+                + "codegen_sample:negate(3)",
+            "codegen_sample:after_value(2), codegen_sample:after_error(1), "
+                + "codegen_sample:after_throw(0), codegen_sample:after_catch(1), "
+                + "codegen_sample:after_catch_error(1), codegen_sample:after_no_of(2)",
+            "try codegen_sample:only_zero(1) catch error:function_clause -> function_clause end"
+        };
+        StringBuilder output = new StringBuilder();
+        for (String group : groups) {
+            String expression = "erlang:display([" + group + "]), halt().";
+            ProcessBuilder builder = new ProcessBuilder(erl.toString(), "-noshell",
+                "-pa", directory.toAbsolutePath().toString(), "-eval", expression);
+            builder.redirectErrorStream(true);
+            Process process = builder.start();
+            String part = new String(process.getInputStream().readAllBytes(),
+                StandardCharsets.UTF_8).replace("\r\n", "\n");
+            assertTrue("OTP did not finish: " + part,
+                process.waitFor(60, TimeUnit.SECONDS));
+            assertEquals(part, 0, process.exitValue());
+            output.append(part);
+        }
+        assertEquals("[5,42,120,positive,other,{7,answer}]\n"
+            + "[3,0,\"hello\",[3,2,1],true,false]\n"
+            + "[zero,positive,negative,one,other,positive,negative,zero,small,other]\n"
+            + "[case_clause]\n"
+            + "[if_clause]\n"
+            + "[1,2,3,7,none]\n"
+            + "[{throw,zero},{error,badarg},2,{ok,2},{thrown,zero},badarg]\n"
+            + "[zero]\n"
+            + "[{false,true},{false,true},{x,true},{false,x},-3]\n"
+            + "[{2,true},true,true,{caught,true},true,true]\n"
+            + "[function_clause]\n", output.toString());
         assertTrue("the generated file was not recognized as a module",
             Files.size(beamFile) > 100);
     }

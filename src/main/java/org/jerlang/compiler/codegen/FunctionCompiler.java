@@ -28,15 +28,20 @@ final class FunctionCompiler {
     private final java.util.List<Instruction> code;
     private final Map<Atom, Term> variables = new HashMap<>();
     private final int frameSize;
+    private final int handlerCount;
     private int nextY;
+    private int nextHandlerY;
 
     FunctionCompiler(ModuleCompiler module, ModuleCompiler.FunctionDef function,
         java.util.List<Instruction> code) {
         this.module = module;
         this.function = function;
         this.code = code;
-        this.frameSize = function.arity + 8 + countNodes(function.clauses);
-        this.nextY = function.arity;
+        int handlers = 2 * countTryNodes(function.clauses);
+        this.handlerCount = handlers;
+        this.frameSize = function.arity + 8 + countNodes(function.clauses) + handlers;
+        this.nextY = function.arity + handlers;
+        this.nextHandlerY = function.arity + handlers - 1;
     }
 
     void compile() {
@@ -47,6 +52,14 @@ final class FunctionCompiler {
         emit(Opcode.allocate, Integer.of(frameSize), Integer.of(function.arity));
         for (int argument = 0; argument < function.arity; argument++) {
             emit(Opcode.move, x(argument), y(argument));
+        }
+        if (handlerCount > 0) {
+            List initialized = List.nil;
+            for (int register = function.arity + handlerCount - 1;
+                register >= function.arity; register--) {
+                initialized = new List(y(register), initialized);
+            }
+            emit(Opcode.init_yregs, initialized);
         }
 
         for (int index = 0; index < function.clauses.length(); index++) {
@@ -589,16 +602,17 @@ final class FunctionCompiler {
         List ofClauses = expression.element(4).toList();
         List catchClauses = expression.element(5).toList();
         List after = expression.element(6).toList();
-        if (after != List.nil) {
-            throw unsupported("try with an after clause");
-        }
-        if (catchClauses == List.nil) {
-            throw unsupported("try without a catch clause");
+        boolean hasCatch = catchClauses != List.nil;
+        boolean hasAfter = after != List.nil;
+        if (!hasCatch && !hasAfter) {
+            throw unsupported("try without a catch or after clause");
         }
 
-        int catchLabel = label();
+        int catchLabel = hasCatch ? label() : 0;
         int end = label();
-        int rethrow = label();
+        int completed = hasAfter ? label() : end;
+        int afterException = hasAfter ? label() : 0;
+        int rethrow = hasCatch ? label() : 0;
         int count = catchClauses.length();
         int[] starts = new int[count];
         for (int index = 0; index < count; index++) {
@@ -610,15 +624,26 @@ final class FunctionCompiler {
             ofStarts[index] = label();
         }
 
-        Term handler = newY();
         Term result = newY();
         Map<Atom, Term> outside = new HashMap<>(variables);
-        emit(Opcode._try, handler, f(catchLabel));
+        Term afterHandler = null;
+        if (hasAfter) {
+            afterHandler = newHandlerY();
+            emit(Opcode._try, afterHandler, f(afterException));
+        }
+
+        Term handler = null;
+        if (hasCatch) {
+            handler = newHandlerY();
+            emit(Opcode._try, handler, f(catchLabel));
+        }
         Term bodyResult = bodyValue(body);
-        emit(Opcode.try_end, handler);
+        if (hasCatch) {
+            emit(Opcode.try_end, handler);
+        }
         if (ofClauses == List.nil) {
             emit(Opcode.move, bodyResult, result);
-            emit(Opcode.jump, f(end));
+            emit(Opcode.jump, f(completed));
         } else {
             Map<Atom, Term> ofOutside = new HashMap<>(variables);
             int ofIndex = 0;
@@ -638,7 +663,7 @@ final class FunctionCompiler {
                 compileGuards(clause.element(4).toList(), fail);
                 Term branchResult = bodyValue(clause.element(5).toList());
                 emit(Opcode.move, branchResult, result);
-                emit(Opcode.jump, f(end));
+                emit(Opcode.jump, f(completed));
                 ofIndex++;
                 ofCursor = ofCursor.tail();
             }
@@ -646,46 +671,74 @@ final class FunctionCompiler {
             emit(Opcode.try_case_end, bodyResult);
         }
 
-        emit(Opcode.label, Integer.of(catchLabel));
-        emit(Opcode.try_case, handler);
-        Term exceptionClass = newY();
-        Term reason = newY();
-        Term stacktrace = newY();
-        emit(Opcode.move, x(0), exceptionClass);
-        emit(Opcode.move, x(1), reason);
-        emit(Opcode.move, x(2), stacktrace);
-        Term exception = newY();
-        emit(Opcode.put_tuple2, exception,
-            new List(exceptionClass, new List(reason, new List(stacktrace, List.nil))));
+        if (hasCatch) {
+            emit(Opcode.label, Integer.of(catchLabel));
+            emit(Opcode.try_case, handler);
+            Term exceptionClass = newY();
+            Term reason = newY();
+            Term stacktrace = newY();
+            emit(Opcode.move, x(0), exceptionClass);
+            emit(Opcode.move, x(1), reason);
+            emit(Opcode.move, x(2), stacktrace);
+            Term exception = newY();
+            emit(Opcode.put_tuple2, exception,
+                new List(exceptionClass, new List(reason, new List(stacktrace, List.nil))));
 
-        int index = 0;
-        List cursor = catchClauses;
-        while (cursor != List.nil) {
-            Tuple clause = cursor.head().toTuple();
-            emit(Opcode.label, Integer.of(starts[index]));
-            variables.clear();
-            variables.putAll(outside);
-            int fail = index + 1 < count ? starts[index + 1] : rethrow;
-            List patterns = clause.element(3).toList();
-            if (patterns.length() != 1) {
-                throw unsupported("catch clause with " + patterns.length() + " patterns");
+            int index = 0;
+            List cursor = catchClauses;
+            while (cursor != List.nil) {
+                Tuple clause = cursor.head().toTuple();
+                emit(Opcode.label, Integer.of(starts[index]));
+                variables.clear();
+                variables.putAll(outside);
+                int fail = index + 1 < count ? starts[index + 1] : rethrow;
+                List patterns = clause.element(3).toList();
+                if (patterns.length() != 1) {
+                    throw unsupported("catch clause with " + patterns.length() + " patterns");
+                }
+                bindPattern(patterns.head(), exception, fail);
+                compileGuards(clause.element(4).toList(), fail);
+                Term branchResult = bodyValue(clause.element(5).toList());
+                emit(Opcode.move, branchResult, result);
+                emit(Opcode.jump, f(completed));
+                index++;
+                cursor = cursor.tail();
             }
-            bindPattern(patterns.head(), exception, fail);
-            compileGuards(clause.element(4).toList(), fail);
-            Term branchResult = bodyValue(clause.element(5).toList());
-            emit(Opcode.move, branchResult, result);
-            emit(Opcode.jump, f(end));
-            index++;
-            cursor = cursor.tail();
+
+            emit(Opcode.label, Integer.of(rethrow));
+            emit(Opcode.move, exceptionClass, x(0));
+            emit(Opcode.raise, stacktrace, reason);
         }
 
-        emit(Opcode.label, Integer.of(rethrow));
-        emit(Opcode.move, exceptionClass, x(0));
-        emit(Opcode.raise, stacktrace, reason);
+        if (hasAfter) {
+            emit(Opcode.label, Integer.of(completed));
+            emit(Opcode.try_end, afterHandler);
+            compileAfter(after, outside);
+            emit(Opcode.jump, f(end));
+
+            emit(Opcode.label, Integer.of(afterException));
+            emit(Opcode.try_case, afterHandler);
+            Term exceptionClass = newY();
+            Term reason = newY();
+            Term stacktrace = newY();
+            emit(Opcode.move, x(0), exceptionClass);
+            emit(Opcode.move, x(1), reason);
+            emit(Opcode.move, x(2), stacktrace);
+            compileAfter(after, outside);
+            emit(Opcode.move, exceptionClass, x(0));
+            emit(Opcode.raise, stacktrace, reason);
+        }
+
         emit(Opcode.label, Integer.of(end));
         variables.clear();
         variables.putAll(outside);
         return result;
+    }
+
+    private void compileAfter(List after, Map<Atom, Term> outside) {
+        variables.clear();
+        variables.putAll(outside);
+        bodyValue(after);
     }
 
     private Map<Atom, Term> allocateJoins(List clauses, Map<Atom, Term> outside) {
@@ -888,6 +941,13 @@ final class FunctionCompiler {
         return y(nextY++);
     }
 
+    private Term newHandlerY() {
+        if (nextHandlerY < function.arity) {
+            throw new CodegenException("function " + function + " needs more handler Y registers");
+        }
+        return y(nextHandlerY--);
+    }
+
     private void emit(Opcode opcode, Term... arguments) {
         code.add(new Instruction(code.size(), opcode, arguments));
     }
@@ -958,6 +1018,31 @@ final class FunctionCompiler {
                 list = list.tail();
             }
         }
+    }
+
+    private static int countTryNodes(List list) {
+        int count = 0;
+        while (list != List.nil) {
+            count += countTryNodes(list.head());
+            list = list.tail();
+        }
+        return count;
+    }
+
+    private static int countTryNodes(Term term) {
+        int count = 0;
+        if (term instanceof Tuple) {
+            Tuple tuple = term.toTuple();
+            if (is(tuple, "try")) {
+                count++;
+            }
+            for (int index = 1; index <= tuple.arity(); index++) {
+                count += countTryNodes(tuple.element(index));
+            }
+        } else if (term instanceof List) {
+            count += countTryNodes((List) term);
+        }
+        return count;
     }
 
     private static int countNodes(List list) {

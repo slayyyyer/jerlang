@@ -64,7 +64,8 @@ public class CodegenInterpreterTest {
             "         len/1, greet/0, reverse/1, is_hello/1, classify/1, pick/1,",
             "         sign/1, alt/1, no_case/1, no_if/0, make_map/1, map_a/1,",
             "         map_other/0, map_value/1, safe/1, safe_of/1, uncaught/1, risky/1,",
-            "         logic/2, negate/1]).",
+            "         logic/2, negate/1, after_value/1, after_error/1, after_throw/1,",
+            "         after_catch/1, after_catch_error/1, after_no_of/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -122,7 +123,35 @@ public class CodegenInterpreterTest {
             "risky(1) -> error(badarg);",
             "risky(X) -> X.",
             "logic(A, B) -> {A andalso B, A orelse B}.",
-            "negate(X) -> -X."), StandardCharsets.UTF_8);
+            "negate(X) -> -X.",
+            "after_value(X) ->",
+            "    put(after_ran, false),",
+            "    V = try risky(X) after put(after_ran, true) end,",
+            "    {V, get(after_ran)}.",
+            "after_error(X) ->",
+            "    put(after_ran, false),",
+            "    try try risky(X) after put(after_ran, true) end",
+            "    catch error:badarg -> get(after_ran) end.",
+            "after_throw(X) ->",
+            "    put(after_ran, false),",
+            "    try try risky(X) after put(after_ran, true) end",
+            "    catch throw:zero -> get(after_ran) end.",
+            "after_catch(X) ->",
+            "    put(after_ran, false),",
+            "    {try risky(X) catch error:badarg -> caught",
+            "     after put(after_ran, true) end, get(after_ran)}.",
+            "after_catch_error(X) ->",
+            "    put(after_ran, false),",
+            "    try",
+            "        try risky(X) catch error:_ -> error(caught_error)",
+            "        after put(after_ran, true) end",
+            "    catch error:caught_error -> get(after_ran) end.",
+            "after_no_of(X) ->",
+            "    put(after_ran, false),",
+            "    try",
+            "        try risky(X) of only_zero -> ok",
+            "        after put(after_ran, true) end",
+            "    catch error:{try_clause, _} -> get(after_ran) end."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         Path beam = directory.resolve("codegen_sample.beam");
@@ -192,6 +221,14 @@ public class CodegenInterpreterTest {
         assertEquals(org.jerlang.type.Tuple.of(Atom.of("false"), Atom.of("x")),
             apply(module, "logic", 2, Atom.of("false"), Atom.of("x")));
         assertEquals(Integer.of(-3), apply(module, "negate", 1, Integer.of(3)));
+        assertEquals(org.jerlang.type.Tuple.of(Integer.of(2), Atom.of("true")),
+            apply(module, "after_value", 1, Integer.of(2)));
+        assertEquals(Atom.of("true"), apply(module, "after_error", 1, Integer.ONE));
+        assertEquals(Atom.of("true"), apply(module, "after_throw", 1, Integer.ZERO));
+        assertEquals(org.jerlang.type.Tuple.of(Atom.of("caught"), Atom.of("true")),
+            apply(module, "after_catch", 1, Integer.ONE));
+        assertEquals(Atom.of("true"), apply(module, "after_catch_error", 1, Integer.ONE));
+        assertEquals(Atom.of("true"), apply(module, "after_no_of", 1, Integer.of(2)));
         try {
             apply(module, "only_zero", 1, Integer.of(1));
             fail("expected function_clause");

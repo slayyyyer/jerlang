@@ -284,15 +284,16 @@ Two end-to-end tests consume the same file through independent paths.
 `CodegenOtpTest` writes a module and asks OTP 29 to load it and call exported
 functions: recursion, guards, tuple/list/string/map construction, list/string/
 map patterns, case/if branches, guard alternatives, local and remote calls,
-try/catch and try/of/catch error and throw paths, short-circuit booleans,
-unary arithmetic, and unmatched function/case/if expressions (which must raise
+try/catch and try/of/catch error and throw paths, try-after cleanup on normal,
+throw, error, catch-body and `try_clause` paths, short-circuit booleans, unary
+arithmetic, and unmatched function/case/if expressions (which must raise
 `function_clause`, `case_clause` and `if_clause`) all agree with `erlc`
 behaviour.
 `CodegenInterpreterTest` loads that file through `ModuleLoader`, registers it,
 and makes the same calls through JErlang. Both are green as of 2026-11-03.
 
 The slice has no line table or `StrT`/`LitT` use, no `module_info`, no binaries,
-funs, `receive`, `try ... after`, or comprehensions. Unsupported forms raise
+funs, `receive`, or comprehensions. Unsupported forms raise
 `CodegenException`; they are not silently omitted. The full corpus recompile
 and OTP application boot remain the A5 exit test, so A5 is not done.
 
@@ -311,7 +312,12 @@ keys. Auto-imported BIF names such as `throw/1` and `error/1` must become
 29 table as the linter. A fourth trap is the `f` operand of a `test`
 instruction: it is the failure target, not the success target. Putting the
 short-circuit result there inverted every `andalso`/`orelse`; the direct truth
-table through OTP exposed it before the tests were accepted.
+table through OTP exposed it before the tests were accepted. A fifth is handler
+allocation: reserve handler Y slots below result slots, initialize them at
+function entry, and allocate them downward as `try` nesting is entered. OTP
+requires the outer handler above the inner one; with the opposite order the
+inner catch is bypassed, and without initialization a second call can restore a
+stale handler.
 
 **Exit test:** recompile the checked-in corpus with JErlang, run the existing
 suite against the recompiled modules, and diff behaviour against the `erlc`
