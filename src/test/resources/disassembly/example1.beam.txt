@@ -1,0 +1,66 @@
+beam 1
+
+chunk Line 21
+version 0
+flags 0
+count 5
+record 0 8 0
+end
+
+chunk Atom 71
+count 7
+atom 1 example1
+atom 2 test
+atom 3 positive
+atom 4 negative
+atom 5 module_info
+atom 6 erlang
+atom 7 get_module_info
+end
+
+chunk Code 84
+header 16 0 153 8 3
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 40 is_ge (int 5 0 0 3) (int 3 0 0 0) (int 1 0 0 0)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 64 move (int 2 0 0 4) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 1)
+ins 1 label (int 0 0 0 7)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 6 7 1
+import 6 7 2
+end
+
+chunk ExpT 40
+count 3
+export 5 1 7
+export 5 0 5
+export 2 1 2
+end

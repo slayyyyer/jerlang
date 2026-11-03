@@ -1,0 +1,134 @@
+beam 1
+
+chunk Atom 99
+count 12
+atom 1 fun_test
+atom 2 t1
+atom 3 lists
+atom 4 map
+atom 5 t2
+atom 6 double
+atom 7 erlang
+atom 8 *
+atom 9 module_info
+atom 10 get_module_info
+atom 11 -t2/0-fun-0-
+atom 12 -t1/0-fun-0-
+end
+
+chunk Code 155
+header 16 0 153 15 7
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 103 make_fun2 (int 0 0 0 0)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 3)
+ins 153 line (int 0 0 0 2)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 103 make_fun2 (int 0 0 0 1)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 153 line (int 0 0 0 2)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 6) (int 0 0 0 1)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 3)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 1) (int 0 0 0 1) (int 3 0 0 0) (int 1 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 0)
+ins 1 label (int 0 0 0 8)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 2)
+ins 1 label (int 0 0 0 9)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 1)
+ins 1 label (int 0 0 0 10)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 3)
+ins 1 label (int 0 0 0 11)
+ins 153 line (int 0 0 0 2)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 11) (int 0 0 0 1)
+ins 1 label (int 0 0 0 12)
+ins 6 call_only (int 0 0 0 1) (int 5 0 0 6)
+ins 1 label (int 0 0 0 13)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 12) (int 0 0 0 1)
+ins 1 label (int 0 0 0 14)
+ins 153 line (int 0 0 0 1)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 1) (int 0 0 0 1) (int 1 0 0 2) (int 3 0 0 0) (int 3 0 0 0)
+ins 19 return
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 52
+count 4
+import 3 4 2
+import 7 8 2
+import 7 10 1
+import 7 10 2
+end
+
+chunk ExpT 52
+count 4
+export 9 1 10
+export 9 0 8
+export 5 0 4
+export 2 0 2
+end
+
+chunk FunT 52
+count 2
+lambda 12 1 14 0 0 74200244
+lambda 11 1 12 1 0 74200244
+end
+
+chunk LitT 29
+hex 00000011789c63606060646060e06cce66606564626661050008ad010d
+end
+
+chunk LocT 40
+count 3
+local 12 1 14
+local 11 1 12
+local 6 1 6
+end
+
+chunk Attr 40
+hex 836c00000001680264000376736e6c000000016e10002011dd6b540f65716215
+hex 355a8796868d6a6a
+end
+
+chunk CInf 118
+hex 836c0000000468026400076f7074696f6e736c0000000168026400066f757464
+hex 69726b00042f746d706a680264000776657273696f6e6b0003362e3068026400
+hex 0474696d65680662000007df6107611061126121611a6802640006736f757263
+hex 656b00112f746d702f66756e5f746573742e65726c6a
+end
+
+chunk Abst 0
+hex
+end
+
+chunk Line 23
+version 0
+flags 0
+count 13
+record 0 5 0
+record 0 7 0
+record 0 9 0
+end

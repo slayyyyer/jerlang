@@ -1,0 +1,108 @@
+beam 1
+
+chunk Atom 75
+count 9
+atom 1 pid
+atom 2 loop
+atom 3 who_are_you
+atom 4 erlang
+atom 5 self
+atom 6 io
+atom 7 format
+atom 8 module_info
+atom 9 get_module_info
+end
+
+chunk Code 116
+header 16 0 153 10 3
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 1 label (int 0 0 0 3)
+ins 23 loop_rec (int 5 0 0 5) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 0 0 4) (int 3 0 0 0) (int 2 0 0 3)
+ins 21 remove_message
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 0)
+ins 9 bif0 (int 0 0 0 0) (int 3 0 0 0)
+ins 69 put_list (int 3 0 0 0) (int 2 0 0 0) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 1)
+ins 5 call_last (int 0 0 0 0) (int 5 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 24 loop_rec_end (int 5 0 0 3)
+ins 1 label (int 0 0 0 5)
+ins 25 wait (int 5 0 0 3)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 0)
+ins 1 label (int 0 0 0 7)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 2)
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 1)
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 3)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 52
+count 4
+import 4 5 0
+import 6 7 2
+import 4 9 1
+import 4 9 2
+end
+
+chunk ExpT 40
+count 3
+export 8 1 9
+export 8 0 7
+export 2 0 2
+end
+
+chunk LitT 33
+hex 00000015789c63606060646060e06dce66e0f45448cc55a82ba8cb03001afa04
+hex 37
+end
+
+chunk LocT 4
+count 0
+end
+
+chunk Attr 40
+hex 836c00000001680264000376736e6c000000016e10003e00cb60e49cfac780e3
+hex 7f60adfdd7a66a6a
+end
+
+chunk CInf 115
+hex 836c0000000468026400076f7074696f6e736c0000000168026400066f757464
+hex 69726b00042f746d706a680264000776657273696f6e6b0005352e302e346802
+hex 64000474696d65680662000007df6107610761096120612a6802640006736f75
+hex 7263656b000c2f746d702f7069642e65726c6a
+end
+
+chunk Abst 0
+hex
+end
+
+chunk Line 23
+version 0
+flags 0
+count 7
+record 0 4 0
+record 0 5 0
+record 0 7 0
+end

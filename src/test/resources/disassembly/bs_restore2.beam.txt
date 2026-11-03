@@ -1,0 +1,85 @@
+beam 1
+
+chunk Line 21
+version 0
+flags 0
+count 5
+record 0 7 0
+end
+
+chunk Atom 85
+count 9
+atom 1 bs_restore2
+atom 2 test
+atom 3 zero
+atom 4 start
+atom 5 halfbyte
+atom 6 fullbyte
+atom 7 module_info
+atom 8 erlang
+atom 9 get_module_info
+end
+
+chunk Code 144
+header 16 0 153 12 3
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 116 bs_start_match2 (int 5 0 0 1) (int 3 0 0 0) (int 0 0 0 1) (int 0 0 0 0) (int 3 0 0 0)
+ins 117 bs_get_integer2 (int 5 0 0 4) (int 3 0 0 0) (int 0 0 0 1) (int 1 0 0 8) (int 0 0 0 1) (int 0 0 0 0) (int 3 0 0 1)
+ins 121 bs_test_tail2 (int 5 0 0 3) (int 3 0 0 0) (int 0 0 0 0)
+ins 41 is_eq (int 5 0 0 3) (int 3 0 0 1) (int 1 0 0 0)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 123 bs_restore2 (int 3 0 0 0) (int 2 0 0 4)
+ins 1 label (int 0 0 0 4)
+ins 117 bs_get_integer2 (int 5 0 0 6) (int 3 0 0 0) (int 0 0 0 1) (int 1 0 0 4) (int 0 0 0 1) (int 0 0 0 0) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 0 0 5) (int 3 0 0 1) (int 1 0 0 0)
+ins 121 bs_test_tail2 (int 5 0 0 5) (int 3 0 0 0) (int 0 0 0 4)
+ins 64 move (int 2 0 0 5) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 5)
+ins 123 bs_restore2 (int 3 0 0 0) (int 2 0 0 4)
+ins 1 label (int 0 0 0 6)
+ins 121 bs_test_tail2 (int 5 0 0 7) (int 3 0 0 0) (int 0 0 0 8)
+ins 64 move (int 2 0 0 6) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 7)
+ins 130 bs_context_to_binary (int 3 0 0 0)
+ins 61 jump (int 5 0 0 1)
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 0)
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 1)
+ins 1 label (int 0 0 0 11)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 8 9 1
+import 8 9 2
+end
+
+chunk ExpT 40
+count 3
+export 7 1 11
+export 7 0 9
+export 2 1 2
+end

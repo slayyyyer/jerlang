@@ -12,7 +12,8 @@ import java.nio.file.Paths;
 import org.junit.Test;
 
 /**
- * The A2 oracle: bytes to text to bytes, compared with the file that came in.
+ * The A2 oracle: bytes to text to bytes, compared with the file that came in,
+ * and every listing compared with the one that is checked in.
  *
  * A disassembler that is only checked by assembling its own output proves that
  * the two halves agree with each other, which is the failure mode the plan
@@ -30,25 +31,35 @@ public class DisassemblyRoundTripTest {
     }
 
     @Test
-    public void theGoldenFileIsStable() throws Exception {
-        Path fixture = Paths.get("src/test/resources/acceptance_demo.beam");
-        byte[] original = Fixtures.bytes(fixture);
-        String text = Disassembler.disassemble(original);
-        // The repository checks text out with the platform line ending, and the
-        // disassembler always writes LF. Normalising here keeps the golden a
-        // golden file rather than a Windows-only one.
-        String golden = new String(Files.readAllBytes(
-            Paths.get("src/test/resources/disassembly/acceptance_demo.txt")),
-            StandardCharsets.UTF_8).replace("\r\n", "\n");
-        assertEquals(golden, text);
-        assertArrayEquals(original, TextAssembler.assemble(golden));
+    public void everyDisassemblyMatchesItsGolden() throws Exception {
+        for (Path path : Fixtures.paths()) {
+            byte[] original = Fixtures.bytes(path);
+            String text = Disassembler.disassemble(original);
+            Path goldenPath = golden(path);
+            assertTrue("missing golden: " + goldenPath, Files.exists(goldenPath));
+            // The repository checks text out with the platform line ending, and
+            // the disassembler always writes LF. Normalising here keeps the
+            // goldens golden rather than Windows-only.
+            String golden = new String(Files.readAllBytes(goldenPath),
+                StandardCharsets.UTF_8).replace("\r\n", "\n");
+            assertEquals(goldenPath.toString(), golden, text);
+            assertArrayEquals(path.toString(), original, TextAssembler.assemble(golden));
+        }
     }
 
     @Test
-    public void atomsAreNamedInTheText() throws Exception {
+    public void atomsAndInstructionsAreNamedInTheText() throws Exception {
         String text = Disassembler.disassemble(
             Fixtures.bytes(Paths.get("src/test/resources/acceptance_demo.beam")));
         assertTrue(text, text.contains("atom 33 collect"));
+        assertTrue(text, text.contains("ins 1 label"));
+        assertTrue(text, text.contains("ins 3 int_code_end"));
+    }
+
+    private static Path golden(Path fixture) {
+        String relative = Paths.get("src/test/resources").relativize(fixture).toString();
+        return Paths.get("src/test/resources/disassembly",
+            relative.replace('\\', '_').replace('/', '_') + ".txt");
     }
 
 }

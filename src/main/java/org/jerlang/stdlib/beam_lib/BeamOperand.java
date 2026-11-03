@@ -126,6 +126,22 @@ public final class BeamOperand {
         }
     }
 
+    public BigInteger value() {
+        return value;
+    }
+
+    public int width() {
+        return width;
+    }
+
+    public int rawByte() {
+        return rawByte;
+    }
+
+    public BeamOperand[] children() {
+        return children;
+    }
+
     public void writeTo(ByteArrayOutputStream out) {
         switch (kind) {
         case INTEGER:

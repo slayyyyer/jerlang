@@ -1,0 +1,88 @@
+beam 1
+
+chunk Line 23
+version 0
+flags 0
+count 8
+record 0 6 0
+record 0 7 0
+record 0 12 0
+end
+
+chunk Atom 79
+count 8
+atom 1 trycatch
+atom 2 test
+atom 3 exception
+atom 4 something
+atom 5 erlang
+atom 6 throw
+atom 7 module_info
+atom 8 get_module_info
+end
+
+chunk Code 115
+header 16 0 153 10 4
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 14 allocate_zero (int 0 0 0 1) (int 0 0 0 0)
+ins 104 try (int 4 0 0 0) (int 5 0 0 3)
+ins 153 line (int 0 0 0 2)
+ins 4 call (int 0 0 0 0) (int 5 0 0 5)
+ins 105 try_end (int 4 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 106 try_case (int 4 0 0 0)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 4) (int 0 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 0)
+ins 1 label (int 0 0 0 7)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 1)
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 1)
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 2)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 40
+count 3
+import 5 6 1
+import 5 8 1
+import 5 8 2
+end
+
+chunk ExpT 40
+count 3
+export 7 1 9
+export 7 0 7
+export 2 0 2
+end
+
+chunk LitT 35
+hex 00000017789c63606060646060e06fce604c61e02ccecf4d2dc9c8cc4b070026
+hex cd0538
+end

@@ -1,0 +1,71 @@
+beam 1
+
+chunk Line 21
+version 0
+flags 0
+count 6
+record 0 7 0
+end
+
+chunk Atom 72
+count 7
+atom 1 bs_put_binary
+atom 2 test
+atom 3 erlang
+atom 4 byte_size
+atom 5 all
+atom 6 module_info
+atom 7 get_module_info
+end
+
+chunk Code 113
+header 16 0 153 7 3
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 153 line (int 0 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 1)
+ins 124 gc_bif1 (int 5 0 0 0) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 0) (int 3 0 0 2)
+ins 111 bs_add (int 5 0 0 0) (int 3 0 0 1) (int 3 0 0 2) (int 0 0 0 1) (int 3 0 0 1)
+ins 111 bs_add (int 5 0 0 0) (int 3 0 0 1) (int 1 0 0 1) (int 0 0 0 1) (int 3 0 0 1)
+ins 109 bs_init2 (int 5 0 0 0) (int 3 0 0 1) (int 0 0 0 0) (int 0 0 0 1) (int 0 0 0 0) (int 3 0 0 1)
+ins 92 bs_put_string (int 0 0 0 1) (int 0 0 0 0)
+ins 90 bs_put_binary (int 5 0 0 0) (int 2 0 0 5) (int 0 0 0 8) (int 0 0 0 0) (int 3 0 0 0)
+ins 64 move (int 3 0 0 1) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 6) (int 0 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 1)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 6) (int 0 0 0 1)
+ins 1 label (int 0 0 0 6)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 2)
+ins 3 int_code_end
+end
+
+chunk StrT 1
+hex 01
+end
+
+chunk ImpT 40
+count 3
+import 3 4 1
+import 3 7 1
+import 3 7 2
+end
+
+chunk ExpT 40
+count 3
+export 6 1 6
+export 6 0 4
+export 2 1 2
+end

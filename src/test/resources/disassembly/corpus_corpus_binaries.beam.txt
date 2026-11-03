@@ -1,0 +1,169 @@
+beam 1
+
+chunk AtU8 141
+count -13
+atom 1 corpus_binaries
+atom 2 run
+atom 3 no_fail
+atom 4 ensure_at_least
+atom 5 =:=
+atom 6 get_tail
+atom 7 integer
+atom 8 ensure_exactly
+atom 9 ok
+atom 10 module_info
+atom 11 erlang
+atom 12 get_module_info
+atom 13 -run/0-lc$^0/1-0-
+end
+
+chunk Code 284
+header 16 0 182 17 4
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 170 bs_start_match4 (int 2 0 0 3) (int 0 0 0 0) (int 3 0 0 0) (int 3 0 0 0)
+ins 182 bs_match (int 5 0 0 9) (int 3 0 0 0) (list (int 0 0 0 11) (int 2 0 0 4) (int 0 0 0 8) (int 0 0 0 1) (int 2 0 0 5) (int 2 0 0 0) (int 0 0 0 8) (int 0 0 0 1) (int 2 0 0 6) (int 0 0 0 1) (int 0 0 0 1) (int 3 0 0 0))
+ins 43 is_eq_exact (int 5 0 0 8) (typed-register (int 3 0 0 0) (int 0 0 0 1)) (literal (int 0 0 0 1))
+ins 64 move (literal (int 0 0 0 2)) (int 3 0 0 0)
+ins 170 bs_start_match4 (int 2 0 0 3) (int 0 0 0 0) (int 3 0 0 0) (int 3 0 0 0)
+ins 182 bs_match (int 5 0 0 7) (int 3 0 0 0) (list (int 0 0 0 15) (int 2 0 0 4) (int 0 0 0 8) (int 0 0 0 1) (int 2 0 0 7) (int 0 0 0 1) (int 2 0 0 0) (int 0 0 0 4) (int 0 0 0 1) (int 3 0 0 1) (int 2 0 0 7) (int 0 0 0 2) (int 2 0 0 0) (int 0 0 0 4) (int 0 0 0 1) (int 3 0 0 0))
+ins 43 is_eq_exact (int 5 0 0 6) (typed-register (int 3 0 0 1) (int 0 0 0 2)) (int 1 0 0 10)
+ins 43 is_eq_exact (int 5 0 0 5) (typed-register (int 3 0 0 0) (int 0 0 0 2)) (int 1 0 0 11)
+ins 64 move (literal (int 0 0 0 3)) (int 3 0 0 0)
+ins 170 bs_start_match4 (int 2 0 0 3) (int 0 0 0 0) (int 3 0 0 0) (int 3 0 0 0)
+ins 182 bs_match (int 5 0 0 4) (int 3 0 0 0) (list (int 0 0 0 6) (int 2 0 0 8) (int 0 0 0 8) (int 2 0 0 5) (int 2 0 0 0) (int 0 0 0 8) (int 0 1 0 53))
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 0)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 4 call (int 0 0 0 1) (int 5 0 0 15)
+ins 43 is_eq_exact (int 5 0 0 3) (typed-register (int 3 0 0 0) (int 0 0 0 3)) (literal (int 0 0 0 4))
+ins 64 move (int 2 0 0 9) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 3)
+ins 72 badmatch (literal (int 0 0 0 3))
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 4)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 5)
+ins 72 badmatch (int 3 0 0 1)
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 6)
+ins 72 badmatch (literal (int 0 0 0 2))
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 7)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 9)
+ins 153 line (int 0 0 0 8)
+ins 72 badmatch (literal (int 0 0 0 0))
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 10) (int 0 0 0 0)
+ins 1 label (int 0 0 0 11)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 12)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 10) (int 0 0 0 1)
+ins 1 label (int 0 0 0 13)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 14)
+ins 153 line (int 0 0 0 2)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 13) (int 0 0 0 1)
+ins 1 label (int 0 0 0 15)
+ins 170 bs_start_match4 (int 2 0 0 3) (int 0 0 0 1) (int 3 0 0 0) (int 3 0 0 0)
+ins 182 bs_match (int 5 1 0 16) (int 3 0 0 0) (list (int 0 0 0 9) (int 2 0 0 4) (int 0 0 0 8) (int 0 0 0 1) (int 2 0 0 7) (int 0 0 0 1) (int 2 0 0 0) (int 0 0 0 8) (int 0 0 0 1) (int 3 0 0 1))
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 2)
+ins 64 move (int 3 0 0 1) (int 4 0 0 0)
+ins 4 call (int 0 0 0 1) (int 5 0 0 15)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 1)
+ins 69 put_list (int 4 0 0 0) (int 3 0 0 0) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 16)
+ins 64 move (int 2 0 0 0) (int 3 0 0 0)
+ins 19 return
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 11 12 1
+import 11 12 2
+end
+
+chunk ExpT 40
+count 3
+export 10 1 13
+export 10 0 11
+export 2 0 2
+end
+
+chunk LitT 67
+hex 000000000000000500000009836d0000000301020300000008836d0000000202
+hex 0300000008836d00000002abcd00000007836d000000013500000007836b0003
+hex 010203
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 16
+count 1
+local 13 1 15
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e10007c2e2a12a81b4cc0381827
+hex 868db3e0576a6a
+end
+
+chunk CInf 131
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b004f633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f636f727075732f636f727075735f62696e61726965732e65
+hex 726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 74
+version 0
+flags 0
+count 11
+record 1 7 1
+record 1 23 0
+record 1 20 0
+record 1 17 0
+record 1 16 0
+record 1 15 0
+record 1 13 0
+record 1 12 0
+filename 0 src/test/erl/corpus/corpus_binaries.erl
+end
+
+chunk Type 33
+hex 00000004000000041fff80020760200000000000000000000000000000000f00
+hex 84
+end

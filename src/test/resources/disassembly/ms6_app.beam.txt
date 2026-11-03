@@ -1,0 +1,128 @@
+beam 1
+
+chunk AtU8 133
+count -14
+atom 1 ms6_app
+atom 2 start
+atom 3 ms6_sup
+atom 4 start_link
+atom 5 start_phase
+atom 6 init
+atom 7 ms6_start_phase
+atom 8 persistent_term
+atom 9 put
+atom 10 ok
+atom 11 stop
+atom 12 module_info
+atom 13 erlang
+atom 14 get_module_info
+end
+
+chunk Code 119
+header 16 0 181 11 5
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 2)
+ins 1 label (int 0 0 0 2)
+ins 153 line (int 0 0 0 2)
+ins 78 call_ext_only (int 0 0 0 0) (int 0 0 0 0)
+ins 1 label (int 0 0 0 3)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 3)
+ins 1 label (int 0 0 0 4)
+ins 43 is_eq_exact (int 5 0 0 3) (int 3 0 0 0) (int 2 0 0 6)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 3)
+ins 64 move (int 3 0 0 2) (int 3 0 0 1)
+ins 64 move (int 2 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 1)
+ins 64 move (int 2 0 0 10) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 5)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 11) (int 0 0 0 1)
+ins 1 label (int 0 0 0 6)
+ins 64 move (int 2 0 0 10) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 12) (int 0 0 0 0)
+ins 1 label (int 0 0 0 8)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 2)
+ins 1 label (int 0 0 0 9)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 12) (int 0 0 0 1)
+ins 1 label (int 0 0 0 10)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 3)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 52
+count 4
+import 3 4 0
+import 8 9 2
+import 13 14 1
+import 13 14 2
+end
+
+chunk ExpT 64
+count 5
+export 12 1 10
+export 12 0 8
+export 11 1 6
+export 5 3 4
+export 2 2 2
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 4
+count 0
+end
+
+chunk Attr 71
+hex 836c000000026802770376736e6c000000016e100048f4d2d69847c676beb9f0
+hex 3efe8e5a456a680277096265686176696f75726c00000001770b6170706c6963
+hex 6174696f6e6a6a
+end
+
+chunk CInf 116
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b0040633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f6d73365f6170702e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 53
+version 0
+flags 0
+count 7
+record 1 9 1
+record 1 10 0
+record 1 14 0
+record 1 15 0
+record 1 18 0
+filename 0 src/test/erl/ms6_app.erl
+end
+
+chunk Type 10
+hex 00000004000000011fff
+end

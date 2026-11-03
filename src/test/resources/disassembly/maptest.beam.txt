@@ -1,0 +1,95 @@
+beam 1
+
+chunk Line 23
+version 0
+flags 0
+count 8
+record 0 7 0
+record 0 11 0
+record 0 9 0
+end
+
+chunk Atom 69
+count 10
+atom 1 maptest
+atom 2 test
+atom 3 b
+atom 4 a
+atom 5 maps
+atom 6 find
+atom 7 ok
+atom 8 module_info
+atom 9 erlang
+atom 10 get_module_info
+end
+
+chunk Code 146
+header 16 0 158 9 3
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 0)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 156 is_map (int 5 0 0 4) (int 3 0 0 0)
+ins 157 has_map_fields (int 5 0 0 4) (int 3 0 0 0) (list (int 0 0 0 1) (int 2 0 0 3))
+ins 158 get_map_elements (int 5 0 0 4) (int 3 0 0 0) (list (int 0 0 0 2) (int 2 0 0 4) (int 3 0 0 1))
+ins 43 is_eq_exact (int 5 0 0 4) (int 3 0 0 1) (int 1 0 0 1)
+ins 64 move (literal (int 0 0 0 1)) (int 3 0 0 1)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 57 is_tuple (int 5 0 0 3) (int 3 0 0 0)
+ins 58 test_arity (int 5 0 0 3) (int 3 0 0 0) (int 0 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 2)
+ins 43 is_eq_exact (int 5 0 0 3) (int 3 0 0 1) (int 2 0 0 7)
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 153 line (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 3)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 0)
+ins 1 label (int 0 0 0 6)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 1)
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 1)
+ins 1 label (int 0 0 0 8)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 2)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 40
+count 3
+import 5 6 2
+import 9 10 1
+import 9 10 2
+end
+
+chunk ExpT 40
+count 3
+export 8 1 8
+export 8 0 6
+export 2 0 2
+end
+
+chunk LitT 47
+hex 00000036789c63606060626060106a2e01924c290c8c89898c40322911242a01
+hex 16654612650192c989cc00bb9b07f2
+end

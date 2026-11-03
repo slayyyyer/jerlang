@@ -1,0 +1,175 @@
+beam 1
+
+chunk AtU8 108
+count -12
+atom 1 bridge_demo
+atom 2 greeting
+atom 3 java
+atom 4 new
+atom 5 call
+atom 6 release
+atom 7 abs_value
+atom 8 call_static
+atom 9 run
+atom 10 module_info
+atom 11 erlang
+atom 12 get_module_info
+end
+
+chunk Code 233
+header 16 0 181 11 5
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 1)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (literal (int 0 0 0 1)) (int 3 0 0 2)
+ins 64 move (literal (int 0 0 0 2)) (int 3 0 0 1)
+ins 153 line (int 0 0 0 3)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 0)
+ins 69 put_list (int 4 0 0 1) (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (literal (int 0 0 0 2)) (int 3 0 0 1)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 1))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 64 move (literal (int 0 0 0 3)) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 5)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 0 0 6)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 153 line (int 0 0 0 7)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 64 move (literal (int 0 0 0 4)) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 5)) (int 3 0 0 2)
+ins 64 move (literal (int 0 0 0 6)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 8)
+ins 78 call_ext_only (int 0 0 0 3) (int 0 0 0 3)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 9)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 0)
+ins 1 label (int 0 0 0 6)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (literal (int 0 0 0 7)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 10)
+ins 4 call (int 0 0 0 1) (int 5 0 0 2)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 4 call (int 0 0 0 0) (int 5 0 0 4)
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 1)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 2) (int 4 0 0 0) (int 3 0 0 0))
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 10) (int 0 0 0 0)
+ins 1 label (int 0 0 0 8)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 4)
+ins 1 label (int 0 0 0 9)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 10) (int 0 0 0 1)
+ins 1 label (int 0 0 0 10)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 5)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 76
+count 6
+import 3 4 2
+import 3 5 3
+import 3 6 1
+import 3 8 3
+import 11 12 1
+import 11 12 2
+end
+
+chunk ExpT 64
+count 5
+export 10 1 10
+export 10 0 8
+export 9 0 6
+export 7 0 4
+export 2 1 2
+end
+
+chunk LitT 153
+hex 00000000000000080000001b836b00176a6176612e6c616e672e537472696e67
+hex 4275696c64657200000011836c000000016b000768656c6c6f2c206a0000000a
+hex 836b0006617070656e640000000c836b0008746f537472696e6700000007836b
+hex 00036162730000000c836c0000000162fffffff96a00000012836b000e6a6176
+hex 612e6c616e672e4d6174680000000a836b000665726c616e67
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 4
+count 0
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e1000530818c1b78c1affde4ff2
+hex 0b6bcf013a6a6a
+end
+
+chunk CInf 120
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b0044633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f6272696467655f64656d6f2e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 65
+version 0
+flags 0
+count 12
+record 1 10 1
+record 1 11 0
+record 1 12 0
+record 1 13 0
+record 1 14 0
+record 1 15 0
+record 1 19 0
+record 1 20 0
+record 1 22 0
+record 1 23 0
+filename 0 src/test/erl/bridge_demo.erl
+end
+
+chunk Type 10
+hex 00000004000000011fff
+end

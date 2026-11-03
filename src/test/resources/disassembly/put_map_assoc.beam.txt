@@ -1,0 +1,113 @@
+beam 1
+
+chunk Line 24
+version 0
+flags 0
+count 10
+record 0 7 0
+record 0 8 0
+record 0 11 0
+record 0 12 0
+end
+
+chunk Atom 85
+count 11
+atom 1 put_map_assoc
+atom 2 test
+atom 3 x
+atom 4 y
+atom 5 ok
+atom 6 update
+atom 7 badmap
+atom 8 erlang
+atom 9 error
+atom 10 module_info
+atom 11 get_module_info
+end
+
+chunk Code 196
+header 16 0 158 12 4
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 1)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 153 line (int 0 0 0 2)
+ins 4 call (int 0 0 0 2) (int 5 0 0 5)
+ins 156 is_map (int 5 0 0 3) (int 3 0 0 0)
+ins 158 get_map_elements (int 5 0 0 3) (int 3 0 0 0) (list (int 0 0 0 4) (int 2 0 0 3) (int 3 0 0 2) (int 2 0 0 4) (int 3 0 0 1))
+ins 43 is_eq_exact (int 5 0 0 3) (int 3 0 0 2) (literal (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 0 0 3) (int 3 0 0 1) (literal (int 0 0 0 2))
+ins 64 move (int 2 0 0 5) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 153 line (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 6) (int 0 0 0 2)
+ins 1 label (int 0 0 0 5)
+ins 56 is_nonempty_list (int 5 0 0 6) (int 3 0 0 1)
+ins 65 get_list (int 3 0 0 1) (int 3 0 0 2) (int 3 0 0 3)
+ins 57 is_tuple (int 5 0 0 4) (int 3 0 0 2)
+ins 58 test_arity (int 5 0 0 4) (int 3 0 0 2) (int 0 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 2) (int 0 0 0 0) (int 3 0 0 4)
+ins 66 get_tuple_element (int 3 0 0 2) (int 0 0 0 1) (int 3 0 0 5)
+ins 156 is_map (int 5 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 154 put_map_assoc (int 5 0 0 0) (int 3 0 0 0) (int 3 0 0 0) (int 0 0 0 6) (list (int 0 0 0 4) (int 2 0 0 4) (int 3 0 0 5) (int 2 0 0 3) (int 3 0 0 4))
+ins 64 move (int 3 0 0 3) (int 3 0 0 1)
+ins 6 call_only (int 0 0 0 2) (int 5 0 0 5)
+ins 1 label (int 0 0 0 6)
+ins 52 is_nil (int 5 0 0 4) (int 3 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 7)
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 1)
+ins 70 put_tuple (int 0 0 0 2) (int 3 0 0 1)
+ins 71 put (int 2 0 0 7)
+ins 71 put (int 3 0 0 0)
+ins 64 move (int 3 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 10) (int 0 0 0 0)
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 1)
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 10) (int 0 0 0 1)
+ins 1 label (int 0 0 0 11)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 2)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 40
+count 3
+import 8 9 1
+import 8 11 1
+import 8 11 2
+end
+
+chunk ExpT 40
+count 3
+export 10 1 11
+export 10 0 9
+export 2 1 2
+end
+
+chunk LitT 47
+hex 00000035789c63606060666060906ece01924c194cd90c8c89406c08662501b1
+hex 51165082b519c483318c00bb2e07a0
+end

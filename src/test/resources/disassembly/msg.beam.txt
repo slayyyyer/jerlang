@@ -1,0 +1,134 @@
+beam 1
+
+chunk Line 30
+version 0
+flags 0
+count 12
+record 0 4 0
+record 0 5 0
+record 0 6 0
+record 0 7 0
+record 0 13 0
+record 0 14 0
+record 0 16 0
+record 0 21 0
+end
+
+chunk Atom 95
+count 12
+atom 1 msg
+atom 2 test
+atom 3 erlang
+atom 4 self
+atom 5 loop
+atom 6 spawn
+atom 7 kill
+atom 8 send_after
+atom 9 killed
+atom 10 timeout
+atom 11 module_info
+atom 12 get_module_info
+end
+
+chunk Code 216
+header 16 0 153 14 4
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 13 allocate_heap (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 0)
+ins 9 bif0 (int 0 0 0 0) (int 3 0 0 0)
+ins 69 put_list (int 3 0 0 0) (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 5) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 1)
+ins 9 bif0 (int 0 0 0 0) (int 3 0 0 1)
+ins 70 put_tuple (int 0 0 0 2) (int 3 0 0 2)
+ins 71 put (int 2 0 0 7)
+ins 71 put (int 3 0 0 1)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 1 1 0 500) (int 3 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 2)
+ins 153 line (int 0 0 0 4)
+ins 1 label (int 0 0 0 3)
+ins 23 loop_rec (int 5 0 0 4) (int 3 0 0 0)
+ins 21 remove_message
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 4)
+ins 25 wait (int 5 0 0 3)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 5)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 1)
+ins 1 label (int 0 0 0 6)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 153 line (int 0 0 0 6)
+ins 1 label (int 0 0 0 7)
+ins 23 loop_rec (int 5 0 0 9) (int 3 0 0 0)
+ins 57 is_tuple (int 5 0 0 8) (int 3 0 0 0)
+ins 58 test_arity (int 5 0 0 8) (int 3 0 0 0) (int 0 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 2)
+ins 43 is_eq_exact (int 5 0 0 8) (int 3 0 0 1) (int 2 0 0 7)
+ins 21 remove_message
+ins 64 move (int 2 0 0 9) (int 3 0 0 1)
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 0 0 7)
+ins 20 send
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 8)
+ins 21 remove_message
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 5 call_last (int 0 0 0 1) (int 5 0 0 6) (int 0 0 0 1)
+ins 1 label (int 0 0 0 9)
+ins 26 wait_timeout (int 5 0 0 7) (int 1 1 0 1000)
+ins 22 timeout
+ins 64 move (int 2 0 0 10) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 8)
+ins 20 send
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 11) (int 0 0 0 0)
+ins 1 label (int 0 0 0 11)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 3)
+ins 1 label (int 0 0 0 12)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 11) (int 0 0 0 1)
+ins 1 label (int 0 0 0 13)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 4)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 64
+count 5
+import 3 4 0
+import 3 6 3
+import 3 8 3
+import 3 12 1
+import 3 12 2
+end
+
+chunk ExpT 52
+count 4
+export 11 1 13
+export 11 0 11
+export 5 1 6
+export 2 0 2
+end

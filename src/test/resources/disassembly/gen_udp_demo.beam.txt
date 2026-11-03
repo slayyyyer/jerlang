@@ -1,0 +1,941 @@
+beam 1
+
+chunk AtU8 368
+count -33
+atom 1 gen_udp_demo
+atom 2 roundtrip
+atom 3 gen_udp
+atom 4 open
+atom 5 ok
+atom 6 inet
+atom 7 sockname
+atom 8 port
+atom 9 send
+atom 10 recv
+atom 11 close
+atom 12 active_roundtrip
+atom 13 udp
+atom 14 active_datagram_timeout
+atom 15 erlang
+atom 16 error
+atom 17 connected_roundtrip
+atom 18 connect
+atom 19 peername
+atom 20 list_roundtrip
+atom 21 timeout_test
+atom 22 getopts_test
+atom 23 getopts
+atom 24 setopts
+atom 25 multicast_roundtrip
+atom 26 multicast_setopts
+atom 27 ipv6_multicast_roundtrip
+atom 28 add_membership
+atom 29 multicast_if
+atom 30 binary
+atom 31 inet6
+atom 32 module_info
+atom 33 get_module_info
+end
+
+chunk Code 2450
+header 16 0 181 88 11
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 0 0 10) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 2)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 159 is_tagged_tuple (int 5 0 0 9) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 1)
+ins 57 is_tuple (int 5 0 0 9) (int 4 0 0 1)
+ins 58 test_arity (int 5 0 0 9) (int 4 0 0 1) (int 0 0 0 2)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 2)
+ins 159 is_tagged_tuple (int 5 0 0 8) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 4 0 0 1) (int 0 0 0 1) (int 4 0 0 1)
+ins 43 is_eq_exact (int 5 0 0 8) (int 3 0 0 1) (int 4 0 0 1)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 5)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 0 0 7) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 64 move (int 4 0 0 1) (int 3 0 0 2)
+ins 64 move (literal (int 0 0 0 1)) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 2)) (int 3 0 0 3)
+ins 64 move (int 4 0 0 0) (int 4 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 6)
+ins 7 call_ext (int 0 0 0 4) (int 0 0 0 3)
+ins 43 is_eq_exact (int 5 0 0 6) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 1 0 0 4) (int 3 0 0 1)
+ins 64 move (int 1 1 0 2000) (int 3 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 7)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 4)
+ins 159 is_tagged_tuple (int 5 0 0 5) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 57 is_tuple (int 5 0 0 5) (int 3 0 0 1)
+ins 58 test_arity (int 5 0 0 5) (int 3 0 0 1) (int 0 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 0) (int 3 0 0 2)
+ins 43 is_eq_exact (int 5 0 0 5) (int 3 0 0 2) (literal (int 0 0 0 1))
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 2) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 0 0 5) (int 3 0 0 1) (literal (int 0 0 0 2))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 0 0 8)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 0 0 4) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 0 0 9)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 0 0 3) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 8)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 7)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 6)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 5)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 4)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 9)
+ins 153 line (int 0 0 0 3)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 11)
+ins 153 line (int 0 0 0 10)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 12) (int 0 0 0 0)
+ins 1 label (int 0 0 0 12)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 64 move (literal (int 0 0 0 3)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 11)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 21) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 2)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 0 0 12)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 159 is_tagged_tuple (int 5 1 0 20) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 1)
+ins 57 is_tuple (int 5 1 0 20) (int 4 0 0 1)
+ins 58 test_arity (int 5 1 0 20) (int 4 0 0 1) (int 0 0 0 2)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 13)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 19) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 66 get_tuple_element (int 4 0 0 1) (int 0 0 0 1) (int 3 0 0 2)
+ins 64 move (literal (int 0 0 0 1)) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 4)) (int 3 0 0 3)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 1))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 0 0 14)
+ins 7 call_ext (int 0 0 0 4) (int 0 0 0 3)
+ins 43 is_eq_exact (int 5 1 0 18) (int 3 0 0 0) (int 2 0 0 5)
+ins 1 label (int 0 0 0 13)
+ins 23 loop_rec (int 5 0 0 15) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 0 0 14) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 13)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 0 0 14) (int 3 0 0 2) (literal (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 0 0 14) (int 3 0 0 0) (literal (int 0 0 0 4))
+ins 43 is_eq_exact (int 5 0 0 14) (int 3 0 0 1) (int 4 0 0 2)
+ins 21 remove_message
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 2) (int 0 0 0 1)
+ins 153 line (int 0 0 0 15)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 17) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 16)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 16) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 14)
+ins 24 loop_rec_end (int 5 0 0 13)
+ins 1 label (int 0 0 0 15)
+ins 26 wait_timeout (int 5 0 0 13) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 0 0 14) (int 3 0 0 0)
+ins 153 line (int 0 1 0 17)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 6) (int 0 0 0 3)
+ins 1 label (int 0 1 0 16)
+ins 153 line (int 0 1 0 16)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 17)
+ins 153 line (int 0 0 0 15)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 18)
+ins 153 line (int 0 0 0 14)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 19)
+ins 153 line (int 0 0 0 13)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 20)
+ins 153 line (int 0 0 0 12)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 21)
+ins 153 line (int 0 0 0 11)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 22)
+ins 153 line (int 0 1 0 18)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 17) (int 0 0 0 0)
+ins 1 label (int 0 1 0 23)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 19)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 32) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 2)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 1 0 20)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 159 is_tagged_tuple (int 5 1 0 31) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 1)
+ins 57 is_tuple (int 5 1 0 31) (int 4 0 0 1)
+ins 58 test_arity (int 5 1 0 31) (int 4 0 0 1) (int 0 0 0 2)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 21)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 30) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 66 get_tuple_element (int 4 0 0 1) (int 0 0 0 1) (int 4 0 0 1)
+ins 64 move (literal (int 0 0 0 1)) (int 3 0 0 1)
+ins 64 move (int 4 0 0 1) (int 3 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 22)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 29) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 23)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 8)
+ins 159 is_tagged_tuple (int 5 1 0 28) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 57 is_tuple (int 5 1 0 28) (int 3 0 0 1)
+ins 58 test_arity (int 5 1 0 28) (int 3 0 0 1) (int 0 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 0) (int 3 0 0 2)
+ins 43 is_eq_exact (int 5 1 0 28) (int 3 0 0 2) (literal (int 0 0 0 1))
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 1) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 1 0 28) (int 3 0 0 1) (int 4 0 0 1)
+ins 64 move (literal (int 0 0 0 5)) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 4 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 24)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 9)
+ins 43 is_eq_exact (int 5 1 0 27) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 1 0 0 9) (int 3 0 0 1)
+ins 64 move (int 1 1 0 2000) (int 3 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 25)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 4)
+ins 159 is_tagged_tuple (int 5 1 0 26) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 57 is_tuple (int 5 1 0 26) (int 3 0 0 1)
+ins 58 test_arity (int 5 1 0 26) (int 3 0 0 1) (int 0 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 0) (int 3 0 0 2)
+ins 43 is_eq_exact (int 5 1 0 26) (int 3 0 0 2) (literal (int 0 0 0 1))
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 2) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 1 0 26) (int 3 0 0 1) (literal (int 0 0 0 5))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 1 0 26)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 25) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 27)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 24) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 24)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 25)
+ins 153 line (int 0 1 0 26)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 26)
+ins 153 line (int 0 1 0 25)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 27)
+ins 153 line (int 0 1 0 24)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 28)
+ins 153 line (int 0 1 0 23)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 29)
+ins 153 line (int 0 1 0 22)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 30)
+ins 153 line (int 0 1 0 21)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 31)
+ins 153 line (int 0 1 0 20)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 32)
+ins 153 line (int 0 1 0 19)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 33)
+ins 153 line (int 0 1 0 28)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 20) (int 0 0 0 0)
+ins 1 label (int 0 1 0 34)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 64 move (literal (int 0 0 0 6)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 29)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 41) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 2)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 1 0 30)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 159 is_tagged_tuple (int 5 1 0 40) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 1)
+ins 57 is_tuple (int 5 1 0 40) (int 4 0 0 1)
+ins 58 test_arity (int 5 1 0 40) (int 4 0 0 1) (int 0 0 0 2)
+ins 64 move (literal (int 0 0 0 6)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 31)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 39) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 66 get_tuple_element (int 4 0 0 1) (int 0 0 0 1) (int 3 0 0 2)
+ins 64 move (literal (int 0 0 0 1)) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 7)) (int 3 0 0 3)
+ins 64 move (int 4 0 0 0) (int 4 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 32)
+ins 7 call_ext (int 0 0 0 4) (int 0 0 0 3)
+ins 43 is_eq_exact (int 5 1 0 38) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 1 0 0 5) (int 3 0 0 1)
+ins 64 move (int 1 1 0 2000) (int 3 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 33)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 4)
+ins 159 is_tagged_tuple (int 5 1 0 37) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 57 is_tuple (int 5 1 0 37) (int 3 0 0 1)
+ins 58 test_arity (int 5 1 0 37) (int 3 0 0 1) (int 0 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 0) (int 3 0 0 2)
+ins 43 is_eq_exact (int 5 1 0 37) (int 3 0 0 2) (literal (int 0 0 0 1))
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 2) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 1 0 37) (int 3 0 0 1) (literal (int 0 0 0 7))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 1 0 34)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 36) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 35)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 35) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 35)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 36)
+ins 153 line (int 0 1 0 34)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 37)
+ins 153 line (int 0 1 0 33)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 38)
+ins 153 line (int 0 1 0 32)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 39)
+ins 153 line (int 0 1 0 31)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 40)
+ins 153 line (int 0 1 0 30)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 41)
+ins 153 line (int 0 1 0 29)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 42)
+ins 153 line (int 0 1 0 36)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 21) (int 0 0 0 0)
+ins 1 label (int 0 1 0 43)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 37)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 46) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 64 move (int 1 0 0 0) (int 3 0 0 1)
+ins 64 move (int 1 1 0 100) (int 3 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 38)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 4)
+ins 43 is_eq_exact (int 5 1 0 45) (int 3 0 0 0) (literal (int 0 0 0 8))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 39)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 44) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 44)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 45)
+ins 153 line (int 0 1 0 38)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 46)
+ins 153 line (int 0 1 0 37)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 47)
+ins 153 line (int 0 1 0 40)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 22) (int 0 0 0 0)
+ins 1 label (int 0 1 0 48)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 41)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 54) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 64 move (literal (int 0 0 0 9)) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 42)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 10)
+ins 43 is_eq_exact (int 5 1 0 53) (int 3 0 0 0) (literal (int 0 0 0 10))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 43)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 52) (int 3 0 0 0) (literal (int 0 0 0 11))
+ins 64 move (literal (int 0 0 0 12)) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 44)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 11)
+ins 43 is_eq_exact (int 5 1 0 51) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (literal (int 0 0 0 9)) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 45)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 10)
+ins 43 is_eq_exact (int 5 1 0 50) (int 3 0 0 0) (literal (int 0 0 0 13))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 46)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 49) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 49)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 50)
+ins 153 line (int 0 1 0 45)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 51)
+ins 153 line (int 0 1 0 44)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 52)
+ins 153 line (int 0 1 0 43)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 53)
+ins 153 line (int 0 1 0 42)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 54)
+ins 153 line (int 0 1 0 41)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 55)
+ins 153 line (int 0 1 0 47)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 25) (int 0 0 0 0)
+ins 1 label (int 0 1 0 56)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 64 move (literal (int 0 0 0 14)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 48)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 63) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 2)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 1 0 49)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 159 is_tagged_tuple (int 5 1 0 62) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 1)
+ins 57 is_tuple (int 5 1 0 62) (int 4 0 0 1)
+ins 58 test_arity (int 5 1 0 62) (int 4 0 0 1) (int 0 0 0 2)
+ins 64 move (literal (int 0 0 0 15)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 50)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 61) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 66 get_tuple_element (int 4 0 0 1) (int 0 0 0 1) (int 3 0 0 2)
+ins 64 move (literal (int 0 1 0 16)) (int 3 0 0 1)
+ins 64 move (literal (int 0 1 0 17)) (int 3 0 0 3)
+ins 64 move (int 4 0 0 0) (int 4 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 51)
+ins 7 call_ext (int 0 0 0 4) (int 0 0 0 3)
+ins 43 is_eq_exact (int 5 1 0 60) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 1 0 0 9) (int 3 0 0 1)
+ins 64 move (int 1 2 2 3000) (int 3 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 52)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 4)
+ins 159 is_tagged_tuple (int 5 1 0 59) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 57 is_tuple (int 5 1 0 59) (int 3 0 0 1)
+ins 58 test_arity (int 5 1 0 59) (int 3 0 0 1) (int 0 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 2) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 1 0 59) (int 3 0 0 1) (literal (int 0 1 0 17))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 1 0 53)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 58) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 54)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 57) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 57)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 58)
+ins 153 line (int 0 1 0 53)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 59)
+ins 153 line (int 0 1 0 52)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 60)
+ins 153 line (int 0 1 0 51)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 61)
+ins 153 line (int 0 1 0 50)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 62)
+ins 153 line (int 0 1 0 49)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 63)
+ins 153 line (int 0 1 0 48)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 64)
+ins 153 line (int 0 1 0 55)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 26) (int 0 0 0 0)
+ins 1 label (int 0 1 0 65)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 64 move (literal (int 0 1 0 18)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 56)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 74) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 2)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 1 0 57)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 159 is_tagged_tuple (int 5 1 0 73) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 1)
+ins 57 is_tuple (int 5 1 0 73) (int 4 0 0 1)
+ins 58 test_arity (int 5 1 0 73) (int 4 0 0 1) (int 0 0 0 2)
+ins 64 move (literal (int 0 1 0 19)) (int 3 0 0 1)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 1 0 58)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 11)
+ins 43 is_eq_exact (int 5 1 0 72) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (literal (int 0 1 0 20)) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 59)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 71) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 66 get_tuple_element (int 4 0 0 1) (int 0 0 0 1) (int 3 0 0 2)
+ins 64 move (literal (int 0 1 0 21)) (int 3 0 0 1)
+ins 64 move (literal (int 0 1 0 22)) (int 3 0 0 3)
+ins 64 move (int 4 0 0 0) (int 4 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 60)
+ins 7 call_ext (int 0 0 0 4) (int 0 0 0 3)
+ins 43 is_eq_exact (int 5 1 0 70) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 1 0 0 7) (int 3 0 0 1)
+ins 64 move (int 1 2 2 3000) (int 3 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 61)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 4)
+ins 159 is_tagged_tuple (int 5 1 0 69) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 57 is_tuple (int 5 1 0 69) (int 3 0 0 1)
+ins 58 test_arity (int 5 1 0 69) (int 3 0 0 1) (int 0 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 2) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 1 0 69) (int 3 0 0 1) (literal (int 0 1 0 22))
+ins 64 move (literal (int 0 1 0 23)) (int 3 0 0 1)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 62)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 11)
+ins 43 is_eq_exact (int 5 1 0 68) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 1 0 63)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 67) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 64)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 66) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 66)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 67)
+ins 153 line (int 0 1 0 63)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 68)
+ins 153 line (int 0 1 0 62)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 69)
+ins 153 line (int 0 1 0 61)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 70)
+ins 153 line (int 0 1 0 60)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 71)
+ins 153 line (int 0 1 0 59)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 72)
+ins 153 line (int 0 1 0 58)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 73)
+ins 153 line (int 0 1 0 57)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 74)
+ins 153 line (int 0 1 0 56)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 75)
+ins 153 line (int 0 1 0 65)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 27) (int 0 0 0 1)
+ins 1 label (int 0 1 0 76)
+ins 13 allocate_heap (int 0 0 0 3) (int 0 1 0 23) (int 0 0 0 1)
+ins 172 init_yregs (list (int 0 0 0 2) (int 4 0 0 0) (int 4 0 0 1))
+ins 64 move (int 3 0 0 0) (int 4 0 0 2)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 2) (literal (int 0 1 0 24)) (int 3 0 0 0))
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 2) (int 2 1 0 28) (int 3 0 0 0))
+ins 69 put_list (int 3 0 0 0) (int 2 0 0 0) (int 3 0 0 0)
+ins 69 put_list (literal (int 0 1 0 25)) (int 3 0 0 0) (int 3 0 0 0)
+ins 164 put_tuple2 (int 3 0 0 1) (list (int 0 0 0 2) (int 2 1 0 29) (int 4 0 0 2))
+ins 69 put_list (int 3 0 0 1) (int 3 0 0 0) (int 3 0 0 0)
+ins 69 put_list (literal (int 0 1 0 26)) (int 3 0 0 0) (int 3 0 0 0)
+ins 69 put_list (literal (int 0 1 0 27)) (int 3 0 0 0) (int 3 0 0 0)
+ins 69 put_list (int 2 1 0 30) (int 3 0 0 0) (int 3 0 0 0)
+ins 69 put_list (int 2 1 0 31) (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 66)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 83) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 1)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 67)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 159 is_tagged_tuple (int 5 1 0 82) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 57 is_tuple (int 5 1 0 82) (int 4 0 0 0)
+ins 58 test_arity (int 5 1 0 82) (int 4 0 0 0) (int 0 0 0 2)
+ins 16 test_heap (int 0 0 0 11) (int 0 0 0 0)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 2) (int 2 1 0 29) (int 4 0 0 2))
+ins 69 put_list (int 3 0 0 0) (literal (int 0 1 0 28)) (int 3 0 0 0)
+ins 69 put_list (literal (int 0 1 0 27)) (int 3 0 0 0) (int 3 0 0 0)
+ins 69 put_list (int 2 1 0 30) (int 3 0 0 0) (int 3 0 0 0)
+ins 69 put_list (int 2 1 0 31) (int 3 0 0 0) (int 3 0 0 1)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 2))
+ins 64 move (int 1 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 68)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 81) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 2)
+ins 66 get_tuple_element (int 4 0 0 0) (int 0 0 0 1) (int 3 0 0 2)
+ins 64 move (literal (int 0 1 0 24)) (int 3 0 0 1)
+ins 64 move (literal (int 0 1 0 29)) (int 3 0 0 3)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 69)
+ins 7 call_ext (int 0 0 0 4) (int 0 0 0 3)
+ins 43 is_eq_exact (int 5 1 0 80) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 1 0 0 14) (int 3 0 0 1)
+ins 64 move (int 1 2 2 3000) (int 3 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 70)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 4)
+ins 159 is_tagged_tuple (int 5 1 0 79) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 57 is_tuple (int 5 1 0 79) (int 3 0 0 1)
+ins 58 test_arity (int 5 1 0 79) (int 3 0 0 1) (int 0 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 1) (int 0 0 0 2) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 1 0 79) (int 3 0 0 1) (literal (int 0 1 0 29))
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 64 move (int 4 0 0 0) (int 4 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 1 0 71)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 78) (int 3 0 0 0) (int 2 0 0 5)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 72)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 5)
+ins 43 is_eq_exact (int 5 1 0 77) (int 3 0 0 0) (int 2 0 0 5)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 77)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 78)
+ins 153 line (int 0 1 0 71)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 79)
+ins 153 line (int 0 1 0 70)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 80)
+ins 153 line (int 0 1 0 69)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 81)
+ins 153 line (int 0 1 0 68)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 82)
+ins 153 line (int 0 1 0 67)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 83)
+ins 153 line (int 0 1 0 66)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 84)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 32) (int 0 0 0 0)
+ins 1 label (int 0 1 0 85)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 12)
+ins 1 label (int 0 1 0 86)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 32) (int 0 0 0 1)
+ins 1 label (int 0 1 0 87)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 13)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 172
+count 14
+import 3 4 2
+import 6 7 1
+import 6 8 1
+import 3 9 4
+import 3 10 3
+import 3 11 1
+import 15 16 1
+import 3 18 3
+import 6 19 1
+import 3 9 2
+import 6 23 2
+import 6 24 2
+import 15 33 1
+import 15 33 2
+end
+
+chunk ExpT 136
+count 11
+export 32 1 87
+export 32 0 85
+export 27 1 76
+export 26 0 65
+export 25 0 56
+export 22 0 48
+export 21 0 43
+export 20 0 34
+export 17 0 23
+export 12 0 12
+export 2 0 2
+end
+
+chunk LitT 1032
+hex 000000000000001e00000020836c00000002770662696e617279680277066163
+hex 74697665770566616c73656a0000000b836804617f6100610061010000000a83
+hex 6d0000000470696e670000001f836c00000002770662696e6172796802770661
+hex 63746976657704747275656a0000000c836d000000066163746976650000000f
+hex 836d00000009636f6e6e656374656400000018836c0000000168027706616374
+hex 697665770566616c73656a00000009836b000568656c6c6f0000001383680277
+hex 056572726f72770774696d656f75740000000f836c0000000177066163746976
+hex 656a0000001e83680277026f6b6c000000016802770661637469766577056661
+hex 6c73656a0000001483680277056572726f727708656e6f74636f6e6e00000017
+hex 836c00000001680277066163746976657704747275656a0000001d8368027702
+hex 6f6b6c00000001680277066163746976657704747275656a00000073836c0000
+hex 0005770662696e61727968027706616374697665770566616c73656802770972
+hex 65757365616464727704747275656802770e6d756c7469636173745f6c6f6f70
+hex 7704747275656802770e6164645f6d656d626572736869706802680461ef61ff
+hex 612a6163680461006100610061006a0000004b836c00000004770662696e6172
+hex 7968027706616374697665770566616c73656802770d6d756c7469636173745f
+hex 74746c61016802770e6d756c7469636173745f6c6f6f707704747275656a0000
+hex 000b83680461ef61ff612a61630000000f836d000000096d756c746963617374
+hex 0000004b836c00000004770662696e6172796802770661637469766577056661
+hex 6c7365680277097265757365616464727704747275656802770e6d756c746963
+hex 6173745f6c6f6f707704747275656a0000002f836c000000016802770e616464
+hex 5f6d656d626572736869706802680461ef61ff612a6164680461006100610061
+hex 006a00000038836c00000003770662696e617279680277066163746976657705
+hex 66616c73656802770e6d756c7469636173745f6c6f6f707704747275656a0000
+hex 000b83680461ef61ff612a61640000000d836d000000077365746f7074730000
+hex 0030836c000000016802770f64726f705f6d656d626572736869706802680461
+hex ef61ff612a6164680461006100610061006a00000019836808620000ff126100
+hex 61006100610061006100620000123400000019836802770e6d756c7469636173
+hex 745f6c6f6f707704747275650000001483680277097265757365616464727704
+hex 74727565000000128368027706616374697665770566616c736500000032836c
+hex 000000026802770e6d756c7469636173745f6c6f6f707704747275656802770d
+hex 6d756c7469636173745f74746c61016a00000014836d0000000e697076362d6d
+hex 756c746963617374
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 4
+count 0
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e10005313662878a45ac673d470
+hex e1af3e28766a6a
+end
+
+chunk CInf 121
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b0045633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f67656e5f7564705f64656d6f2e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 192
+version 0
+flags 0
+count 128
+record 1 12 1
+record 1 13 0
+record 1 14 0
+record 1 15 0
+record 1 16 0
+record 1 17 0
+record 1 18 0
+record 1 19 0
+record 1 20 0
+record 1 23 0
+record 1 24 0
+record 1 25 0
+record 1 26 0
+record 1 27 0
+record 1 33 0
+record 1 34 0
+record 1 31 0
+record 1 37 0
+record 1 38 0
+record 1 39 0
+record 1 40 0
+record 1 41 0
+record 1 42 0
+record 1 43 0
+record 1 44 0
+record 1 45 0
+record 1 46 0
+record 1 49 0
+record 1 50 0
+record 1 51 0
+record 1 52 0
+record 1 53 0
+record 1 54 0
+record 1 55 0
+record 1 56 0
+record 1 59 0
+record 1 60 0
+record 1 61 0
+record 1 62 0
+record 1 65 0
+record 1 66 0
+record 1 67 0
+record 1 68 0
+record 1 69 0
+record 1 70 0
+record 1 71 0
+record 1 74 0
+record 1 76 0
+record 1 80 0
+record 1 81 0
+record 1 84 0
+record 1 85 0
+record 1 86 0
+record 1 87 0
+record 1 90 0
+record 1 92 0
+record 1 95 0
+record 1 96 0
+record 1 97 0
+record 1 99 0
+record 1 100 0
+record 1 101 0
+record 1 102 0
+record 1 103 0
+record 1 106 0
+record 1 108 0
+record 1 112 0
+record 1 113 0
+record 1 116 0
+record 1 117 0
+record 1 118 0
+record 1 119 0
+filename 0 src/test/erl/gen_udp_demo.erl
+end
+
+chunk Type 10
+hex 00000004000000011fff
+end

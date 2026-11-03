@@ -1,0 +1,249 @@
+beam 1
+
+chunk AtU8 184
+count -24
+atom 1 binary_match
+atom 2 one
+atom 3 ensure_at_least
+atom 4 integer
+atom 5 get_tail
+atom 6 rest
+atom 7 skip
+atom 8 ints
+atom 9 ensure_exactly
+atom 10 lit
+atom 11 =:=
+atom 12 no
+atom 13 tail
+atom 14 binary
+atom 15 bits
+atom 16 nested
+atom 17 guarded
+atom 18 no_fail
+atom 19 none
+atom 20 short
+atom 21 ok
+atom 22 module_info
+atom 23 erlang
+atom 24 get_module_info
+end
+
+chunk Code 618
+header 16 0 182 33 11
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 166 bs_start_match3 (int 5 0 0 1) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 182 bs_match (int 5 0 0 3) (int 3 0 0 1) (list (int 0 0 0 13) (int 2 0 0 3) (int 0 0 0 8) (int 0 0 0 8) (int 2 0 0 4) (int 0 0 0 2) (int 2 0 0 0) (int 0 0 0 8) (int 0 0 0 1) (int 3 0 0 0) (int 2 0 0 5) (int 0 0 0 2) (int 0 0 0 8) (int 3 0 0 1))
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 2)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 2) (int 3 0 0 0) (int 3 0 0 1))
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 61 jump (int 5 0 0 1)
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 2)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 6) (int 0 0 0 1)
+ins 1 label (int 0 0 0 5)
+ins 166 bs_start_match3 (int 5 0 0 4) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 182 bs_match (int 5 0 0 6) (int 3 0 0 1) (list (int 0 0 0 9) (int 2 0 0 3) (int 0 1 0 16) (int 0 0 0 8) (int 2 0 0 7) (int 0 1 0 16) (int 2 0 0 5) (int 0 0 0 2) (int 0 0 0 8) (int 3 0 0 0))
+ins 19 return
+ins 1 label (int 0 0 0 6)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 61 jump (int 5 0 0 4)
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 1)
+ins 1 label (int 0 0 0 8)
+ins 166 bs_start_match3 (int 5 0 0 7) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 182 bs_match (int 5 0 0 9) (int 3 0 0 1) (list (int 0 1 0 20) (int 2 0 0 9) (int 0 1 0 56) (int 2 0 0 4) (int 0 0 0 2) (int 2 0 0 0) (int 0 1 0 16) (int 0 0 0 1) (int 3 0 0 2) (int 2 0 0 4) (int 0 0 0 3) (literal (int 0 0 0 0)) (int 0 1 0 32) (int 0 0 0 1) (int 3 0 0 3) (int 2 0 0 4) (int 0 0 0 4) (int 2 0 0 0) (int 0 0 0 8) (int 0 0 0 1) (int 3 0 0 4))
+ins 16 test_heap (int 0 0 0 4) (int 0 0 0 5)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 3) (int 3 0 0 2) (int 3 0 0 3) (int 3 0 0 4))
+ins 19 return
+ins 1 label (int 0 0 0 9)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 61 jump (int 5 0 0 7)
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 4)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 10) (int 0 0 0 1)
+ins 1 label (int 0 0 0 11)
+ins 166 bs_start_match3 (int 5 0 0 12) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 182 bs_match (int 5 0 0 12) (int 3 0 0 0) (list (int 0 0 0 11) (int 2 0 0 3) (int 0 1 0 16) (int 0 0 0 8) (int 2 0 0 11) (int 2 0 0 0) (int 0 1 0 16) (int 0 1 0 258) (int 2 0 0 5) (int 0 0 0 1) (int 0 0 0 8) (int 3 0 0 0))
+ins 19 return
+ins 1 label (int 0 0 0 12)
+ins 64 move (int 2 0 0 12) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 13)
+ins 153 line (int 0 0 0 5)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 13) (int 0 0 0 1)
+ins 1 label (int 0 0 0 14)
+ins 166 bs_start_match3 (int 5 0 0 13) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 182 bs_match (int 5 0 0 15) (int 3 0 0 1) (list (int 0 0 0 13) (int 2 0 0 3) (int 0 1 0 32) (int 0 0 0 8) (int 2 0 0 14) (int 0 0 0 2) (int 2 0 0 0) (int 0 0 0 4) (int 0 0 0 8) (int 3 0 0 2) (int 2 0 0 5) (int 0 0 0 3) (int 0 0 0 8) (int 3 0 0 3))
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 4)
+ins 16 test_heap (int 0 0 0 4) (int 0 0 0 4)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 3) (int 3 0 0 2) (int 3 0 0 3) (int 3 0 0 0))
+ins 19 return
+ins 1 label (int 0 0 0 15)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 61 jump (int 5 0 0 13)
+ins 1 label (int 0 1 0 16)
+ins 153 line (int 0 0 0 6)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 15) (int 0 0 0 1)
+ins 1 label (int 0 1 0 17)
+ins 166 bs_start_match3 (int 5 1 0 18) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 182 bs_match (int 5 1 0 18) (int 3 0 0 0) (list (int 0 1 0 19) (int 2 0 0 3) (int 0 0 0 8) (int 0 0 0 1) (int 2 0 0 4) (int 0 0 0 1) (int 2 0 0 0) (int 0 0 0 3) (int 0 0 0 1) (int 3 0 0 1) (int 2 0 0 4) (int 0 0 0 2) (int 2 0 0 0) (int 0 0 0 5) (int 0 0 0 1) (int 3 0 0 2) (int 2 0 0 5) (int 0 0 0 3) (int 0 0 0 1) (int 3 0 0 0))
+ins 16 test_heap (int 0 0 0 4) (int 0 0 0 3)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 3) (int 3 0 0 1) (int 3 0 0 2) (int 3 0 0 0))
+ins 19 return
+ins 1 label (int 0 1 0 18)
+ins 64 move (int 2 0 0 12) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 19)
+ins 153 line (int 0 0 0 7)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 16) (int 0 0 0 1)
+ins 1 label (int 0 1 0 20)
+ins 166 bs_start_match3 (int 5 1 0 19) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 182 bs_match (int 5 1 0 21) (int 3 0 0 1) (list (int 0 0 0 15) (int 2 0 0 3) (int 0 1 0 16) (int 0 0 0 8) (int 2 0 0 4) (int 0 0 0 2) (int 2 0 0 0) (int 0 0 0 8) (int 0 0 0 1) (int 3 0 0 2) (int 2 0 0 4) (int 0 0 0 3) (int 2 0 0 0) (int 0 0 0 8) (int 0 0 0 1) (int 3 0 0 3))
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 4)
+ins 16 test_heap (int 0 0 0 4) (int 0 0 0 4)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 3) (int 3 0 0 2) (int 3 0 0 3) (int 3 0 0 0))
+ins 19 return
+ins 1 label (int 0 1 0 21)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 61 jump (int 5 1 0 19)
+ins 1 label (int 0 1 0 22)
+ins 153 line (int 0 0 0 8)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 17) (int 0 0 0 1)
+ins 1 label (int 0 1 0 23)
+ins 53 is_binary (int 5 1 0 22) (int 3 0 0 0)
+ins 170 bs_start_match4 (int 2 1 0 18) (int 0 0 0 1) (int 3 0 0 0) (int 3 0 0 0)
+ins 167 bs_get_position (int 3 0 0 0) (int 3 0 0 1) (int 0 0 0 1)
+ins 182 bs_match (int 5 1 0 24) (int 3 0 0 0) (list (int 0 0 0 8) (int 2 0 0 9) (int 0 0 0 8) (int 2 0 0 4) (int 0 0 0 2) (int 2 0 0 0) (int 0 0 0 8) (int 0 0 0 1) (int 3 0 0 2))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 24)
+ins 168 bs_set_position (int 3 0 0 0) (int 3 0 0 1)
+ins 182 bs_match (int 5 1 0 25) (int 3 0 0 0) (list (int 0 0 0 8) (int 2 0 0 9) (int 0 1 0 16) (int 2 0 0 4) (int 0 0 0 1) (int 2 0 0 0) (int 0 1 0 16) (int 0 0 0 1) (int 3 0 0 1))
+ins 64 move (int 3 0 0 1) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 25)
+ins 64 move (int 2 1 0 19) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 26)
+ins 153 line (int 0 0 0 9)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 20) (int 0 0 0 1)
+ins 1 label (int 0 1 0 27)
+ins 166 bs_start_match3 (int 5 1 0 28) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 182 bs_match (int 5 1 0 28) (int 3 0 0 0) (list (int 0 0 0 9) (int 2 0 0 3) (int 0 1 0 16) (int 0 0 0 8) (int 2 0 0 7) (int 0 1 0 16) (int 2 0 0 5) (int 0 0 0 1) (int 0 0 0 8) (int 3 0 0 0))
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 1)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 2) (int 2 1 0 21) (int 3 0 0 0))
+ins 19 return
+ins 1 label (int 0 1 0 28)
+ins 64 move (int 2 1 0 20) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 29)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 22) (int 0 0 0 0)
+ins 1 label (int 0 1 0 30)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 1 0 31)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 22) (int 0 0 0 1)
+ins 1 label (int 0 1 0 32)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 23 24 1
+import 23 24 2
+end
+
+chunk ExpT 136
+count 11
+export 22 1 32
+export 22 0 30
+export 20 1 27
+export 17 1 23
+export 16 1 20
+export 15 1 17
+export 13 1 14
+export 10 1 11
+export 8 1 8
+export 6 1 5
+export 2 1 2
+end
+
+chunk LitT 35
+hex 000000000000000100000017836c0000000277067369676e656477066c697474
+hex 6c656a
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 4
+count 0
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e100009a5ef924d664a5cadee4b
+hex e9f6256ac46a6a
+end
+
+chunk CInf 121
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b0045633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f62696e6172795f6d617463682e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 69
+version 0
+flags 0
+count 11
+record 1 13 1
+record 1 16 0
+record 1 19 0
+record 1 23 0
+record 1 27 0
+record 1 30 0
+record 1 35 0
+record 1 39 0
+record 1 47 0
+filename 0 src/test/erl/binary_match.erl
+end
+
+chunk Type 10
+hex 00000004000000011fff
+end

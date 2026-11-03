@@ -165,7 +165,7 @@ and golden files, so a codegen bug shows up as a diff instead of a mystery.
 **Exit test:** round trip to byte-identical output for the corpus, and every
 disassembly is a stable checked-in fixture.
 
-Status: the first slice is in. `Disassembler` writes the container, the atom table and the three function tables as text, and everything else as hex; `TextAssembler` reads it back; `DisassemblyRoundTripTest` proves all 104 fixtures survive the trip byte for byte, and `src/test/resources/disassembly/acceptance_demo.txt` is the first checked-in golden. `Code`, `Line`, `FunT` and the term chunks are still hex. `Code` is next, because that is where a codegen bug will show up.
+Status: done. `Disassembler` decodes the container, the atom table, `ExpT`, `ImpT`, `LocT`, `FunT`, `Line` and every instruction in `Code` with its operand encoding; `TextAssembler` reads all of it back. `LitT`, `Attr`, `CInf`, `Abst`, `StrT` and the chunks nobody interprets stay hex, and are copied, for the reasons A1 recorded. `DisassemblyRoundTripTest` proves all 104 fixtures survive the trip byte for byte, and all 104 listings are checked in under `src/test/resources/disassembly`.
 
 ### A3 — Front end: source to abstract forms
 

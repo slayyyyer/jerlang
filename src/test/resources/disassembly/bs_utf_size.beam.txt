@@ -1,0 +1,107 @@
+beam 1
+
+chunk Line 23
+version 0
+flags 0
+count 10
+record 0 7 0
+record 0 10 0
+record 0 13 0
+end
+
+chunk Atom 80
+count 9
+atom 1 bs_utf_size
+atom 2 test8
+atom 3 ok
+atom 4 error
+atom 5 test16
+atom 6 test32
+atom 7 module_info
+atom 8 erlang
+atom 9 get_module_info
+end
+
+chunk Code 197
+header 16 0 153 14 5
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 2)
+ins 1 label (int 0 0 0 2)
+ins 153 line (int 0 0 0 1)
+ins 64 move (int 1 0 0 0) (int 3 0 0 2)
+ins 144 bs_utf8_size (int 5 0 0 3) (int 3 0 0 0) (int 3 0 0 3)
+ins 111 bs_add (int 5 0 0 3) (int 3 0 0 2) (int 3 0 0 3) (int 0 0 0 1) (int 3 0 0 2)
+ins 109 bs_init2 (int 5 0 0 3) (int 3 0 0 2) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 145 bs_put_utf8 (int 5 0 0 3) (int 0 0 0 0) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 0 0 3) (int 3 0 0 2) (int 3 0 0 1)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 64 move (int 2 0 0 4) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 2)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 2)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 2)
+ins 64 move (int 1 0 0 0) (int 3 0 0 2)
+ins 146 bs_utf16_size (int 5 0 0 6) (int 3 0 0 0) (int 3 0 0 3)
+ins 111 bs_add (int 5 0 0 6) (int 3 0 0 2) (int 3 0 0 3) (int 0 0 0 1) (int 3 0 0 2)
+ins 109 bs_init2 (int 5 0 0 6) (int 3 0 0 2) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 147 bs_put_utf16 (int 5 0 0 6) (int 0 0 0 0) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 0 0 6) (int 3 0 0 2) (int 3 0 0 1)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 6)
+ins 64 move (int 2 0 0 4) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 6) (int 0 0 0 2)
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 3)
+ins 109 bs_init2 (int 5 0 0 9) (int 0 0 0 4) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 148 bs_put_utf32 (int 5 0 0 9) (int 0 0 0 0) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 0 0 9) (int 3 0 0 2) (int 3 0 0 1)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 2 0 0 4) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 0)
+ins 1 label (int 0 0 0 11)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 12)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 1)
+ins 1 label (int 0 0 0 13)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 8 9 1
+import 8 9 2
+end
+
+chunk ExpT 64
+count 5
+export 7 1 13
+export 7 0 11
+export 6 2 8
+export 5 2 5
+export 2 2 2
+end

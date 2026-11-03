@@ -1,0 +1,463 @@
+beam 1
+
+chunk AtU8 319
+count -35
+atom 1 scheduler_demo
+atom 2 fairness
+atom 3 erlang
+atom 4 self
+atom 5 millisecond
+atom 6 monotonic_time
+atom 7 +
+atom 8 *
+atom 9 lists
+atom 10 seq
+atom 11 ok
+atom 12 length
+atom 13 burn
+atom 14 ping
+atom 15 tick
+atom 16 send_after
+atom 17 -
+atom 18 wait_done
+atom 19 done
+atom 20 p99
+atom 21 div
+atom 22 sort
+atom 23 ++
+atom 24 nth
+atom 25 module_info
+atom 26 get_module_info
+atom 27 -sort/1-lc$^0/1-1-
+atom 28 -sort/1-lc$^1/1-0-
+atom 29 -fairness/1-lc$^2/1-1-
+atom 30 go
+atom 31 -fairness/1-lc$^0/1-0-
+atom 32 spawn
+atom 33 bad_generator
+atom 34 error
+atom 35 -fairness/1-fun-1-
+end
+
+chunk Code 1027
+header 16 0 181 52 14
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 1)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 3 0 0 0) (int 4 0 0 2)
+ins 9 bif0 (int 0 0 0 0) (int 4 0 0 1)
+ins 64 move (int 2 0 0 5) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 1) (int 0 0 0 2) (int 3 0 0 0) (int 1 1 0 300) (int 4 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 0) (int 0 0 0 3) (int 4 0 0 2) (int 1 0 0 2) (int 4 0 0 2)
+ins 64 move (int 4 0 0 2) (int 3 0 0 1)
+ins 64 move (int 1 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 4)
+ins 64 move (int 4 0 0 0) (int 3 0 0 1)
+ins 64 move (int 4 0 0 1) (int 3 0 0 2)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 1))
+ins 4 call (int 0 0 0 3) (int 5 1 0 44)
+ins 153 line (int 0 0 0 5)
+ins 4 call (int 0 0 0 1) (int 5 1 0 41)
+ins 64 move (int 2 0 0 5) (int 3 0 0 0)
+ins 153 line (int 0 0 0 6)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 4 call (int 0 0 0 3) (int 5 0 0 8)
+ins 169 swap (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 0 0 7)
+ins 4 call (int 0 0 0 1) (int 5 0 0 14)
+ins 43 is_eq_exact (int 5 0 0 3) (typed-register (int 3 0 0 0) (int 0 0 0 1)) (int 2 0 0 11)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 0 0 8)
+ins 4 call (int 0 0 0 1) (int 5 1 0 20)
+ins 124 gc_bif1 (int 5 0 0 0) (int 0 0 0 1) (int 0 0 0 5) (typed-register (int 4 0 0 2) (int 0 0 0 2)) (int 3 0 0 1)
+ins 16 test_heap (int 0 0 0 4) (int 0 0 0 2)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 3) (int 2 0 0 11) (int 3 0 0 0) (int 3 0 0 1))
+ins 18 deallocate (int 0 0 0 3)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 18 deallocate (int 0 0 0 3)
+ins 19 return
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 9)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 13) (int 0 0 0 1)
+ins 1 label (int 0 0 0 5)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (int 2 0 0 5) (int 3 0 0 0)
+ins 153 line (int 0 0 0 10)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 40 is_ge (int 5 0 0 6) (int 3 0 0 0) (typed-register (int 4 0 0 0) (int 0 0 0 3))
+ins 64 move (int 2 0 0 11) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 6)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 5 call_last (int 0 0 0 1) (int 5 0 0 5) (int 0 0 0 1)
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 11)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 14) (int 0 0 0 3)
+ins 1 label (int 0 0 0 8)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 3)
+ins 64 move (int 3 0 0 2) (int 4 0 0 0)
+ins 64 move (int 3 0 0 1) (int 4 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 2)
+ins 64 move (int 2 0 0 5) (int 3 0 0 0)
+ins 153 line (int 0 0 0 12)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 40 is_ge (int 5 0 0 9) (int 3 0 0 0) (typed-register (int 4 0 0 2) (int 0 0 0 3))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 3)
+ins 19 return
+ins 1 label (int 0 0 0 9)
+ins 9 bif0 (int 0 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 15) (int 3 0 0 2)
+ins 64 move (int 1 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 13)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 6)
+ins 1 label (int 0 0 0 10)
+ins 23 loop_rec (int 5 0 0 12) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 0 0 11) (int 3 0 0 0) (int 2 0 0 15)
+ins 21 remove_message
+ins 64 move (int 2 0 0 5) (int 3 0 0 0)
+ins 153 line (int 0 0 0 14)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 0 0 15)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 1) (int 0 0 0 7) (int 3 0 0 0) (int 4 0 0 1) (int 3 0 0 1)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 2)
+ins 69 put_list (int 3 0 0 1) (int 4 0 0 0) (int 3 0 0 2)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 4 0 0 2) (int 3 0 0 0)
+ins 5 call_last (int 0 0 0 3) (int 5 0 0 8) (int 0 0 0 3)
+ins 1 label (int 0 0 0 11)
+ins 24 loop_rec_end (int 5 0 0 10)
+ins 1 label (int 0 0 0 12)
+ins 25 wait (int 5 0 0 10)
+ins 1 label (int 0 0 0 13)
+ins 153 line (int 0 1 0 16)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 18) (int 0 0 0 1)
+ins 1 label (int 0 0 0 14)
+ins 43 is_eq_exact (int 5 0 0 15) (typed-register (int 3 0 0 0) (int 0 0 0 3)) (int 1 0 0 0)
+ins 64 move (int 2 0 0 11) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 15)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 1 label (int 0 1 0 16)
+ins 23 loop_rec (int 5 1 0 18) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 17) (int 3 0 0 0) (int 0 0 0 2) (int 2 1 0 19)
+ins 21 remove_message
+ins 153 line (int 0 1 0 17)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 0) (int 0 0 0 7) (typed-register (int 4 0 0 0) (int 0 0 0 3)) (int 1 0 0 1) (int 3 0 0 0)
+ins 5 call_last (int 0 0 0 1) (int 5 0 0 14) (int 0 0 0 1)
+ins 1 label (int 0 1 0 17)
+ins 24 loop_rec_end (int 5 1 0 16)
+ins 1 label (int 0 1 0 18)
+ins 26 wait_timeout (int 5 1 0 16) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 19)
+ins 153 line (int 0 1 0 18)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 20) (int 0 0 0 1)
+ins 1 label (int 0 1 0 20)
+ins 153 line (int 0 1 0 19)
+ins 124 gc_bif1 (int 5 0 0 0) (int 0 0 0 1) (int 0 0 0 5) (typed-register (int 3 0 0 0) (int 0 0 0 2)) (int 3 0 0 1)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 2) (int 0 0 0 3) (typed-register (int 3 0 0 1) (int 0 0 0 4)) (int 1 1 0 99) (int 3 0 0 1)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 2) (int 0 0 0 2) (typed-register (int 3 0 0 1) (int 0 0 0 5)) (int 1 1 0 99) (int 3 0 0 1)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 2)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 2) (int 0 0 0 8) (typed-register (int 3 0 0 1) (int 0 0 0 6)) (int 1 1 0 100) (int 4 0 0 0)
+ins 4 call (int 0 0 0 1) (int 5 1 0 22)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 5 call_last (int 0 0 0 2) (int 5 1 0 25) (int 0 0 0 1)
+ins 1 label (int 0 1 0 21)
+ins 153 line (int 0 1 0 20)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 22) (int 0 0 0 1)
+ins 1 label (int 0 1 0 22)
+ins 56 is_nonempty_list (int 5 1 0 23) (int 3 0 0 0)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 1)
+ins 65 get_list (int 3 0 0 0) (int 4 0 0 1) (int 4 0 0 0)
+ins 64 move (int 4 0 0 1) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 21)
+ins 4 call (int 0 0 0 2) (int 5 1 0 37)
+ins 4 call (int 0 0 0 1) (int 5 1 0 22)
+ins 169 swap (int 4 0 0 0) (int 3 0 0 0)
+ins 64 move (int 4 0 0 1) (int 3 0 0 1)
+ins 4 call (int 0 0 0 2) (int 5 1 0 33)
+ins 4 call (int 0 0 0 1) (int 5 1 0 22)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 1)
+ins 69 put_list (int 4 0 0 1) (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 8 call_ext_last (int 0 0 0 2) (int 0 0 0 9) (int 0 0 0 2)
+ins 1 label (int 0 1 0 23)
+ins 19 return
+ins 1 label (int 0 1 0 24)
+ins 153 line (int 0 1 0 22)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 24) (int 0 0 0 2)
+ins 1 label (int 0 1 0 25)
+ins 43 is_eq_exact (int 5 1 0 26) (typed-register (int 3 0 0 0) (int 0 0 0 7)) (int 1 0 0 1)
+ins 56 is_nonempty_list (int 5 1 0 27) (int 3 0 0 1)
+ins 162 get_hd (int 3 0 0 1) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 26)
+ins 56 is_nonempty_list (int 5 1 0 27) (int 3 0 0 1)
+ins 163 get_tl (int 3 0 0 1) (int 3 0 0 1)
+ins 153 line (int 0 1 0 23)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 2) (int 0 0 0 7) (typed-register (int 3 0 0 0) (int 0 0 0 7)) (int 1 0 0 1) (int 3 0 0 0)
+ins 6 call_only (int 0 0 0 2) (int 5 1 0 25)
+ins 1 label (int 0 1 0 27)
+ins 64 move (int 2 0 0 0) (int 3 0 0 1)
+ins 61 jump (int 5 1 0 24)
+ins 1 label (int 0 1 0 28)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 25) (int 0 0 0 0)
+ins 1 label (int 0 1 0 29)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 10)
+ins 1 label (int 0 1 0 30)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 25) (int 0 0 0 1)
+ins 1 label (int 0 1 0 31)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 11)
+ins 1 label (int 0 1 0 32)
+ins 153 line (int 0 1 0 21)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 27) (int 0 0 0 2)
+ins 1 label (int 0 1 0 33)
+ins 56 is_nonempty_list (int 5 1 0 35) (int 3 0 0 0)
+ins 65 get_list (int 3 0 0 0) (int 3 0 0 2) (int 3 0 0 0)
+ins 39 is_lt (int 5 1 0 34) (typed-register (int 3 0 0 1) (int 0 0 0 3)) (typed-register (int 3 0 0 2) (int 0 0 0 3))
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 3)
+ins 64 move (int 3 0 0 2) (int 4 0 0 0)
+ins 4 call (int 0 0 0 2) (int 5 1 0 33)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 1)
+ins 69 put_list (int 4 0 0 0) (int 3 0 0 0) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 34)
+ins 6 call_only (int 0 0 0 2) (int 5 1 0 33)
+ins 1 label (int 0 1 0 35)
+ins 19 return
+ins 1 label (int 0 1 0 36)
+ins 153 line (int 0 1 0 21)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 28) (int 0 0 0 2)
+ins 1 label (int 0 1 0 37)
+ins 56 is_nonempty_list (int 5 1 0 39) (int 3 0 0 0)
+ins 65 get_list (int 3 0 0 0) (int 3 0 0 2) (int 3 0 0 0)
+ins 40 is_ge (int 5 1 0 38) (typed-register (int 3 0 0 1) (int 0 0 0 3)) (typed-register (int 3 0 0 2) (int 0 0 0 3))
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 3)
+ins 64 move (int 3 0 0 2) (int 4 0 0 0)
+ins 4 call (int 0 0 0 2) (int 5 1 0 37)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 1)
+ins 69 put_list (int 4 0 0 0) (int 3 0 0 0) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 38)
+ins 6 call_only (int 0 0 0 2) (int 5 1 0 37)
+ins 1 label (int 0 1 0 39)
+ins 19 return
+ins 1 label (int 0 1 0 40)
+ins 153 line (int 0 0 0 5)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 29) (int 0 0 0 1)
+ins 1 label (int 0 1 0 41)
+ins 56 is_nonempty_list (int 5 1 0 42) (int 3 0 0 0)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 1)
+ins 65 get_list (int 3 0 0 0) (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (int 2 1 0 30) (int 3 0 0 1)
+ins 20 send
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 5 call_last (int 0 0 0 1) (int 5 1 0 41) (int 0 0 0 1)
+ins 1 label (int 0 1 0 42)
+ins 19 return
+ins 1 label (int 0 1 0 43)
+ins 153 line (int 0 0 0 4)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 31) (int 0 0 0 3)
+ins 1 label (int 0 1 0 44)
+ins 56 is_nonempty_list (int 5 1 0 45) (int 3 0 0 0)
+ins 13 allocate_heap (int 0 0 0 3) (allocation (int 0 0 0 3) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 1) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 1)) (int 0 0 0 3)
+ins 64 move (int 3 0 0 2) (int 4 0 0 1)
+ins 64 move (int 3 0 0 1) (int 4 0 0 2)
+ins 163 get_tl (int 3 0 0 0) (int 4 0 0 0)
+ins 171 make_fun3 (int 0 0 0 0) (int 3 0 0 0) (list (int 0 0 0 2) (int 3 0 0 1) (int 3 0 0 2))
+ins 153 line (int 0 1 0 24)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 12)
+ins 64 move (int 4 0 0 0) (int 3 0 0 3)
+ins 64 move (int 4 0 0 2) (int 3 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 2)
+ins 136 trim (int 0 0 0 2) (int 0 0 0 1)
+ins 64 move (int 3 0 0 3) (int 3 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 4 call (int 0 0 0 3) (int 5 1 0 44)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 1)
+ins 69 put_list (int 4 0 0 0) (int 3 0 0 0) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 45)
+ins 52 is_nil (int 5 1 0 46) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 46)
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 1)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 2) (int 2 1 0 33) (int 3 0 0 0))
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 13)
+ins 1 label (int 0 1 0 47)
+ins 153 line (int 0 1 0 24)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 35) (int 0 0 0 2)
+ins 1 label (int 0 1 0 48)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 2)
+ins 64 move (int 3 0 0 1) (int 4 0 0 0)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 1 label (int 0 1 0 49)
+ins 23 loop_rec (int 5 1 0 51) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 50) (int 3 0 0 0) (int 2 1 0 30)
+ins 21 remove_message
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 64 move (int 4 0 0 0) (int 4 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 153 line (int 0 1 0 25)
+ins 4 call (int 0 0 0 1) (int 5 0 0 5)
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 0)
+ins 9 bif0 (int 0 0 0 0) (int 3 0 0 0)
+ins 164 put_tuple2 (int 3 0 0 1) (list (int 0 0 0 2) (int 2 1 0 19) (int 3 0 0 0))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 26)
+ins 20 send
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 50)
+ins 24 loop_rec_end (int 5 1 0 49)
+ins 1 label (int 0 1 0 51)
+ins 25 wait (int 5 1 0 49)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 172
+count 14
+import 3 4 0
+import 3 6 1
+import 3 7 2
+import 3 8 2
+import 9 10 2
+import 3 12 1
+import 3 16 3
+import 3 17 2
+import 3 21 2
+import 3 23 2
+import 3 26 1
+import 3 26 2
+import 3 32 1
+import 3 34 1
+end
+
+chunk ExpT 40
+count 3
+export 25 1 31
+export 25 0 29
+export 2 1 2
+end
+
+chunk FunT 28
+count 1
+lambda 35 2 48 0 2 87809034
+end
+
+chunk LitT 38
+hex 00000000000000010000001a83680277056572726f72770e6275726e65725f74
+hex 696d656f7574
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 136
+count 11
+local 35 2 48
+local 31 3 44
+local 29 1 41
+local 28 2 37
+local 27 2 33
+local 24 2 25
+local 22 1 22
+local 20 1 20
+local 18 1 14
+local 14 3 8
+local 13 1 5
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e10006f526d2dabd3c1c0dc5919
+hex 8359817ba76a6a
+end
+
+chunk CInf 123
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b0047633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f7363686564756c65725f64656d6f2e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 103
+version 0
+flags 0
+count 34
+record 1 10 1
+record 1 12 0
+record 1 13 0
+record 1 21 0
+record 1 22 0
+record 1 23 0
+record 1 24 0
+record 1 26 0
+record 1 34 0
+record 1 35 0
+record 1 42 0
+record 1 43 0
+record 1 47 0
+record 1 50 0
+record 1 51 0
+record 1 55 0
+record 1 60 0
+record 1 65 0
+record 1 66 0
+record 1 70 0
+record 1 73 0
+record 1 75 0
+record 1 78 0
+record 1 17 0
+record 1 19 0
+record 1 20 0
+filename 0 src/test/erl/scheduler_demo.erl
+end
+
+chunk Type 56
+hex 00000004000000081fff0801008400286020000000000000000003ffffffffff
+hex ffff20200000000000000000202000000000000000630020
+end
