@@ -43,7 +43,9 @@ public class CodegenOtpTest {
             "         map_other/0, map_value/1, safe/1, safe_of/1, uncaught/1, risky/1,",
             "         logic/2, negate/1, after_value/1, after_error/1, after_throw/1,",
             "         after_catch/1, after_catch_error/1, after_no_of/1,",
-            "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1]).",
+            "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1,",
+            "         fun_add/1, fun_sub/1, fun_multi/0, fun_zero/0, fun_nested/1,",
+            "         fun_apply/2, fun_make/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -141,7 +143,24 @@ public class CodegenOtpTest {
             "    erlang:send_after(0, self(), {echo, 9}),",
             "    receive {echo, X} -> X after 1000 -> timeout end.",
             "receive_timeout(T) ->",
-            "    receive {echo, X} -> X after T -> timeout end."), StandardCharsets.UTF_8);
+            "    receive {echo, X} -> X after T -> timeout end.",
+            "fun_add(Y) ->",
+            "    F = fun(X) -> X + Y end,",
+            "    F(5).",
+            "fun_sub(Y) ->",
+            "    F = fun(X) -> X - Y end,",
+            "    F(10).",
+            "fun_multi() ->",
+            "    F = fun(0) -> zero; (N) -> N end,",
+            "    {F(0), F(2)}.",
+            "fun_zero() ->",
+            "    F = fun() -> 7 end,",
+            "    F().",
+            "fun_nested(Y) ->",
+            "    F = fun(X) -> (fun(Z) -> X + Z end)(Y) end,",
+            "    F(5).",
+            "fun_apply(F, X) -> F(X).",
+            "fun_make(Y) -> fun(X) -> X + Y end."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         byte[] beam = Codegen.compile(forms);
@@ -177,6 +196,10 @@ public class CodegenOtpTest {
                 + "codegen_sample:after_catch_error(1), codegen_sample:after_no_of(2)",
             "codegen_sample:receive_queued(), codegen_sample:receive_selective(), "
                 + "codegen_sample:receive_after(), codegen_sample:receive_timeout(0)",
+            "codegen_sample:fun_add(3), codegen_sample:fun_sub(4), "
+                + "codegen_sample:fun_multi(), codegen_sample:fun_zero(), "
+                + "codegen_sample:fun_nested(10), "
+                + "codegen_sample:fun_apply(fun(A) -> A * 2 end, 6)",
             "try codegen_sample:only_zero(1) catch error:function_clause -> function_clause end"
         };
         StringBuilder output = new StringBuilder();
@@ -204,6 +227,7 @@ public class CodegenOtpTest {
             + "[{false,true},{false,true},{x,true},{false,x},-3]\n"
             + "[{2,true},true,true,{caught,true},true,true]\n"
             + "[7,2,9,timeout]\n"
+            + "[8,6,{zero,2},7,15,12]\n"
             + "[function_clause]\n", output.toString());
         assertTrue("the generated file was not recognized as a module",
             Files.size(beamFile) > 100);

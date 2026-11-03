@@ -66,7 +66,9 @@ public class CodegenInterpreterTest {
             "         map_other/0, map_value/1, safe/1, safe_of/1, uncaught/1, risky/1,",
             "         logic/2, negate/1, after_value/1, after_error/1, after_throw/1,",
             "         after_catch/1, after_catch_error/1, after_no_of/1,",
-            "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1]).",
+            "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1,",
+            "         fun_add/1, fun_sub/1, fun_multi/0, fun_zero/0, fun_nested/1,",
+            "         fun_apply/2, fun_make/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -164,7 +166,24 @@ public class CodegenInterpreterTest {
             "    erlang:send_after(0, self(), {echo, 9}),",
             "    receive {echo, X} -> X after 1000 -> timeout end.",
             "receive_timeout(T) ->",
-            "    receive {echo, X} -> X after T -> timeout end."), StandardCharsets.UTF_8);
+            "    receive {echo, X} -> X after T -> timeout end.",
+            "fun_add(Y) ->",
+            "    F = fun(X) -> X + Y end,",
+            "    F(5).",
+            "fun_sub(Y) ->",
+            "    F = fun(X) -> X - Y end,",
+            "    F(10).",
+            "fun_multi() ->",
+            "    F = fun(0) -> zero; (N) -> N end,",
+            "    {F(0), F(2)}.",
+            "fun_zero() ->",
+            "    F = fun() -> 7 end,",
+            "    F().",
+            "fun_nested(Y) ->",
+            "    F = fun(X) -> (fun(Z) -> X + Z end)(Y) end,",
+            "    F(5).",
+            "fun_apply(F, X) -> F(X).",
+            "fun_make(Y) -> fun(X) -> X + Y end."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         Path beam = directory.resolve("codegen_sample.beam");
@@ -246,6 +265,14 @@ public class CodegenInterpreterTest {
         assertEquals(Integer.of(2), apply(module, "receive_selective", 0));
         assertEquals(Integer.of(9), apply(module, "receive_after", 0));
         assertEquals(Atom.of("timeout"), apply(module, "receive_timeout", 1, Integer.ZERO));
+        assertEquals(Integer.of(8), apply(module, "fun_add", 1, Integer.of(3)));
+        assertEquals(Integer.of(6), apply(module, "fun_sub", 1, Integer.of(4)));
+        assertEquals(org.jerlang.type.Tuple.of(Atom.of("zero"), Integer.of(2)),
+            apply(module, "fun_multi", 0));
+        assertEquals(Integer.of(7), apply(module, "fun_zero", 0));
+        assertEquals(Integer.of(15), apply(module, "fun_nested", 1, Integer.of(10)));
+        Term fun = apply(module, "fun_make", 1, Integer.of(3));
+        assertEquals(Integer.of(8), apply(module, "fun_apply", 2, fun, Integer.of(5)));
         try {
             apply(module, "only_zero", 1, Integer.of(1));
             fail("expected function_clause");

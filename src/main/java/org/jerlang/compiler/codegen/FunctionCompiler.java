@@ -67,6 +67,7 @@ final class FunctionCompiler {
                 emit(Opcode.label, Integer.of(function.clauseLabels.get(index)));
             }
             variables.clear();
+            seedFreeVariables(at(function.clauses, index).toTuple());
             int fail = index + 1 < function.clauses.length()
                 ? function.clauseLabels.get(index + 1) : function.entry;
             compileClause(at(function.clauses, index).toTuple(), fail);
@@ -432,6 +433,10 @@ final class FunctionCompiler {
             return receiveExpression(tuple);
         case "try":
             return tryExpression(tuple);
+        case "fun":
+            return funExpression(tuple);
+        case "named_fun":
+            throw unsupported("named fun");
         default:
             throw unsupported("expression " + tag);
         }
@@ -962,12 +967,12 @@ final class FunctionCompiler {
     private Term call(Tuple tuple) {
         Term target = tuple.element(3);
         List arguments = tuple.element(4).toList();
-        List values = List.nil;
-        while (arguments != List.nil) {
-            values = new List(value(arguments.head()), values);
-            arguments = arguments.tail();
+        if (!is(target, "remote") && !is(target, "atom")) {
+            Term fun = value(target);
+            return callFun(fun, argumentValues(arguments));
         }
-        values = reverse(values);
+
+        List values = argumentValues(arguments);
         int arity = values.length();
         for (int index = 0; index < arity; index++) {
             emit(Opcode.move, at(values, index), x(index));
@@ -982,9 +987,6 @@ final class FunctionCompiler {
             Atom functionName = remote.element(4).toTuple().element(3).toAtom();
             return remoteCall(moduleName, functionName, arity, values);
         }
-        if (!is(target, "atom")) {
-            throw unsupported("call target " + tag(target.toTuple()));
-        }
         Atom name = target.toTuple().element(3).toAtom();
         ModuleCompiler.FunctionDef callee = module.functionOrNull(name, arity);
         if (callee != null) {
@@ -998,6 +1000,95 @@ final class FunctionCompiler {
         Term destination = newY();
         emit(Opcode.move, x(0), destination);
         return destination;
+    }
+
+    private List argumentValues(List arguments) {
+        List values = List.nil;
+        while (arguments != List.nil) {
+            values = new List(value(arguments.head()), values);
+            arguments = arguments.tail();
+        }
+        return reverse(values);
+    }
+
+    private Term callFun(Term fun, List values) {
+        int arity = values.length();
+        for (int index = 0; index < arity; index++) {
+            emit(Opcode.move, at(values, index), x(index));
+        }
+        emit(Opcode.move, fun, x(arity));
+        emit(Opcode.call_fun, Integer.of(arity));
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
+    }
+
+    private Term funExpression(Tuple expression) {
+        Term body = expression.element(3);
+        if (!(body instanceof Tuple) || !is(body.toTuple(), "clauses")) {
+            throw unsupported("fun reference");
+        }
+        List clauses = body.toTuple().element(2).toList();
+        if (clauses == List.nil) {
+            throw unsupported("empty fun");
+        }
+
+        int funArity = at(clauses, 0).toTuple().element(3).toList().length();
+        List cursor = clauses;
+        while (cursor != List.nil) {
+            Tuple clause = cursor.head().toTuple();
+            if (clause.element(3).toList().length() != funArity) {
+                throw unsupported("fun clauses with different arities");
+            }
+            cursor = cursor.tail();
+        }
+
+        Set<Atom> referenced = new LinkedHashSet<>();
+        collectVariables(clauses, referenced);
+        Set<Atom> bound = new LinkedHashSet<>();
+        cursor = clauses;
+        while (cursor != List.nil) {
+            collectVariables(cursor.head().toTuple().element(3), bound);
+            cursor = cursor.tail();
+        }
+        referenced.removeAll(bound);
+
+        List freeNames = List.nil;
+        List freeValues = List.nil;
+        for (Atom name : referenced) {
+            Term value = variables.get(name);
+            if (value != null) {
+                freeNames = new List(name, freeNames);
+                freeValues = new List(value, freeValues);
+            }
+        }
+        freeNames = reverse(freeNames);
+        freeValues = reverse(freeValues);
+
+        ModuleCompiler.LambdaDef lambda = module.addLambda(function.name, function.arity,
+            clauses, freeNames, funArity);
+        Term destination = newY();
+        emit(Opcode.make_fun3, Integer.of(lambda.index), destination,
+            Tuple.of(Atom.of("list"), freeValues));
+        return destination;
+    }
+
+    private void seedFreeVariables(Tuple clause) {
+        if (function.freeNames == List.nil) {
+            return;
+        }
+        Set<Atom> bound = new LinkedHashSet<>();
+        collectVariables(clause.element(3), bound);
+        List free = function.freeNames;
+        int position = 0;
+        while (free != List.nil) {
+            Atom name = free.head().toAtom();
+            if (!bound.contains(name)) {
+                variables.put(name, y(function.patternArity + position));
+            }
+            position++;
+            free = free.tail();
+        }
     }
 
     private Term remoteCall(Atom moduleName, Atom functionName, int arity, List values) {

@@ -272,8 +272,9 @@ for functions, clauses, literal patterns (integer, atom, tuple, list, string,
 map and `nil`), guard sequences and alternatives, arithmetic BIFs, auto-imported
 BIFs, local and remote calls, tuple/list/string/map construction, `case`/`if`,
 `try ... of ... catch` with or without `after`, `receive` with selective
-clauses and an optional `after` timeout, short-circuit `andalso`/`orelse`, and
-unary `+`/`-`. Remote calls go through `ImpT` and
+clauses and an optional `after` timeout, anonymous funs with captures, nested
+funs and higher-order calls, short-circuit `andalso`/`orelse`, and unary `+`/`-`.
+Remote calls go through `ImpT` and
 `call_ext`; maps start from `maps:new/0` and update with `put_map_assoc`. Values
 that survive a call are kept in Y registers; every operation result gets a
 fresh Y slot, and X registers are used only for arguments and BIF results.
@@ -287,15 +288,18 @@ functions: recursion, guards, tuple/list/string/map construction, list/string/
 map patterns, case/if branches, guard alternatives, local and remote calls,
 try/catch and try/of/catch error and throw paths, try-after cleanup on normal,
 throw, error, catch-body and `try_clause` paths, receive with queued messages,
-selective scanning, timed wakeups and zero timeouts, short-circuit booleans,
-unary arithmetic, and unmatched function/case/if expressions (which must raise
+selective scanning, timed wakeups and zero timeouts, fun captures, arity zero,
+multiple lambda clauses, nested lambdas and a fun passed into a compiled call,
+short-circuit booleans, unary arithmetic, and unmatched function/case/if
+expressions (which must raise
 `function_clause`, `case_clause` and `if_clause`) all agree with `erlc`
 behaviour.
 `CodegenInterpreterTest` loads that file through `ModuleLoader`, registers it,
 and makes the same calls through JErlang. Both are green as of 2026-11-03.
 
 The slice has no line table or `StrT`/`LitT` use, no `module_info`, no binaries,
-funs, or comprehensions. Unsupported forms raise
+or comprehensions. Named funs and `fun M:F/A` references are also still
+unsupported. Unsupported forms raise
 `CodegenException`; they are not silently omitted. The full corpus recompile
 and OTP application boot remain the A5 exit test, so A5 is not done.
 
@@ -311,7 +315,14 @@ the runtime helper prepends, so map update and `get_map_elements` operand
 pairs must be reversed before encoding or the map is built with the wrong
 keys. A `receive after 0` has no timer to wake it, so `waitForMessage` queues
 the process itself when its timeout has already expired; otherwise the
-scheduler sleeps forever. Auto-imported BIF names such as `throw/1` and `error/1` must become
+scheduler sleeps forever. A lambda's FunT label is its body label, not its
+`func_info` entry label, and its arity includes the captured variables. BEAM
+calls a fun with the arguments first and the captured values after them, so the
+lambda body binds its patterns to the first Y slots and its free names to the
+slots after them. The free-variable operand of `make_fun3` is an operand list
+even when it is empty; passing `nil` encodes an atom and OTP rejects the
+instruction. Finally, the Code chunk's function count includes lambdas, not
+just exported and local functions. Auto-imported BIF names such as `throw/1` and `error/1` must become
 `call_ext` to `erlang`, not local calls; the code generator uses the same OTP
 29 table as the linter. A fourth trap is the `f` operand of a `test`
 instruction: it is the failure target, not the success target. Putting the

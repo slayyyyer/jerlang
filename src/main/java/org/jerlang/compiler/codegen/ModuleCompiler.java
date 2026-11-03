@@ -18,7 +18,10 @@ import org.jerlang.stdlib.beam_lib.Chunk;
 import org.jerlang.stdlib.beam_lib.ChunkId;
 import org.jerlang.stdlib.beam_lib.CodeChunkAssembler;
 import org.jerlang.stdlib.beam_lib.ExportTableChunk;
+import org.jerlang.stdlib.beam_lib.FunctionTableChunk;
+import org.jerlang.stdlib.beam_lib.FunctionTableChunkWriter;
 import org.jerlang.stdlib.beam_lib.ImportTableChunk;
+import org.jerlang.stdlib.beam_lib.LambdaInfo;
 import org.jerlang.stdlib.beam_lib.LocalFunctionTableChunk;
 import org.jerlang.stdlib.beam_lib.TableChunkWriter;
 import org.jerlang.type.Atom;
@@ -43,6 +46,7 @@ final class ModuleCompiler {
     private final LinkedHashMap<ImportKey, java.lang.Integer> imports = new LinkedHashMap<>();
     private final LinkedHashMap<FunctionKey, FunctionDef> functions = new LinkedHashMap<>();
     private final LinkedHashMap<FunctionKey, Boolean> exports = new LinkedHashMap<>();
+    private final java.util.List<LambdaDef> lambdas = new ArrayList<>();
     private Atom module;
     private int nextLabel = 1;
 
@@ -69,15 +73,21 @@ final class ModuleCompiler {
         for (FunctionDef function : functions.values()) {
             new FunctionCompiler(this, function, instructions).compile();
         }
+        // Compiling a lambda can discover a nested lambda, so this loop must
+        // not snapshot the list size.
+        for (int index = 0; index < lambdas.size(); index++) {
+            new FunctionCompiler(this, lambdas.get(index).function, instructions).compile();
+        }
         instructions.add(new Instruction(instructions.size(), Opcode.int_code_end));
 
         AtomChunk atoms = atomChunk();
         java.util.List<BeamFile.ChunkData> chunks = new ArrayList<>();
         chunks.add(BeamFile.ChunkData.of("AtU8", AtomChunkWriter.write(atoms, true)));
         chunks.add(BeamFile.ChunkData.of("Code",
-            CodeChunkAssembler.write(instructions, atoms, nextLabel, functions.size())));
+            CodeChunkAssembler.write(instructions, atoms, nextLabel,
+                functions.size() + lambdas.size())));
         chunks.add(BeamFile.ChunkData.of("StrT", new byte[0]));
-        chunks.add(BeamFile.ChunkData.of("FunT", emptyFunctionTable()));
+        chunks.add(BeamFile.ChunkData.of("FunT", functionTable(atoms)));
         chunks.add(BeamFile.ChunkData.of("ImpT", importTable(atoms)));
         chunks.add(BeamFile.ChunkData.of("ExpT", exportTable(atoms)));
         chunks.add(BeamFile.ChunkData.of("LocT", localTable(atoms)));
@@ -117,6 +127,24 @@ final class ModuleCompiler {
 
     FunctionDef functionOrNull(Atom name, int arity) {
         return functions.get(new FunctionKey(name, arity));
+    }
+
+    LambdaDef addLambda(Atom ownerName, int ownerArity, List clauses, List freeNames,
+        int funArity) {
+        int index = lambdas.size();
+        Atom name = Atom.of("-" + ownerName + "/" + ownerArity + "-fun-" + index + "-");
+        atom(name);
+        FunctionKey key = new FunctionKey(name, funArity + freeNames.length());
+        FunctionDef function = new FunctionDef(key, clauses, funArity, freeNames);
+        function.entry = label();
+        function.body = label();
+        function.clauseLabels.add(function.body);
+        for (int clause = 1; clause < clauses.length(); clause++) {
+            function.clauseLabels.add(label());
+        }
+        LambdaDef lambda = new LambdaDef(function, index, freeNames);
+        lambdas.add(lambda);
+        return lambda;
     }
 
     int label() {
@@ -222,6 +250,26 @@ final class ModuleCompiler {
         return TableChunkWriter.locals(table, atoms);
     }
 
+    private byte[] functionTable(AtomChunk atoms) {
+        FunctionTableChunk table = new FunctionTableChunk(new Chunk(ChunkId.FUNT, 0, 0));
+        for (LambdaDef lambda : lambdas) {
+            table.add(new LambdaInfo(atomIndex(atoms, lambda.function.name),
+                lambda.function.arity, lambda.function.body, lambda.index,
+                lambda.freeNames.length(), 0, lambda.index, atoms));
+        }
+        return FunctionTableChunkWriter.write(table, atoms);
+    }
+
+    private static int atomIndex(AtomChunk atoms, Atom atom) {
+        Atom[] table = atoms.atoms();
+        for (int index = 0; index < table.length; index++) {
+            if (atom.equals(table[index])) {
+                return index + 1;
+            }
+        }
+        throw new CodegenException("lambda function atom is missing: " + atom);
+    }
+
     private Term attributes() {
         List exportsList = List.nil;
         for (FunctionKey key : exports.keySet()) {
@@ -241,12 +289,6 @@ final class ModuleCompiler {
         return ExternalTermWriter.encode(term).toByteArray();
     }
 
-    private static byte[] emptyFunctionTable() {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        BeamBytes.write4(out, 0);
-        return out.toByteArray();
-    }
-
     private static boolean is(Tuple tuple, String name) {
         return tuple.arity() >= 1 && tuple.element(1).equals(Atom.of(name));
     }
@@ -260,12 +302,33 @@ final class ModuleCompiler {
         int body;
         final Atom name;
         final int arity;
+        final int patternArity;
+        final List freeNames;
 
         private FunctionDef(FunctionKey key, List clauses) {
+            this(key, clauses, key.arity, List.nil);
+        }
+
+        private FunctionDef(FunctionKey key, List clauses, int patternArity, List freeNames) {
             this.key = key;
             this.clauses = clauses;
             this.name = key.name;
             this.arity = key.arity;
+            this.patternArity = patternArity;
+            this.freeNames = freeNames;
+        }
+    }
+
+    static final class LambdaDef {
+
+        final FunctionDef function;
+        final int index;
+        final List freeNames;
+
+        private LambdaDef(FunctionDef function, int index, List freeNames) {
+            this.function = function;
+            this.index = index;
+            this.freeNames = freeNames;
         }
     }
 
