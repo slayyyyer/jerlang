@@ -107,6 +107,17 @@ final class FunctionCompiler {
         case "nil":
             emit(Opcode.is_nil, f(fail), target);
             return;
+        case "cons":
+            emit(Opcode.is_nonempty_list, f(fail), target);
+            Term head = newY();
+            Term tail = newY();
+            emit(Opcode.get_list, target, head, tail);
+            bindPattern(tuple.element(3), head, fail);
+            bindPattern(tuple.element(4), tail, fail);
+            return;
+        case "string":
+            bindString(tuple.element(3).toList(), target, fail);
+            return;
         case "tuple":
             List elements = tuple.element(3).toList();
             emit(Opcode.is_tuple, f(fail), target);
@@ -133,6 +144,20 @@ final class FunctionCompiler {
         } else {
             emit(Opcode.is_eq_exact, f(fail), target, existing);
         }
+    }
+
+    private void bindString(List characters, Term target, int fail) {
+        if (characters == List.nil) {
+            emit(Opcode.is_nil, f(fail), target);
+            return;
+        }
+        emit(Opcode.is_nonempty_list, f(fail), target);
+        Term head = newY();
+        Term tail = newY();
+        emit(Opcode.get_list, target, head, tail);
+        emit(Opcode.is_eq_exact, f(fail), head,
+            integer(characters.head().toInteger()));
+        bindString(characters.tail(), tail, fail);
     }
 
     private Term integerPattern(Term pattern) {
@@ -282,6 +307,10 @@ final class FunctionCompiler {
             return Tuple.of(Atom.of("atom"), atom);
         case "nil":
             return List.nil;
+        case "cons":
+            return cons(tuple.element(3), tuple.element(4));
+        case "string":
+            return string(tuple.element(3).toList());
         case "tuple":
             return tuple(tuple.element(3).toList());
         case "match":
@@ -313,6 +342,26 @@ final class FunctionCompiler {
         Term destination = newY();
         emit(Opcode.put_tuple2, destination, operands);
         return destination;
+    }
+
+    private Term cons(Term headExpression, Term tailExpression) {
+        Term head = value(headExpression);
+        Term tail = value(tailExpression);
+        Term destination = newY();
+        emit(Opcode.put_list, head, tail, destination);
+        return destination;
+    }
+
+    private Term string(List characters) {
+        Term tail = List.nil;
+        characters = reverse(characters);
+        while (characters != List.nil) {
+            Term destination = newY();
+            emit(Opcode.put_list, integer(characters.head().toInteger()), tail, destination);
+            tail = destination;
+            characters = characters.tail();
+        }
+        return tail;
     }
 
     private Term bind(Term pattern, Term value) {
@@ -365,10 +414,6 @@ final class FunctionCompiler {
 
     private Term call(Tuple tuple) {
         Term target = tuple.element(3);
-        if (!is(target, "atom")) {
-            throw unsupported("remote call");
-        }
-        Atom name = target.toTuple().element(3).toAtom();
         List arguments = tuple.element(4).toList();
         List values = List.nil;
         while (arguments != List.nil) {
@@ -377,11 +422,28 @@ final class FunctionCompiler {
         }
         values = reverse(values);
         int arity = values.length();
-        ModuleCompiler.FunctionDef callee = module.function(name, arity);
         for (int index = 0; index < arity; index++) {
             emit(Opcode.move, at(values, index), x(index));
         }
-        emit(Opcode.call, Integer.of(arity), f(callee.body));
+
+        if (is(target, "remote")) {
+            Tuple remote = target.toTuple();
+            if (!is(remote.element(3), "atom") || !is(remote.element(4), "atom")) {
+                throw unsupported("dynamic remote call");
+            }
+            Atom moduleName = remote.element(3).toTuple().element(3).toAtom();
+            Atom functionName = remote.element(4).toTuple().element(3).toAtom();
+            int importIndex = module.importIndex(moduleName, functionName, arity);
+            emit(Opcode.call_ext, Integer.of(arity), Integer.of(importIndex));
+        } else {
+            if (!is(target, "atom")) {
+                throw unsupported("call target " + tag(target.toTuple()));
+            }
+            Atom name = target.toTuple().element(3).toAtom();
+            ModuleCompiler.FunctionDef callee = module.function(name, arity);
+            emit(Opcode.call, Integer.of(arity), f(callee.body));
+        }
+
         Term destination = newY();
         emit(Opcode.move, x(0), destination);
         return destination;
@@ -400,6 +462,10 @@ final class FunctionCompiler {
 
     private static Tuple atom(Atom atom) {
         return Tuple.of(Atom.of("atom"), atom);
+    }
+
+    private static Tuple integer(Integer integer) {
+        return Tuple.of(Atom.of("integer"), integer);
     }
 
     private static Tuple x(int index) {

@@ -92,7 +92,11 @@ final class ModuleCompiler {
     }
 
     int importIndex(Atom function, int arity) {
-        ImportKey key = new ImportKey(Atom.of("erlang"), function, arity);
+        return importIndex(Atom.of("erlang"), function, arity);
+    }
+
+    int importIndex(Atom module, Atom function, int arity) {
+        ImportKey key = new ImportKey(module, function, arity);
         java.lang.Integer index = imports.get(key);
         if (index == null) {
             index = imports.size();

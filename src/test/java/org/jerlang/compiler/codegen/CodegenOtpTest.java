@@ -37,7 +37,8 @@ public class CodegenOtpTest {
         Path source = directory.resolve("codegen_sample.erl");
         Files.write(source, Arrays.asList(
             "-module(codegen_sample).",
-            "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1]).",
+            "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1,",
+            "         len/1, greet/0, reverse/1, is_hello/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -45,7 +46,13 @@ public class CodegenOtpTest {
             "choose(X) when X > 0 -> positive;",
             "choose(_) -> other.",
             "pair(X) -> {X, answer}.",
-            "only_zero(0) -> ok."), StandardCharsets.UTF_8);
+            "only_zero(0) -> ok.",
+            "len([]) -> 0;",
+            "len([_|T]) -> 1 + len(T).",
+            "greet() -> \"hello\".",
+            "reverse(L) -> lists:reverse(L).",
+            "is_hello(\"hello\") -> true;",
+            "is_hello(_) -> false."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         byte[] beam = Codegen.compile(forms);
@@ -59,6 +66,12 @@ public class CodegenOtpTest {
             + "codegen_sample:choose(1), "
             + "codegen_sample:choose(0), "
             + "codegen_sample:pair(7), "
+            + "codegen_sample:len([a, b, c]), "
+            + "codegen_sample:len([]), "
+            + "codegen_sample:greet(), "
+            + "codegen_sample:reverse([1, 2, 3]), "
+            + "codegen_sample:is_hello([104, 101, 108, 108, 111]), "
+            + "codegen_sample:is_hello([98, 121, 101]), "
             + "try codegen_sample:only_zero(1) catch error:function_clause -> function_clause end]), halt().";
         ProcessBuilder builder = new ProcessBuilder(erl.toString(), "-noshell",
             "-pa", directory.toAbsolutePath().toString(), "-eval", expression);
@@ -68,7 +81,8 @@ public class CodegenOtpTest {
             StandardCharsets.UTF_8).replace("\r\n", "\n");
         assertTrue("OTP did not finish: " + output, process.waitFor(60, TimeUnit.SECONDS));
         assertEquals(output, 0, process.exitValue());
-        assertEquals("[5,42,120,positive,other,{7,answer},function_clause]\n", output);
+        assertEquals("[5,42,120,positive,other,{7,answer},3,0,\"hello\",[3,2,1],true,false,function_clause]\n",
+            output);
         assertTrue("the generated file was not recognized as a module",
             Files.size(beamFile) > 100);
     }

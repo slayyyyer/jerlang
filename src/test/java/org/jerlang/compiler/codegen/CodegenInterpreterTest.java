@@ -18,6 +18,7 @@ import org.jerlang.compiler.parse.Parser;
 import org.jerlang.compiler.preprocess.Preprocessor;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
+import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 import org.jerlang.vm.VirtualMachine;
 import org.junit.After;
@@ -58,7 +59,8 @@ public class CodegenInterpreterTest {
         Path source = directory.resolve("codegen_sample.erl");
         Files.write(source, Arrays.asList(
             "-module(codegen_sample).",
-            "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1]).",
+            "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1,",
+            "         len/1, greet/0, reverse/1, is_hello/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -66,7 +68,13 @@ public class CodegenInterpreterTest {
             "choose(X) when X > 0 -> positive;",
             "choose(_) -> other.",
             "pair(X) -> {X, answer}.",
-            "only_zero(0) -> ok."), StandardCharsets.UTF_8);
+            "only_zero(0) -> ok.",
+            "len([]) -> 0;",
+            "len([_|T]) -> 1 + len(T).",
+            "greet() -> \"hello\".",
+            "reverse(L) -> lists:reverse(L).",
+            "is_hello(\"hello\") -> true;",
+            "is_hello(_) -> false."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         Path beam = directory.resolve("codegen_sample.beam");
@@ -84,6 +92,15 @@ public class CodegenInterpreterTest {
         assertEquals(Atom.of("other"), apply(module, "choose", 1, Integer.of(0)));
         assertEquals(org.jerlang.type.Tuple.of(Integer.of(7), Atom.of("answer")),
             apply(module, "pair", 1, Integer.of(7)));
+        assertEquals(Integer.of(3), apply(module, "len", 1,
+            org.jerlang.type.List.of(Atom.of("a"), Atom.of("b"), Atom.of("c"))));
+        assertEquals(Integer.ZERO, apply(module, "len", 1, org.jerlang.type.List.nil));
+        assertEquals(Str.of("hello"), apply(module, "greet", 0));
+        assertEquals(org.jerlang.type.List.of(Integer.of(3), Integer.of(2), Integer.of(1)),
+            apply(module, "reverse", 1,
+                org.jerlang.type.List.of(Integer.ONE, Integer.of(2), Integer.of(3))));
+        assertEquals(Atom.of("true"), apply(module, "is_hello", 1, Str.of("hello")));
+        assertEquals(Atom.of("false"), apply(module, "is_hello", 1, Str.of("bye")));
         try {
             apply(module, "only_zero", 1, Integer.of(1));
             fail("expected function_clause");
@@ -92,7 +109,7 @@ public class CodegenInterpreterTest {
         }
     }
 
-    private static Term apply(Module module, String function, int arity, Integer... arguments) {
+    private static Term apply(Module module, String function, int arity, Term... arguments) {
         org.jerlang.type.List params = org.jerlang.type.List.nil;
         for (int index = arguments.length - 1; index >= 0; index--) {
             params = new org.jerlang.type.List(arguments[index], params);
