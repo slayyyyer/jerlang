@@ -44,6 +44,10 @@ public final class BeamFile {
             this.payload = payload;
         }
 
+        public static ChunkData of(String id, byte[] payload) {
+            return new ChunkData(id, payload);
+        }
+
         public String id() {
             return id;
         }
@@ -67,6 +71,10 @@ public final class BeamFile {
     }
 
     private final List<ChunkData> chunks;
+
+    public static BeamFile of(List<ChunkData> chunks) {
+        return new BeamFile(Collections.unmodifiableList(new ArrayList<>(chunks)));
+    }
 
     private BeamFile(List<ChunkData> chunks) {
         this.chunks = chunks;

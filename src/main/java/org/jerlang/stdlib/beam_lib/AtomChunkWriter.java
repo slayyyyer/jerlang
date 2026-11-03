@@ -18,6 +18,10 @@ import org.jerlang.type.Atom;
  * the reader used to read one byte past the last atom and always succeeded,
  * because the loader gives it a stream over the whole file, so the byte it took
  * was the first byte of the next chunk id.
+ *
+ * The count form is a parameter rather than something read back out of a
+ * payload, because the text assembler knows it from the listing and has no
+ * original chunk to peek at.
  */
 public final class AtomChunkWriter {
 
@@ -26,8 +30,12 @@ public final class AtomChunkWriter {
 
     public static byte[] write(AtomChunk chunk, byte[] original) {
         boolean compactLengths = original.length >= 4 && BeamBytes.read4(original, 0) < 0;
+        return write(chunk, compactLengths);
+    }
+
+    public static byte[] write(AtomChunk chunk, boolean compactLengths) {
         boolean utf8 = chunk.id() == ChunkId.ATU8;
-        ByteArrayOutputStream out = new ByteArrayOutputStream(original.length);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
         Atom[] atoms = chunk.atoms();
         BeamBytes.write4(out, compactLengths ? -atoms.length : atoms.length);
         for (Atom atom : atoms) {
