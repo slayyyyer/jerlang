@@ -267,6 +267,32 @@ The traps that produce wrong answers rather than crashes: a value live across a
 call must be in a Y register or it is clobbered; a fun's `OldUniq` must be zero
 before the digest is taken; a `string` segment is an offset, not inline bytes.
 
+Status: in progress. The first vertical slice emits a complete BEAM container
+for functions, clauses, literal patterns (integer, atom, tuple and `nil`),
+single guard sequences, arithmetic BIFs, local calls and tuple construction.
+Values that survive a call are kept in Y registers; every operation result gets
+a fresh Y slot, and X registers are used only for arguments and BIF results.
+Labels are allocated before lowering so forward local calls resolve.
+
+Two end-to-end tests consume the same file through independent paths.
+`CodegenOtpTest` writes a module and asks OTP 29 to load it and call exported
+functions: recursion, guards, tuple construction and an unmatched function
+(which must raise `function_clause`) all agree with `erlc` behaviour.
+`CodegenInterpreterTest` loads that file through `ModuleLoader`, registers it,
+and makes the same calls through JErlang. Both are green as of 2026-11-03.
+
+The slice has no line table or `StrT`/`LitT` use, no `module_info`, no remote
+calls, lists, strings, maps, binaries, funs, `case`/`if`, `receive`, `try`, or
+comprehensions. Unsupported forms raise `CodegenException`; they are not
+silently omitted. The full corpus recompile and OTP application boot remain
+the A5 exit test, so A5 is not done.
+
+Two format facts cost a debugging cycle and belong in the next agent's notes.
+The module atom must be first in `AtU8`: OTP derives the module identity from
+that position, even when `Attr` names the right module. Raw non-negative
+integer operands are emitted with the unsigned `u` tag, not `i`; `func_info`'s
+arity in particular is rejected by OTP when written as `i`.
+
 **Exit test:** recompile the checked-in corpus with JErlang, run the existing
 suite against the recompiled modules, and diff behaviour against the `erlc`
 build. Then the strong form of the same test: the `otp` CI job compiles
