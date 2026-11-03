@@ -63,7 +63,7 @@ public class CodegenInterpreterTest {
             "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1,",
             "         len/1, greet/0, reverse/1, is_hello/1, classify/1, pick/1,",
             "         sign/1, alt/1, no_case/1, no_if/0, make_map/1, map_a/1,",
-            "         map_other/0, map_value/1]).",
+            "         map_other/0, map_value/1, safe/1, uncaught/1, risky/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -103,7 +103,16 @@ public class CodegenInterpreterTest {
             "map_a(M) -> M#{a => 3}.",
             "map_other() -> #{b => 2}.",
             "map_value(#{a := V}) -> V;",
-            "map_value(_) -> none."), StandardCharsets.UTF_8);
+            "map_value(_) -> none.",
+            "safe(X) ->",
+            "    try risky(X) catch",
+            "        error:badarg -> {error, badarg};",
+            "        throw:Reason -> {throw, Reason}",
+            "    end.",
+            "uncaught(X) -> try risky(X) catch error:badarg -> caught end.",
+            "risky(0) -> throw(zero);",
+            "risky(1) -> error(badarg);",
+            "risky(X) -> X."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         Path beam = directory.resolve("codegen_sample.beam");
@@ -153,6 +162,12 @@ public class CodegenInterpreterTest {
             apply(module, "make_map", 1, Integer.of(7))));
         assertEquals(Atom.of("none"), apply(module, "map_value", 1,
             apply(module, "map_other", 0)));
+        assertEquals(org.jerlang.type.Tuple.of(Atom.of("throw"), Atom.of("zero")),
+            apply(module, "safe", 1, Integer.ZERO));
+        assertEquals(org.jerlang.type.Tuple.of(Atom.of("error"), Atom.of("badarg")),
+            apply(module, "safe", 1, Integer.ONE));
+        assertEquals(Integer.of(2), apply(module, "safe", 1, Integer.of(2)));
+        assertError(module, "uncaught", 1, Atom.of("zero"), Integer.ZERO);
         try {
             apply(module, "only_zero", 1, Integer.of(1));
             fail("expected function_clause");

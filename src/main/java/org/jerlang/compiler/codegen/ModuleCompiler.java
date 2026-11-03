@@ -108,11 +108,15 @@ final class ModuleCompiler {
     }
 
     FunctionDef function(Atom name, int arity) {
-        FunctionDef function = functions.get(new FunctionKey(name, arity));
+        FunctionDef function = functionOrNull(name, arity);
         if (function == null) {
             throw new CodegenException("undefined function " + name + "/" + arity);
         }
         return function;
+    }
+
+    FunctionDef functionOrNull(Atom name, int arity) {
+        return functions.get(new FunctionKey(name, arity));
     }
 
     int label() {

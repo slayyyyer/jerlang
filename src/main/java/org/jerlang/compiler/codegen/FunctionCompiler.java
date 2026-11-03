@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.jerlang.Opcode;
+import org.jerlang.compiler.lint.Builtins;
 import org.jerlang.erts.emulator.Instruction;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
@@ -414,6 +415,8 @@ final class FunctionCompiler {
             return caseExpression(tuple);
         case "if":
             return ifExpression(tuple);
+        case "try":
+            return tryExpression(tuple);
         default:
             throw unsupported("expression " + tag);
         }
@@ -581,6 +584,81 @@ final class FunctionCompiler {
         return result;
     }
 
+    private Term tryExpression(Tuple expression) {
+        List body = expression.element(3).toList();
+        List ofClauses = expression.element(4).toList();
+        List catchClauses = expression.element(5).toList();
+        List after = expression.element(6).toList();
+        if (ofClauses != List.nil) {
+            throw unsupported("try with an of clause");
+        }
+        if (after != List.nil) {
+            throw unsupported("try with an after clause");
+        }
+        if (catchClauses == List.nil) {
+            throw unsupported("try without a catch clause");
+        }
+
+        int catchLabel = label();
+        int end = label();
+        int rethrow = label();
+        int count = catchClauses.length();
+        int[] starts = new int[count];
+        for (int index = 0; index < count; index++) {
+            starts[index] = label();
+        }
+
+        Term handler = newY();
+        Term result = newY();
+        Map<Atom, Term> outside = new HashMap<>(variables);
+        emit(Opcode._try, handler, f(catchLabel));
+        Term bodyResult = bodyValue(body);
+        emit(Opcode.try_end, handler);
+        emit(Opcode.move, bodyResult, result);
+        emit(Opcode.jump, f(end));
+
+        emit(Opcode.label, Integer.of(catchLabel));
+        emit(Opcode.try_case, handler);
+        Term exceptionClass = newY();
+        Term reason = newY();
+        Term stacktrace = newY();
+        emit(Opcode.move, x(0), exceptionClass);
+        emit(Opcode.move, x(1), reason);
+        emit(Opcode.move, x(2), stacktrace);
+        Term exception = newY();
+        emit(Opcode.put_tuple2, exception,
+            new List(exceptionClass, new List(reason, new List(stacktrace, List.nil))));
+
+        int index = 0;
+        List cursor = catchClauses;
+        while (cursor != List.nil) {
+            Tuple clause = cursor.head().toTuple();
+            emit(Opcode.label, Integer.of(starts[index]));
+            variables.clear();
+            variables.putAll(outside);
+            int fail = index + 1 < count ? starts[index + 1] : rethrow;
+            List patterns = clause.element(3).toList();
+            if (patterns.length() != 1) {
+                throw unsupported("catch clause with " + patterns.length() + " patterns");
+            }
+            bindPattern(patterns.head(), exception, fail);
+            compileGuards(clause.element(4).toList(), fail);
+            Term branchResult = bodyValue(clause.element(5).toList());
+            emit(Opcode.move, branchResult, result);
+            emit(Opcode.jump, f(end));
+            index++;
+            cursor = cursor.tail();
+        }
+
+        emit(Opcode.label, Integer.of(rethrow));
+        emit(Opcode.move, exceptionClass, x(0));
+        emit(Opcode.raise, stacktrace, reason);
+        emit(Opcode.label, Integer.of(end));
+        variables.clear();
+        variables.putAll(outside);
+        return result;
+    }
+
     private Map<Atom, Term> allocateJoins(List clauses, Map<Atom, Term> outside) {
         Set<Atom> names = new LinkedHashSet<>();
         collectVariables(clauses, names);
@@ -693,17 +771,29 @@ final class FunctionCompiler {
             }
             Atom moduleName = remote.element(3).toTuple().element(3).toAtom();
             Atom functionName = remote.element(4).toTuple().element(3).toAtom();
-            int importIndex = module.importIndex(moduleName, functionName, arity);
-            emit(Opcode.call_ext, Integer.of(arity), Integer.of(importIndex));
-        } else {
-            if (!is(target, "atom")) {
-                throw unsupported("call target " + tag(target.toTuple()));
-            }
-            Atom name = target.toTuple().element(3).toAtom();
-            ModuleCompiler.FunctionDef callee = module.function(name, arity);
+            return remoteCall(moduleName, functionName, arity, values);
+        }
+        if (!is(target, "atom")) {
+            throw unsupported("call target " + tag(target.toTuple()));
+        }
+        Atom name = target.toTuple().element(3).toAtom();
+        ModuleCompiler.FunctionDef callee = module.functionOrNull(name, arity);
+        if (callee != null) {
             emit(Opcode.call, Integer.of(arity), f(callee.body));
+        } else if (Builtins.automatic(name.toString(), arity)) {
+            return remoteCall(Atom.of("erlang"), name, arity, values);
+        } else {
+            throw unsupported("undefined function " + name + "/" + arity);
         }
 
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
+    }
+
+    private Term remoteCall(Atom moduleName, Atom functionName, int arity, List values) {
+        int importIndex = module.importIndex(moduleName, functionName, arity);
+        emit(Opcode.call_ext, Integer.of(arity), Integer.of(importIndex));
         Term destination = newY();
         emit(Opcode.move, x(0), destination);
         return destination;

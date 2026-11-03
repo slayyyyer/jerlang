@@ -11,7 +11,7 @@ import java.util.Set;
  * erl_internal:guard_bif/2; keeping them here makes local-call and guard
  * checking independent of whether an Erlang installation is present.
  */
-final class Builtins {
+public final class Builtins {
 
     private static final Set<String> AUTOMATIC = Set.of(
         "abs/1",
@@ -275,7 +275,7 @@ final class Builtins {
     private Builtins() {
     }
 
-    static boolean automatic(String name, int arity) {
+    public static boolean automatic(String name, int arity) {
         return AUTOMATIC.contains(name + "/" + arity);
     }
 
