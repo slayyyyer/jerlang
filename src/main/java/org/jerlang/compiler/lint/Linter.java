@@ -20,11 +20,11 @@ import org.jerlang.type.Tuple;
 /**
  * = The linter
  *
- * The first A4 slice checks the module's shape rather than its expressions:
- * duplicate definitions, undefined exports, unused local functions, on_load
- * references and export_all. Those rules need the function table and a walk
- * over the abstract forms, but no variable flow, so they are a foundation the
- * expression rules can build on.
+ * The module pass indexes definitions, exports, imports and compiler options.
+ * Function bodies go through {@link FunctionScope}, which owns variable flow,
+ * guards, map keys and binary patterns. The division matters: a call is only
+ * undefined after the whole module has been indexed, while a variable is only
+ * unsafe after its own branch structure has been folded.
  *
  * Lines come from the forms. The abstract format does not retain columns, so
  * the result is line-oriented even where erlc prints a column too.
@@ -88,12 +88,35 @@ public final class Linter {
 
     }
 
+    private static final class OnLoad {
+
+        private final Signature signature;
+        private final int line;
+
+        private OnLoad(Signature signature, int line) {
+            this.signature = signature;
+            this.line = line;
+        }
+
+    }
+
     /**
      * Lint one source through the same scanner, preprocessor and parser that
      * will feed code generation.
      */
     public static List<Diagnostic> lint(Path source) throws IOException {
         return lint(Parser.parseForms(Preprocessor.scanFile(source)));
+    }
+
+    /**
+     * Lint a source with the include and library paths used by a build. The
+     * corpus oracle needs this: an installed OTP tree keeps headers next to
+     * the application, not next to every source.
+     */
+    public static List<Diagnostic> lint(Path source, List<String> includes,
+        List<String> libraries, int otpRelease) throws IOException {
+        return lint(Parser.parseForms(Preprocessor.scanFile(source, includes,
+            libraries, otpRelease)));
     }
 
     /**
@@ -110,8 +133,44 @@ public final class Linter {
         new LinkedHashMap<>();
     private final List<Export> exports = new ArrayList<>();
     private final Set<Signature> used = new LinkedHashSet<>();
+    private final Set<Signature> imported = new LinkedHashSet<>();
+    private final Set<Signature> exported = new LinkedHashSet<>();
+    private final List<OnLoad> onLoads = new ArrayList<>();
+    private final Set<Signature> quietFunctions = new LinkedHashSet<>();
     private boolean exportAll;
     private int exportAllLine;
+    private boolean nowarnExportAll;
+    private boolean nowarnUnusedFunction;
+    private boolean nowarnUnusedVariables;
+    private boolean nowarnShadowVariables;
+    private boolean noAutoImport;
+
+    private final LintEnvironment environment = new LintEnvironment() {
+        @Override
+        public void error(int line, String message) {
+            diagnostics.add(Diagnostic.error(line, message));
+        }
+
+        @Override
+        public void warning(int line, String message) {
+            diagnostics.add(Diagnostic.warning(line, message));
+        }
+
+        @Override
+        public void localUse(int line, Atom name, int arity, boolean reference) {
+            Linter.this.localUse(line, new Signature(name, arity));
+        }
+
+        @Override
+        public boolean warnUnusedVariables() {
+            return !nowarnUnusedVariables;
+        }
+
+        @Override
+        public boolean warnShadowVariables() {
+            return !nowarnShadowVariables;
+        }
+    };
 
     private Linter(List<Term> forms) {
         this.forms = forms;
@@ -119,8 +178,11 @@ public final class Linter {
 
     private List<Diagnostic> analyse() {
         index();
-        markUses();
+        for (FunctionDefinition function : functions.values()) {
+            new FunctionScope(environment).analyse(function.form);
+        }
         checkExports();
+        checkOnLoad();
         checkFunctions();
         diagnostics.sort(Comparator.comparingInt(Diagnostic::line));
         return diagnostics;
@@ -155,11 +217,14 @@ public final class Linter {
         case "export":
             export(line, value);
             break;
+        case "import":
+            imports(value);
+            break;
         case "compile":
             compile(line, value);
             break;
         case "on_load":
-            onLoad(value);
+            onLoad(line, value);
             break;
         default:
             break;
@@ -169,9 +234,30 @@ public final class Linter {
     private void export(int line, Term value) {
         for (Term entry : elements(value)) {
             Signature signature = pairSignature(entry);
+            if (signature == null) {
+                continue;
+            }
+            if (!exported.add(signature)) {
+                diagnostics.add(Diagnostic.warning(line,
+                    "function " + signature + " already exported"));
+            }
+            exports.add(new Export(signature, line));
+            used.add(signature);
+        }
+    }
+
+    private void imports(Term value) {
+        if (!(value instanceof Tuple)) {
+            return;
+        }
+        Tuple declaration = (Tuple) value;
+        if (declaration.arity() < 2) {
+            return;
+        }
+        for (Term entry : elements(declaration.element(2))) {
+            Signature signature = pairSignature(entry);
             if (signature != null) {
-                exports.add(new Export(signature, line));
-                used.add(signature);
+                imported.add(signature);
             }
         }
     }
@@ -184,15 +270,38 @@ public final class Linter {
                     exportAll = true;
                     exportAllLine = line;
                 }
+            } else if (isAtom(option, "nowarn_export_all")) {
+                nowarnExportAll = true;
+            } else if (isAtom(option, "nowarn_unused_function")) {
+                nowarnUnusedFunction = true;
+            } else if (isAtom(option, "nowarn_unused_vars")) {
+                nowarnUnusedVariables = true;
+            } else if (isAtom(option, "nowarn_shadow_vars")) {
+                nowarnShadowVariables = true;
+            } else if (isAtom(option, "no_auto_import")) {
+                noAutoImport = true;
+            } else if (isTuple(option, "nowarn_unused_function", 2)) {
+                Term entries = ((Tuple) option).element(2);
+                if (!(entries instanceof org.jerlang.type.List)) {
+                    nowarnUnusedFunction = true;
+                } else {
+                    for (Term entry : elements(entries)) {
+                        Signature signature = pairSignature(entry);
+                        if (signature != null) {
+                            quietFunctions.add(signature);
+                        }
+                    }
+                }
             }
         }
     }
 
-    private void onLoad(Term value) {
+    private void onLoad(int line, Term value) {
         Signature signature = pairSignature(value);
-        if (signature != null) {
-            used.add(signature);
+        if (signature == null) {
+            return;
         }
+        onLoads.add(new OnLoad(signature, line));
     }
 
     private void function(Tuple tuple) {
@@ -213,83 +322,24 @@ public final class Linter {
         }
     }
 
-    private void markUses() {
-        for (FunctionDefinition function : functions.values()) {
-            collectUses(function.form);
-        }
-    }
-
-    /**
-     * Find local calls and fun references. Calls to BIFs are added to the
-     * used set too; they simply never match a function definition.
-     */
-    private void collectUses(Term term) {
-        if (term instanceof org.jerlang.type.Str) {
+    private void localUse(int line, Signature signature) {
+        boolean generated = signature.name.toString().equals("module_info")
+            && (signature.arity == 0 || signature.arity == 1);
+        if (generated || (signature.name.toString().equals("record_info")
+            && signature.arity == 2)) {
             return;
         }
-        if (term instanceof org.jerlang.type.List) {
-            org.jerlang.type.List list = term.toList();
-            while (list != org.jerlang.type.List.nil) {
-                collectUses(list.head());
-                list = list.tail();
-            }
+        if (functions.containsKey(signature)) {
+            used.add(signature);
+        } else if (imported.contains(signature)) {
             return;
-        }
-        if (!(term instanceof Tuple)) {
+        } else if (!noAutoImport && Builtins.automatic(signature.name.toString(),
+            signature.arity)) {
             return;
+        } else {
+            diagnostics.add(Diagnostic.error(line,
+                "function " + signature + " undefined"));
         }
-        Tuple tuple = (Tuple) term;
-        if (tuple.arity() == 4 && isAtom(tuple.element(1), "call")) {
-            localCall(tuple);
-        } else if (tuple.arity() == 3 && isAtom(tuple.element(1), "fun")) {
-            Signature signature = funReference(tuple.element(3));
-            if (signature != null) {
-                used.add(signature);
-            }
-        }
-        for (int index = 1; index <= tuple.arity(); index++) {
-            collectUses(tuple.element(index));
-        }
-    }
-
-    private void localCall(Tuple call) {
-        if (!(call.element(3) instanceof Tuple)) {
-            return;
-        }
-        Tuple target = (Tuple) call.element(3);
-        if (target.arity() != 3 || !isAtom(target.element(1), "atom")
-            || !(target.element(3) instanceof Atom)) {
-            return;
-        }
-        int arity = elements(call.element(4)).size();
-        used.add(new Signature((Atom) target.element(3), arity));
-    }
-
-    private static Signature funReference(Term term) {
-        if (!(term instanceof Tuple)) {
-            return null;
-        }
-        Tuple reference = (Tuple) term;
-        if (reference.arity() != 3 || !isAtom(reference.element(1), "function")) {
-            return null;
-        }
-        Term name = reference.element(2);
-        Term arity = reference.element(3);
-        if (name instanceof Atom && arity instanceof Integer) {
-            return new Signature((Atom) name, ((Integer) arity).toInt());
-        }
-        if (name instanceof Tuple && arity instanceof Tuple
-            && isAtom(((Tuple) name).element(1), "atom")
-            && isAtom(((Tuple) arity).element(1), "integer")) {
-            Tuple nameTuple = (Tuple) name;
-            Tuple arityTuple = (Tuple) arity;
-            if (nameTuple.element(3) instanceof Atom
-                && arityTuple.element(3) instanceof Integer) {
-                return new Signature((Atom) nameTuple.element(3),
-                    ((Integer) arityTuple.element(3)).toInt());
-            }
-        }
-        return null;
     }
 
     private void checkExports() {
@@ -301,14 +351,38 @@ public final class Linter {
         }
     }
 
+    private void checkOnLoad() {
+        for (OnLoad onLoad : onLoads) {
+            if (onLoad.signature.arity != 0) {
+                diagnostics.add(Diagnostic.error(onLoad.line,
+                    "function " + onLoad.signature
+                        + " has wrong arity (must be 0)"));
+                if (functions.containsKey(onLoad.signature)) {
+                    used.add(onLoad.signature);
+                }
+            } else if (!functions.containsKey(onLoad.signature)) {
+                diagnostics.add(Diagnostic.error(onLoad.line,
+                    "function " + onLoad.signature + " undefined"));
+            } else {
+                used.add(onLoad.signature);
+            }
+        }
+    }
+
     private void checkFunctions() {
         if (exportAll) {
-            diagnostics.add(Diagnostic.warning(exportAllLine,
-                "export_all flag enabled - all functions will be exported"));
+            if (!nowarnExportAll) {
+                diagnostics.add(Diagnostic.warning(exportAllLine,
+                    "export_all flag enabled - all functions will be exported"));
+            }
+            return;
+        }
+        if (nowarnUnusedFunction) {
             return;
         }
         for (FunctionDefinition function : functions.values()) {
-            if (!used.contains(function.signature)) {
+            if (!used.contains(function.signature)
+                && !quietFunctions.contains(function.signature)) {
                 diagnostics.add(Diagnostic.warning(function.line,
                     "function " + function.signature + " is unused"));
             }

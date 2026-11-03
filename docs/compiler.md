@@ -227,11 +227,27 @@ This is the step that is routinely underestimated: the bar is not "compiles",
 it is "accepts and rejects exactly what `erlc` does". Every deviation gets a
 documented line in this file, not a silent pass.
 
-Status: started. `org.jerlang.compiler.lint` indexes module forms and reports
-duplicate definitions, undefined exports, unused local functions and
-`export_all`. `LinterOtpTest` compares the accepted/rejected verdict and
-`-Werror` outcome with `erlc` on a starter table. Expression flow, guards,
-maps and binaries are still open, so A4 is not done.
+Status: complete. The module pass indexes definitions, exports, imports,
+`on_load`, and the `nowarn_*`/`export_all`/`no_auto_import` options.
+`FunctionScope` owns branch merging, unsafe-variable contexts, patterns,
+guards, maps, binaries, comprehensions, named funs, `try`/`catch` and
+`maybe`. It reports unbound and unsafe variables, undefined local calls and
+fun references, illegal guards and patterns, ambiguous binaries, duplicate
+map keys, and the unused, shadowed and export warnings. Obsolete OTP 29
+type-test guards (`port/1`, `atom/1`, ...) are accepted with the same warning
+`erlc` emits, so `-Werror` agrees.
+
+`LinterOtpTest` compares 37 clean, error and warning cases against `erlc` in
+both normal and `-Werror` modes. `LinterLibOtpTest` is the A4 exit test: over
+the installed OTP 29 tree it walks 1,404 `.erl` files, applies the 385 named
+A3 parse skips, and compares the remaining 1,019 verdicts with `erlc`.
+Result on 2026-11-03: 1,019 accepted by both, 0 rejected, 0 disagreements.
+The corpus test is opt-in because it needs an OTP installation and takes
+about two minutes.
+
+Known limits: the abstract format loses columns, so diagnostics are line
+based. The corpus table compares accept/reject only; warning parity is
+contract-tested by the 37-case table, not by comparing every `erlc` warning.
 
 **Exit test:** a two-column table over the corpus (accepted, rejected) that
 matches `erlc`'s verdict on every file, plus `-Werror` behaviour on the warning
