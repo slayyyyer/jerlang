@@ -271,7 +271,7 @@ Status: in progress. The first vertical slice emits a complete BEAM container
 for functions, clauses, literal patterns (integer, atom, tuple, list, string,
 map and `nil`), guard sequences and alternatives, arithmetic BIFs, auto-imported
 BIFs, local and remote calls, tuple/list/string/map construction, `case`/`if`,
-and `try ... catch` without `of`/`after`. Remote calls go through `ImpT` and
+and `try ... of ... catch` without `after`. Remote calls go through `ImpT` and
 `call_ext`; maps start from `maps:new/0` and update with `put_map_assoc`. Values
 that survive a call are kept in Y registers; every operation result gets a
 fresh Y slot, and X registers are used only for arguments and BIF results.
@@ -283,16 +283,16 @@ Two end-to-end tests consume the same file through independent paths.
 `CodegenOtpTest` writes a module and asks OTP 29 to load it and call exported
 functions: recursion, guards, tuple/list/string/map construction, list/string/
 map patterns, case/if branches, guard alternatives, local and remote calls,
-try/catch error and throw paths, and unmatched function/case/if expressions
-(which must raise `function_clause`, `case_clause` and `if_clause`) all agree
-with `erlc` behaviour.
+try/catch and try/of/catch error and throw paths, and unmatched function/case/if
+expressions (which must raise `function_clause`, `case_clause` and `if_clause`)
+all agree with `erlc` behaviour.
 `CodegenInterpreterTest` loads that file through `ModuleLoader`, registers it,
 and makes the same calls through JErlang. Both are green as of 2026-11-03.
 
 The slice has no line table or `StrT`/`LitT` use, no `module_info`, no binaries,
-funs, `receive`, `try ... of`, `try ... after`, or comprehensions. Unsupported
-forms raise `CodegenException`; they are not silently omitted. The full corpus
-recompile and OTP application boot remain the A5 exit test, so A5 is not done.
+funs, `receive`, `try ... after`, or comprehensions. Unsupported forms raise
+`CodegenException`; they are not silently omitted. The full corpus recompile
+and OTP application boot remain the A5 exit test, so A5 is not done.
 
 Two format facts cost a debugging cycle and belong in the next agent's notes.
 The module atom must be first in `AtU8`: OTP derives the module identity from

@@ -40,7 +40,7 @@ public class CodegenOtpTest {
             "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1,",
             "         len/1, greet/0, reverse/1, is_hello/1, classify/1, pick/1,",
             "         sign/1, alt/1, no_case/1, no_if/0, make_map/1, map_a/1,",
-            "         map_other/0, map_value/1, safe/1, uncaught/1, risky/1]).",
+            "         map_other/0, map_value/1, safe/1, safe_of/1, uncaught/1, risky/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -87,6 +87,13 @@ public class CodegenOtpTest {
             "        throw:Reason -> {throw, Reason}",
             "    end.",
             "uncaught(X) -> try risky(X) catch error:badarg -> caught end.",
+            "safe_of(X) ->",
+            "    try risky(X) of",
+            "        V -> {ok, V}",
+            "    catch",
+            "        error:badarg -> badarg;",
+            "        throw:Reason -> {thrown, Reason}",
+            "    end.",
             "risky(0) -> throw(zero);",
             "risky(1) -> error(badarg);",
             "risky(X) -> X."), StandardCharsets.UTF_8);
@@ -129,6 +136,9 @@ public class CodegenOtpTest {
             + "codegen_sample:safe(0), "
             + "codegen_sample:safe(1), "
             + "codegen_sample:safe(2), "
+            + "codegen_sample:safe_of(2), "
+            + "codegen_sample:safe_of(0), "
+            + "codegen_sample:safe_of(1), "
             + "try codegen_sample:uncaught(0) catch throw:zero -> zero end, "
             + "try codegen_sample:only_zero(1) catch error:function_clause -> function_clause end]), halt().";
         ProcessBuilder builder = new ProcessBuilder(erl.toString(), "-noshell",
@@ -142,7 +152,7 @@ public class CodegenOtpTest {
         assertEquals("[5,42,120,positive,other,{7,answer},3,0,\"hello\",[3,2,1],true,false,"
             + "zero,positive,negative,one,other,positive,negative,zero,small,other,"
             + "case_clause,if_clause,1,2,3,7,none,{throw,zero},{error,badarg},2,"
-            + "zero,function_clause]\n", output);
+            + "{ok,2},{thrown,zero},badarg,zero,function_clause]\n", output);
         assertTrue("the generated file was not recognized as a module",
             Files.size(beamFile) > 100);
     }

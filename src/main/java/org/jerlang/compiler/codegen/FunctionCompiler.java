@@ -589,9 +589,6 @@ final class FunctionCompiler {
         List ofClauses = expression.element(4).toList();
         List catchClauses = expression.element(5).toList();
         List after = expression.element(6).toList();
-        if (ofClauses != List.nil) {
-            throw unsupported("try with an of clause");
-        }
         if (after != List.nil) {
             throw unsupported("try with an after clause");
         }
@@ -607,6 +604,11 @@ final class FunctionCompiler {
         for (int index = 0; index < count; index++) {
             starts[index] = label();
         }
+        int ofNoMatch = ofClauses == List.nil ? -1 : label();
+        int[] ofStarts = new int[ofClauses.length()];
+        for (int index = 0; index < ofStarts.length; index++) {
+            ofStarts[index] = label();
+        }
 
         Term handler = newY();
         Term result = newY();
@@ -614,8 +616,35 @@ final class FunctionCompiler {
         emit(Opcode._try, handler, f(catchLabel));
         Term bodyResult = bodyValue(body);
         emit(Opcode.try_end, handler);
-        emit(Opcode.move, bodyResult, result);
-        emit(Opcode.jump, f(end));
+        if (ofClauses == List.nil) {
+            emit(Opcode.move, bodyResult, result);
+            emit(Opcode.jump, f(end));
+        } else {
+            Map<Atom, Term> ofOutside = new HashMap<>(variables);
+            int ofIndex = 0;
+            List ofCursor = ofClauses;
+            while (ofCursor != List.nil) {
+                Tuple clause = ofCursor.head().toTuple();
+                emit(Opcode.label, Integer.of(ofStarts[ofIndex]));
+                variables.clear();
+                variables.putAll(ofOutside);
+                int fail = ofIndex + 1 < ofStarts.length
+                    ? ofStarts[ofIndex + 1] : ofNoMatch;
+                List patterns = clause.element(3).toList();
+                if (patterns.length() != 1) {
+                    throw unsupported("try of clause with " + patterns.length() + " patterns");
+                }
+                bindPattern(patterns.head(), bodyResult, fail);
+                compileGuards(clause.element(4).toList(), fail);
+                Term branchResult = bodyValue(clause.element(5).toList());
+                emit(Opcode.move, branchResult, result);
+                emit(Opcode.jump, f(end));
+                ofIndex++;
+                ofCursor = ofCursor.tail();
+            }
+            emit(Opcode.label, Integer.of(ofNoMatch));
+            emit(Opcode.try_case_end, bodyResult);
+        }
 
         emit(Opcode.label, Integer.of(catchLabel));
         emit(Opcode.try_case, handler);
