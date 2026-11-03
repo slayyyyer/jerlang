@@ -96,6 +96,7 @@ public final class Preprocessor {
             String source = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
             List<Token> tokens = Scanner.scan(source);
             int eofLine = 1 + newlines(source);
+            boolean crlf = source.contains("\r\n");
             int offset = 0;
             int index = 0;
             boolean active = true;
@@ -125,7 +126,7 @@ public final class Preprocessor {
                     break;
                 case "include":
                     if (active) {
-                        include(form, file, tokens, index, offset, eofLine);
+                        include(form, file, tokens, index, offset, eofLine, crlf);
                     }
                     break;
                 case "include_lib":
@@ -244,7 +245,7 @@ public final class Preprocessor {
     }
 
     private void include(List<Token> form, Path file, List<Token> tokens, int next,
-        int offset, int eofLine) throws IOException {
+        int offset, int eofLine, boolean crlf) throws IOException {
         if (form.size() < 6 || !form.get(3).category().equals(STRING)) {
             throw error(form.get(0).line(), "malformed -include");
         }
@@ -253,7 +254,12 @@ public final class Preprocessor {
         String included = includeDisplay(resolved);
         forms.add(fileForm(included, 1));
         process(resolved, included, false);
-        int line = next < tokens.size() ? tokens.get(next).line() + offset : eofLine + offset;
+        // epp leaves its location on the include line when the parent source
+        // uses CRLF, and on the line of the next token when it uses LF. That
+        // is a quirk of erl_scan's CRLF handling, but the -file form is part
+        // of the token stream, so it has to be reproduced.
+        int line = crlf ? form.get(0).line()
+            : next < tokens.size() ? tokens.get(next).line() + offset : eofLine + offset;
         forms.add(fileForm(files.peek(), line));
     }
 

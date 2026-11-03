@@ -185,19 +185,24 @@ update; binary and map comprehensions; `maybe` and `?=`; named funs and
 with an ID. The pass count is the metric and it is published, the way the
 conformance pass rate already is.
 
-Status: front half. The scanner is in `org.jerlang.compiler.scan`. Tokens have
-the shape `erl_scan` gives them, categories and line annotations included, and
-`ScannerOtpTest` compares every token of the checked-in sources with
+Status: parser on the checked-in corpus. The scanner is in
+`org.jerlang.compiler.scan`; `ScannerOtpTest` matches every token with
 `erl_scan:string/3` on OTP 29: 108 files, no disagreement. The preprocessor is
-in `org.jerlang.compiler.preprocess`: `-define` and `-undef`, parameterized
-macros, `??Arg` stringification, `?MODULE`/`?FILE`/`?LINE`, `-include`, nested
-`-ifdef`/`-ifndef`/`-else`/`-endif`, and the leading and include-surrounding
-`-file` forms. `PreprocessOtpTest` compares every form with `epp:scan_file/2`
-on OTP 29: 108 sources, 108 forms, 0 skipped. Gaps are named rather than
-approximated: `-include_lib` resolution, the generated annotations `epp` puts
-on a `-file` directive, and sigils. No checked-in source uses the first two,
-and a tilde outside a string is an error. Next is the parser, compared with
-`epp:parse_file/1` term by term.
+in `org.jerlang.compiler.preprocess` and `PreprocessOtpTest` matches every
+preprocessed form with `epp:scan_file/2`: 108 sources, 108 forms, 0 skipped.
+The parser is in `org.jerlang.compiler.parse`; `ParserOtpTest` feeds the same
+tokens to `erl_parse:parse_form/1` and compares the abstract forms: 108
+sources, 108 form streams, 0 skipped. It covers the expression grammar,
+attributes, records, binaries, comprehensions, `try`/`receive`/`fun`/`maybe`,
+and the type and spec grammar.
+
+Still open before A3 can be called done: the exit test over an OTP `lib` tree
+has not run yet, so the long tail (native records, sigils, unusual attributes,
+`-include_lib`, and any line-annotation cases the corpus does not exercise) is
+unmeasured. `-include_lib` is rejected rather than approximated. The
+preprocessor also reproduces epp's CRLF include quirk: after an include, a
+CRLF parent keeps the include line, while an LF parent reports the next
+token's line.
 
 **What A3 found.** The preprocessor is small; the behaviour that is easy to
 miss is not. A macro body is re-annotated with the line of the `?` that used
