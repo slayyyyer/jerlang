@@ -65,7 +65,8 @@ public class CodegenInterpreterTest {
             "         sign/1, alt/1, no_case/1, no_if/0, make_map/1, map_a/1,",
             "         map_other/0, map_value/1, safe/1, safe_of/1, uncaught/1, risky/1,",
             "         logic/2, negate/1, after_value/1, after_error/1, after_throw/1,",
-            "         after_catch/1, after_catch_error/1, after_no_of/1]).",
+            "         after_catch/1, after_catch_error/1, after_no_of/1,",
+            "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -151,7 +152,19 @@ public class CodegenInterpreterTest {
             "    try",
             "        try risky(X) of only_zero -> ok",
             "        after put(after_ran, true) end",
-            "    catch error:{try_clause, _} -> get(after_ran) end."), StandardCharsets.UTF_8);
+            "    catch error:{try_clause, _} -> get(after_ran) end.",
+            "receive_queued() ->",
+            "    erlang:send(self(), {echo, 7}),",
+            "    receive {echo, X} -> X end.",
+            "receive_selective() ->",
+            "    erlang:send(self(), {msg, other, 1}),",
+            "    erlang:send(self(), {msg, wanted, 2}),",
+            "    receive {msg, wanted, X} -> X end.",
+            "receive_after() ->",
+            "    erlang:send_after(0, self(), {echo, 9}),",
+            "    receive {echo, X} -> X after 1000 -> timeout end.",
+            "receive_timeout(T) ->",
+            "    receive {echo, X} -> X after T -> timeout end."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         Path beam = directory.resolve("codegen_sample.beam");
@@ -229,6 +242,10 @@ public class CodegenInterpreterTest {
             apply(module, "after_catch", 1, Integer.ONE));
         assertEquals(Atom.of("true"), apply(module, "after_catch_error", 1, Integer.ONE));
         assertEquals(Atom.of("true"), apply(module, "after_no_of", 1, Integer.of(2)));
+        assertEquals(Integer.of(7), apply(module, "receive_queued", 0));
+        assertEquals(Integer.of(2), apply(module, "receive_selective", 0));
+        assertEquals(Integer.of(9), apply(module, "receive_after", 0));
+        assertEquals(Atom.of("timeout"), apply(module, "receive_timeout", 1, Integer.ZERO));
         try {
             apply(module, "only_zero", 1, Integer.of(1));
             fail("expected function_clause");

@@ -428,6 +428,8 @@ final class FunctionCompiler {
             return caseExpression(tuple);
         case "if":
             return ifExpression(tuple);
+        case "receive":
+            return receiveExpression(tuple);
         case "try":
             return tryExpression(tuple);
         default:
@@ -550,6 +552,82 @@ final class FunctionCompiler {
 
         emit(Opcode.label, Integer.of(noMatch));
         emit(Opcode.case_end, subject);
+        emit(Opcode.label, Integer.of(end));
+        restoreBranches(outside, joins, branchMaps);
+        return result;
+    }
+
+    private Term receiveExpression(Tuple expression) {
+        List clauses = expression.element(3).toList();
+        if (clauses == List.nil) {
+            throw unsupported("receive without clauses");
+        }
+
+        int count = clauses.length();
+        int loop = label();
+        int wait = label();
+        int noMatch = label();
+        int end = label();
+        int[] starts = new int[count];
+        for (int index = 0; index < count; index++) {
+            starts[index] = label();
+        }
+
+        Term result = newY();
+        Map<Atom, Term> outside = new HashMap<>(variables);
+        Map<Atom, Term> joins = allocateJoins(clauses, outside);
+        java.util.List<Map<Atom, Term>> branchMaps = new ArrayList<>();
+        boolean hasTimeout = expression.arity() >= 5;
+        Term timeout = null;
+        List after = List.nil;
+        if (hasTimeout) {
+            timeout = value(expression.element(4));
+            after = expression.element(5).toList();
+            if (after == List.nil) {
+                throw unsupported("receive after without a body");
+            }
+        }
+
+        emit(Opcode.label, Integer.of(loop));
+        emit(Opcode.loop_rec, f(wait), x(0));
+
+        int index = 0;
+        List cursor = clauses;
+        while (cursor != List.nil) {
+            Tuple clause = cursor.head().toTuple();
+            emit(Opcode.label, Integer.of(starts[index]));
+            variables.clear();
+            variables.putAll(outside);
+
+            int fail = index + 1 < count ? starts[index + 1] : noMatch;
+            List patterns = clause.element(3).toList();
+            if (patterns.length() != 1) {
+                throw unsupported("receive clause with " + patterns.length() + " patterns");
+            }
+            bindPattern(patterns.head(), x(0), fail);
+            compileGuards(clause.element(4).toList(), fail);
+            emit(Opcode.remove_message);
+            Term branchResult = bodyValue(clause.element(5).toList());
+            finishBranch(branchResult, result, end, joins, branchMaps);
+
+            index++;
+            cursor = cursor.tail();
+        }
+
+        emit(Opcode.label, Integer.of(noMatch));
+        emit(Opcode.loop_rec_end, f(loop));
+        emit(Opcode.label, Integer.of(wait));
+        if (hasTimeout) {
+            emit(Opcode.wait_timeout, f(loop), timeout);
+            emit(Opcode.timeout);
+            variables.clear();
+            variables.putAll(outside);
+            Term afterResult = bodyValue(after);
+            finishBranch(afterResult, result, end, joins, branchMaps);
+        } else {
+            emit(Opcode.wait, f(loop));
+        }
+
         emit(Opcode.label, Integer.of(end));
         restoreBranches(outside, joins, branchMaps);
         return result;
