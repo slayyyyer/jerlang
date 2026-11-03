@@ -38,7 +38,9 @@ public class CodegenOtpTest {
         Files.write(source, Arrays.asList(
             "-module(codegen_sample).",
             "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1,",
-            "         len/1, greet/0, reverse/1, is_hello/1]).",
+            "         len/1, greet/0, reverse/1, is_hello/1, classify/1, pick/1,",
+            "         sign/1, alt/1, no_case/1, no_if/0, make_map/1, map_a/1,",
+            "         map_other/0, map_value/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -52,7 +54,33 @@ public class CodegenOtpTest {
             "greet() -> \"hello\".",
             "reverse(L) -> lists:reverse(L).",
             "is_hello(\"hello\") -> true;",
-            "is_hello(_) -> false."), StandardCharsets.UTF_8);
+            "is_hello(_) -> false.",
+            "classify(X) ->",
+            "    case X of",
+            "        0 -> zero;",
+            "        N when N > 0 -> positive;",
+            "        _ -> negative",
+            "    end.",
+            "pick(X) ->",
+            "    case X of",
+            "        1 -> A = one;",
+            "        _ -> A = other",
+            "    end,",
+            "    A.",
+            "sign(N) ->",
+            "    if N > 0 -> positive;",
+            "       N < 0 -> negative;",
+            "       true -> zero",
+            "    end.",
+            "alt(X) when X =:= 1; X =:= 2 -> small;",
+            "alt(_) -> other.",
+            "no_case(X) -> case X of only -> ok end.",
+            "no_if() -> if false -> ok end.",
+            "make_map(X) -> #{a => X, b => 2}.",
+            "map_a(M) -> M#{a => 3}.",
+            "map_other() -> #{b => 2}.",
+            "map_value(#{a := V}) -> V;",
+            "map_value(_) -> none."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         byte[] beam = Codegen.compile(forms);
@@ -72,6 +100,23 @@ public class CodegenOtpTest {
             + "codegen_sample:reverse([1, 2, 3]), "
             + "codegen_sample:is_hello([104, 101, 108, 108, 111]), "
             + "codegen_sample:is_hello([98, 121, 101]), "
+            + "codegen_sample:classify(0), "
+            + "codegen_sample:classify(2), "
+            + "codegen_sample:classify(-1), "
+            + "codegen_sample:pick(1), "
+            + "codegen_sample:pick(2), "
+            + "codegen_sample:sign(1), "
+            + "codegen_sample:sign(-1), "
+            + "codegen_sample:sign(0), "
+            + "codegen_sample:alt(1), "
+            + "codegen_sample:alt(3), "
+            + "try codegen_sample:no_case(other) catch error:{case_clause, other} -> case_clause end, "
+            + "try codegen_sample:no_if() catch error:if_clause -> if_clause end, "
+            + "maps:get(a, codegen_sample:make_map(1)), "
+            + "maps:get(b, codegen_sample:make_map(1)), "
+            + "maps:get(a, codegen_sample:map_a(codegen_sample:make_map(1))), "
+            + "codegen_sample:map_value(codegen_sample:make_map(7)), "
+            + "codegen_sample:map_value(codegen_sample:map_other()), "
             + "try codegen_sample:only_zero(1) catch error:function_clause -> function_clause end]), halt().";
         ProcessBuilder builder = new ProcessBuilder(erl.toString(), "-noshell",
             "-pa", directory.toAbsolutePath().toString(), "-eval", expression);
@@ -81,8 +126,9 @@ public class CodegenOtpTest {
             StandardCharsets.UTF_8).replace("\r\n", "\n");
         assertTrue("OTP did not finish: " + output, process.waitFor(60, TimeUnit.SECONDS));
         assertEquals(output, 0, process.exitValue());
-        assertEquals("[5,42,120,positive,other,{7,answer},3,0,\"hello\",[3,2,1],true,false,function_clause]\n",
-            output);
+        assertEquals("[5,42,120,positive,other,{7,answer},3,0,\"hello\",[3,2,1],true,false,"
+            + "zero,positive,negative,one,other,positive,negative,zero,small,other,"
+            + "case_clause,if_clause,1,2,3,7,none,function_clause]\n", output);
         assertTrue("the generated file was not recognized as a module",
             Files.size(beamFile) > 100);
     }

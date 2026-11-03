@@ -2,7 +2,9 @@ package org.jerlang.compiler.codegen;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.jerlang.Opcode;
 import org.jerlang.erts.emulator.Instruction;
@@ -64,17 +66,7 @@ final class FunctionCompiler {
             bindPattern(at(patterns, index), y(index), fail);
         }
 
-        List guards = clause.element(4).toList();
-        if (guards.length() > 1) {
-            throw unsupported("multiple guard alternatives");
-        }
-        if (guards.length() == 1) {
-            List expressions = guards.head().toList();
-            while (expressions != List.nil) {
-                guard(expressions.head(), fail);
-                expressions = expressions.tail();
-            }
-        }
+        compileGuards(clause.element(4).toList(), fail);
 
         List body = clause.element(5).toList();
         if (body == List.nil) {
@@ -88,6 +80,50 @@ final class FunctionCompiler {
             }
             body = body.tail();
         }
+    }
+
+    private void compileGuards(List guards, int fail) {
+        if (guards == List.nil) {
+            return;
+        }
+        if (guards.length() == 1) {
+            guardExpressions(guards.head().toList(), fail);
+            return;
+        }
+
+        int success = label();
+        List alternatives = guards;
+        while (alternatives != List.nil) {
+            List expressions = alternatives.head().toList();
+            boolean last = alternatives.tail() == List.nil;
+            int next = last ? fail : label();
+            guardExpressions(expressions, next);
+            emit(Opcode.jump, f(success));
+            if (!last) {
+                emit(Opcode.label, Integer.of(next));
+            }
+            alternatives = alternatives.tail();
+        }
+        emit(Opcode.label, Integer.of(success));
+    }
+
+    private void guardExpressions(List expressions, int fail) {
+        while (expressions != List.nil) {
+            guard(expressions.head(), fail);
+            expressions = expressions.tail();
+        }
+    }
+
+    private Term bodyValue(List body) {
+        if (body == List.nil) {
+            throw unsupported("empty clause body");
+        }
+        Term result = List.nil;
+        while (body != List.nil) {
+            result = value(body.head());
+            body = body.tail();
+        }
+        return result;
     }
 
     private void bindPattern(Term pattern, Term target, int fail) {
@@ -118,6 +154,9 @@ final class FunctionCompiler {
         case "string":
             bindString(tuple.element(3).toList(), target, fail);
             return;
+        case "map":
+            bindMapPattern(tuple, target, fail);
+            return;
         case "tuple":
             List elements = tuple.element(3).toList();
             emit(Opcode.is_tuple, f(fail), target);
@@ -144,6 +183,48 @@ final class FunctionCompiler {
         } else {
             emit(Opcode.is_eq_exact, f(fail), target, existing);
         }
+    }
+
+    private void bindMapPattern(Tuple pattern, Term target, int fail) {
+        List fields = pattern.element(3).toList();
+        emit(Opcode.is_map, f(fail), target);
+        if (fields == List.nil) {
+            return;
+        }
+
+        java.util.List<Term> operands = new ArrayList<>();
+        java.util.List<Term> destinations = new ArrayList<>();
+        List cursor = fields;
+        while (cursor != List.nil) {
+            Tuple field = cursor.head().toTuple();
+            operands.add(mapKey(field.element(3)));
+            Term destination = newY();
+            operands.add(destination);
+            destinations.add(destination);
+            cursor = cursor.tail();
+        }
+        java.util.Collections.reverse(operands);
+        emit(Opcode.get_map_elements, f(fail), target, List.of(operands));
+
+        cursor = fields;
+        int index = 0;
+        while (cursor != List.nil) {
+            Tuple field = cursor.head().toTuple();
+            bindPattern(field.element(4), destinations.get(index++), fail);
+            cursor = cursor.tail();
+        }
+    }
+
+    private Term mapKey(Term key) {
+        if (is(key, "atom")) {
+            Atom atom = key.toTuple().element(3).toAtom();
+            module.atom(atom);
+            return Tuple.of(Atom.of("atom"), atom);
+        }
+        if (is(key, "integer") || is(key, "char")) {
+            return integer(key.toTuple().element(3).toInteger());
+        }
+        throw unsupported("map pattern key " + tag(key.toTuple()));
     }
 
     private void bindString(List characters, Term target, int fail) {
@@ -311,6 +392,8 @@ final class FunctionCompiler {
             return cons(tuple.element(3), tuple.element(4));
         case "string":
             return string(tuple.element(3).toList());
+        case "map":
+            return mapExpression(tuple);
         case "tuple":
             return tuple(tuple.element(3).toList());
         case "match":
@@ -327,6 +410,10 @@ final class FunctionCompiler {
                 expressions = expressions.tail();
             }
             return value;
+        case "case":
+            return caseExpression(tuple);
+        case "if":
+            return ifExpression(tuple);
         default:
             throw unsupported("expression " + tag);
         }
@@ -362,6 +449,179 @@ final class FunctionCompiler {
             characters = characters.tail();
         }
         return tail;
+    }
+
+    private Term mapExpression(Tuple expression) {
+        Term source;
+        List fields;
+        if (expression.arity() == 3) {
+            source = emptyMap();
+            fields = expression.element(3).toList();
+        } else {
+            source = value(expression.element(3));
+            fields = expression.element(4).toList();
+        }
+        if (fields == List.nil) {
+            return source;
+        }
+
+        java.util.List<Term> updates = new ArrayList<>();
+        int count = 0;
+        List cursor = fields;
+        while (cursor != List.nil) {
+            Tuple field = cursor.head().toTuple();
+            updates.add(value(field.element(3)));
+            updates.add(value(field.element(4)));
+            count++;
+            cursor = cursor.tail();
+        }
+        java.util.Collections.reverse(updates);
+        emit(Opcode.put_map_assoc, f(0), source, x(0), Integer.of(count),
+            List.of(updates));
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
+    }
+
+    private Term emptyMap() {
+        int importIndex = module.importIndex(Atom.of("maps"), Atom.of("new"), 0);
+        emit(Opcode.call_ext, Integer.of(0), Integer.of(importIndex));
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
+    }
+
+    private Term caseExpression(Tuple expression) {
+        Term subject = value(expression.element(3));
+        List clauses = expression.element(4).toList();
+        if (clauses == List.nil) {
+            throw unsupported("empty case expression");
+        }
+
+        int count = clauses.length();
+        int end = label();
+        int noMatch = label();
+        int[] starts = new int[count];
+        for (int index = 0; index < count; index++) {
+            starts[index] = label();
+        }
+        Term result = newY();
+        Map<Atom, Term> outside = new HashMap<>(variables);
+        Map<Atom, Term> joins = allocateJoins(clauses, outside);
+        java.util.List<Map<Atom, Term>> branchMaps = new ArrayList<>();
+
+        int index = 0;
+        List cursor = clauses;
+        while (cursor != List.nil) {
+            Tuple clause = cursor.head().toTuple();
+            emit(Opcode.label, Integer.of(starts[index]));
+            variables.clear();
+            variables.putAll(outside);
+
+            int fail = index + 1 < count ? starts[index + 1] : noMatch;
+            List patterns = clause.element(3).toList();
+            if (patterns.length() != 1) {
+                throw unsupported("case clause with " + patterns.length() + " patterns");
+            }
+            bindPattern(patterns.head(), subject, fail);
+            compileGuards(clause.element(4).toList(), fail);
+            Term branchResult = bodyValue(clause.element(5).toList());
+            finishBranch(branchResult, result, end, joins, branchMaps);
+
+            index++;
+            cursor = cursor.tail();
+        }
+
+        emit(Opcode.label, Integer.of(noMatch));
+        emit(Opcode.case_end, subject);
+        emit(Opcode.label, Integer.of(end));
+        restoreBranches(outside, joins, branchMaps);
+        return result;
+    }
+
+    private Term ifExpression(Tuple expression) {
+        List clauses = expression.element(3).toList();
+        if (clauses == List.nil) {
+            throw unsupported("empty if expression");
+        }
+
+        int count = clauses.length();
+        int end = label();
+        int noMatch = label();
+        int[] starts = new int[count];
+        for (int index = 0; index < count; index++) {
+            starts[index] = label();
+        }
+        Term result = newY();
+        Map<Atom, Term> outside = new HashMap<>(variables);
+        Map<Atom, Term> joins = allocateJoins(clauses, outside);
+        java.util.List<Map<Atom, Term>> branchMaps = new ArrayList<>();
+
+        int index = 0;
+        List cursor = clauses;
+        while (cursor != List.nil) {
+            Tuple clause = cursor.head().toTuple();
+            emit(Opcode.label, Integer.of(starts[index]));
+            variables.clear();
+            variables.putAll(outside);
+
+            int fail = index + 1 < count ? starts[index + 1] : noMatch;
+            compileGuards(clause.element(4).toList(), fail);
+            Term branchResult = bodyValue(clause.element(5).toList());
+            finishBranch(branchResult, result, end, joins, branchMaps);
+
+            index++;
+            cursor = cursor.tail();
+        }
+
+        emit(Opcode.label, Integer.of(noMatch));
+        emit(Opcode.if_end);
+        emit(Opcode.label, Integer.of(end));
+        restoreBranches(outside, joins, branchMaps);
+        return result;
+    }
+
+    private Map<Atom, Term> allocateJoins(List clauses, Map<Atom, Term> outside) {
+        Set<Atom> names = new LinkedHashSet<>();
+        collectVariables(clauses, names);
+        Map<Atom, Term> joins = new HashMap<>();
+        for (Atom name : names) {
+            if (!outside.containsKey(name)) {
+                joins.put(name, newY());
+            }
+        }
+        return joins;
+    }
+
+    private void finishBranch(Term branchResult, Term result, int end,
+        Map<Atom, Term> joins, java.util.List<Map<Atom, Term>> branchMaps) {
+        emit(Opcode.move, branchResult, result);
+        for (Map.Entry<Atom, Term> join : joins.entrySet()) {
+            Term value = variables.get(join.getKey());
+            if (value != null) {
+                emit(Opcode.move, value, join.getValue());
+            }
+        }
+        branchMaps.add(new HashMap<>(variables));
+        emit(Opcode.jump, f(end));
+    }
+
+    private void restoreBranches(Map<Atom, Term> outside, Map<Atom, Term> joins,
+        java.util.List<Map<Atom, Term>> branchMaps) {
+        variables.clear();
+        variables.putAll(outside);
+        for (Map.Entry<Atom, Term> join : joins.entrySet()) {
+            boolean boundEverywhere = true;
+            for (Map<Atom, Term> branch : branchMaps) {
+                if (!branch.containsKey(join.getKey())) {
+                    boundEverywhere = false;
+                    break;
+                }
+            }
+            if (boundEverywhere) {
+                variables.put(join.getKey(), join.getValue());
+            }
+        }
     }
 
     private Term bind(Term pattern, Term value) {
@@ -449,6 +709,10 @@ final class FunctionCompiler {
         return destination;
     }
 
+    private int label() {
+        return module.label();
+    }
+
     private Term newY() {
         if (nextY >= frameSize) {
             throw new CodegenException("function " + function + " needs more Y registers");
@@ -502,6 +766,30 @@ final class FunctionCompiler {
             list = list.tail();
         }
         return reversed;
+    }
+
+    private static void collectVariables(Term term, Set<Atom> names) {
+        if (term instanceof Tuple) {
+            Tuple tuple = term.toTuple();
+            if (is(tuple, "var")) {
+                Atom name = tuple.element(3).toAtom();
+                if (!name.equals(Atom.of("_"))) {
+                    names.add(name);
+                }
+                return;
+            }
+            for (int index = 1; index <= tuple.arity(); index++) {
+                collectVariables(tuple.element(index), names);
+            }
+            return;
+        }
+        if (term instanceof List) {
+            List list = (List) term;
+            while (list != List.nil) {
+                collectVariables(list.head(), names);
+                list = list.tail();
+            }
+        }
     }
 
     private static int countNodes(List list) {

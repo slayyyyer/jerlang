@@ -7,7 +7,6 @@ import org.jerlang.erts.erlang.Error;
 import org.jerlang.type.Atom;
 import org.jerlang.type.List;
 import org.jerlang.type.Term;
-import org.jerlang.type.Tuple;
 
 /**
  * Indicates that no branch has matched.
@@ -20,7 +19,7 @@ import org.jerlang.type.Tuple;
 public class IfEnd {
 
     public static Term execute(Process proc, Module m, Instruction i, List params) {
-        throw new Error(Tuple.of(Atom.of("if_clause")));
+        throw new Error(Atom.of("if_clause"));
     }
 
 }

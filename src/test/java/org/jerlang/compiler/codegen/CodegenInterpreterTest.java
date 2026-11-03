@@ -18,6 +18,7 @@ import org.jerlang.compiler.parse.Parser;
 import org.jerlang.compiler.preprocess.Preprocessor;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Integer;
+import org.jerlang.type.Map;
 import org.jerlang.type.Str;
 import org.jerlang.type.Term;
 import org.jerlang.vm.VirtualMachine;
@@ -60,7 +61,9 @@ public class CodegenInterpreterTest {
         Files.write(source, Arrays.asList(
             "-module(codegen_sample).",
             "-export([add/2, answer/0, fact/1, choose/1, pair/1, only_zero/1,",
-            "         len/1, greet/0, reverse/1, is_hello/1]).",
+            "         len/1, greet/0, reverse/1, is_hello/1, classify/1, pick/1,",
+            "         sign/1, alt/1, no_case/1, no_if/0, make_map/1, map_a/1,",
+            "         map_other/0, map_value/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -74,7 +77,33 @@ public class CodegenInterpreterTest {
             "greet() -> \"hello\".",
             "reverse(L) -> lists:reverse(L).",
             "is_hello(\"hello\") -> true;",
-            "is_hello(_) -> false."), StandardCharsets.UTF_8);
+            "is_hello(_) -> false.",
+            "classify(X) ->",
+            "    case X of",
+            "        0 -> zero;",
+            "        N when N > 0 -> positive;",
+            "        _ -> negative",
+            "    end.",
+            "pick(X) ->",
+            "    case X of",
+            "        1 -> A = one;",
+            "        _ -> A = other",
+            "    end,",
+            "    A.",
+            "sign(N) ->",
+            "    if N > 0 -> positive;",
+            "       N < 0 -> negative;",
+            "       true -> zero",
+            "    end.",
+            "alt(X) when X =:= 1; X =:= 2 -> small;",
+            "alt(_) -> other.",
+            "no_case(X) -> case X of only -> ok end.",
+            "no_if() -> if false -> ok end.",
+            "make_map(X) -> #{a => X, b => 2}.",
+            "map_a(M) -> M#{a => 3}.",
+            "map_other() -> #{b => 2}.",
+            "map_value(#{a := V}) -> V;",
+            "map_value(_) -> none."), StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         Path beam = directory.resolve("codegen_sample.beam");
@@ -101,11 +130,44 @@ public class CodegenInterpreterTest {
                 org.jerlang.type.List.of(Integer.ONE, Integer.of(2), Integer.of(3))));
         assertEquals(Atom.of("true"), apply(module, "is_hello", 1, Str.of("hello")));
         assertEquals(Atom.of("false"), apply(module, "is_hello", 1, Str.of("bye")));
+        assertEquals(Atom.of("zero"), apply(module, "classify", 1, Integer.ZERO));
+        assertEquals(Atom.of("positive"), apply(module, "classify", 1, Integer.of(2)));
+        assertEquals(Atom.of("negative"), apply(module, "classify", 1, Integer.of(-1)));
+        assertEquals(Atom.of("one"), apply(module, "pick", 1, Integer.ONE));
+        assertEquals(Atom.of("other"), apply(module, "pick", 1, Integer.of(2)));
+        assertEquals(Atom.of("positive"), apply(module, "sign", 1, Integer.ONE));
+        assertEquals(Atom.of("negative"), apply(module, "sign", 1, Integer.of(-1)));
+        assertEquals(Atom.of("zero"), apply(module, "sign", 1, Integer.ZERO));
+        assertEquals(Atom.of("small"), apply(module, "alt", 1, Integer.ONE));
+        assertEquals(Atom.of("other"), apply(module, "alt", 1, Integer.of(3)));
+        assertError(module, "no_case", 1,
+            org.jerlang.type.Tuple.of(Atom.of("case_clause"), Atom.of("other")),
+            Atom.of("other"));
+        assertError(module, "no_if", 0, Atom.of("if_clause"));
+        Term map = apply(module, "make_map", 1, Integer.ONE);
+        assertEquals(Integer.ONE, ((Map) map).get(Atom.of("a")));
+        assertEquals(Integer.of(2), ((Map) map).get(Atom.of("b")));
+        Term updated = apply(module, "map_a", 1, map);
+        assertEquals(Integer.of(3), ((Map) updated).get(Atom.of("a")));
+        assertEquals(Integer.of(7), apply(module, "map_value", 1,
+            apply(module, "make_map", 1, Integer.of(7))));
+        assertEquals(Atom.of("none"), apply(module, "map_value", 1,
+            apply(module, "map_other", 0)));
         try {
             apply(module, "only_zero", 1, Integer.of(1));
             fail("expected function_clause");
         } catch (org.jerlang.erts.erlang.Error error) {
             assertEquals(Atom.of("function_clause"), error.reason());
+        }
+    }
+
+    private static void assertError(Module module, String function, int arity,
+        Term reason, Term... arguments) throws Throwable {
+        try {
+            apply(module, function, arity, arguments);
+            fail("expected " + reason);
+        } catch (org.jerlang.erts.erlang.Error error) {
+            assertEquals(reason, error.reason());
         }
     }
 
