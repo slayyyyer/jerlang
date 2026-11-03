@@ -125,6 +125,30 @@ table, literal table, line table, lambda table and operand encoding to be right,
 needs no parser, and its oracle is a single hash comparison that cannot be
 argued with.
 
+**Submilestones.** Each one is a session-sized item and leaves the previous
+tests green.
+
+| # | Item | Exit |
+|---|------|------|
+| A1.1 | Container: read every chunk in file order, including the ones the loader skips (`Dbgi`, `Meta`, `Type`, HiPE), and write `FOR1`/`BEAM` back with the length and 4-byte padding recomputed | Every checked-in `.beam` re-emits byte for byte |
+| A1.2 | Operand codec: the encoder for the compact integer forms, `a`, `x`, `y`, `f` and the `z` extended tags | A property test that re-encodes every operand of every instruction in the corpus to the bytes it came from |
+| A1.3 | `Atom` and `AtU8`, including OTP 28's negative count and compact lengths | Byte identity with the atom chunk re-encoded from its atoms |
+| A1.4 | `ExpT`, `ImpT`, `LocT`, `StrT` | Byte identity for the four table chunks |
+| A1.5 | Term chunks: `LitT` uncompressed, `Attr`, `CInf`, `Abst` through `ExternalTermWriter` | Byte identity, or a written reason a term cannot round trip |
+| A1.6 | `FunT` lambda table, including `OldUniq` | Byte identity, and `beam_lib:md5/1` unchanged with `FunT` re-encoded |
+| A1.7 | `Line`: filename table and the `a`/`i` items | Byte identity for modules with line information |
+| A1.8 | `Code`: header, instruction stream, and the operand tags and widths the decoder currently discards | `beam_lib:md5/1` identity for the whole corpus with `Code` re-encoded |
+| A1.9 | Corpus and CI gate | A job that asserts md5 identity over the checked-in fixtures and loads the re-emitted files on OTP 29 |
+
+Status: A1.1 is done; `BeamFileRoundTripTest` re-emits all 104 checked-in fixtures byte for byte, the 53 gzip-wrapped ones after decompression. A1.2 is next.
+
+A1.1 and A1.8 are the two that carry risk. A1.1 because `Meta` is part of the
+digest, so a writer that drops the chunks the loader ignores produces a
+different module identity; A1.8 because `AbstractReader.decodeArg` returns a
+`Term` and not the bytes it read, so the original tag and width of an operand do
+not survive decoding. A1.2 decides whether that gap can be closed by encoding
+canonically or needs the decoder to retain the encoding.
+
 ### A2 — Disassembler
 
 Scope: `.beam` to a textual assembly form and back. Purpose is a debuggable IR
@@ -356,6 +380,9 @@ exists only to make the compiler's own tests pass.
 * Branch: `v2.0.0-alpha`. Nothing here ships until 2.0.0.
 * Build and test: `mvn -B test`. A single milestone's tests should be runnable
   with `-Dtest=...` and stay under two minutes.
+* If `mvn` is not on the PATH, the toolchain used here is in `../.tools`:
+  a JDK 21 and Maven 3.9.9. Point `JAVA_HOME` at the JDK and run that
+  `mvn.cmd`; `-o` works once the local repository is populated.
 * Format code goes in `org.jerlang.stdlib.beam_lib`; compiler code goes in
   `org.jerlang.compiler`. Tests mirror the package, as they already do.
 * Comments follow `CODE.md`: brackets always, AsciiDoc-style blocks, and a
