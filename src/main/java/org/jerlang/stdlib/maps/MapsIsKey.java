@@ -13,7 +13,7 @@ public class MapsIsKey {
 
     public static Term dispatch(List params) {
         switch (params.length()) {
-        case 1:
+        case 2:
             Term key = params.head();
             params = params.tail();
             Map map = params.head().toMap();

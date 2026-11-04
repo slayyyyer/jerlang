@@ -68,6 +68,7 @@ public class CodegenInterpreterTest {
             "         logic/2, negate/1, after_value/1, after_error/1, after_throw/1,",
             "         after_catch/1, after_catch_error/1, after_no_of/1,",
             "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1,",
+            "         receive_saved/0,",
             "         fun_add/1, fun_sub/1, fun_multi/0, fun_zero/0, fun_nested/1,",
             "         fun_apply/2, fun_make/1, bin_lit/0, bin_empty/0, bin_construct/1,",
             "         bin_match/1, bin_tail/1, bin_tail_used/1, bin_string/1, bin_size/1,",
@@ -172,6 +173,9 @@ public class CodegenInterpreterTest {
             "    receive {echo, X} -> X after 1000 -> timeout end.",
             "receive_timeout(T) ->",
             "    receive {echo, X} -> X after T -> timeout end.",
+            "receive_saved() ->",
+            "    erlang:send(self(), {saved, 7}),",
+            "    receive {saved, _} = Msg -> {length([x]), Msg} end.",
             "fun_add(Y) ->",
             "    F = fun(X) -> X + Y end,",
             "    F(5).",
@@ -292,6 +296,9 @@ public class CodegenInterpreterTest {
         assertEquals(Integer.of(2), apply(module, "receive_selective", 0));
         assertEquals(Integer.of(9), apply(module, "receive_after", 0));
         assertEquals(Atom.of("timeout"), apply(module, "receive_timeout", 1, Integer.ZERO));
+        assertEquals(org.jerlang.type.Tuple.of(Integer.ONE,
+                org.jerlang.type.Tuple.of(Atom.of("saved"), Integer.of(7))),
+            apply(module, "receive_saved", 0));
         assertEquals(Integer.of(8), apply(module, "fun_add", 1, Integer.of(3)));
         assertEquals(Integer.of(6), apply(module, "fun_sub", 1, Integer.of(4)));
         assertEquals(org.jerlang.type.Tuple.of(Atom.of("zero"), Integer.of(2)),

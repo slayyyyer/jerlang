@@ -127,11 +127,36 @@ public class Logger {
     }
 
     /**
-     * The form the ?LOG_* macros of logger.hrl use:
-     * logger:macro_log(Level, Report, Meta, Module).
+     * The forms the ?LOG_* macros of logger.hrl use. OTP 29 expands them to
+     * erlang:apply(logger, macro_log, [Location, Level | Args]), so the first
+     * argument is the caller's location map and the level comes second:
+     *
+     * ----
+     * macro_log(Location, Level, Report)
+     * macro_log(Location, Level, Report, Metadata)
+     * macro_log(Location, Level, Format, Arguments)
+     * macro_log(Location, Level, Format, Arguments, Metadata)
+     * ----
      */
-    public static Term macro_log(Term level, Term report, Term metadata, Term module) {
-        return log(level, report, metadata);
+    public static Term macro_log(Term location, Term level, Term report) {
+        return log(level, report, Maps._new());
+    }
+
+    public static Term macro_log(Term location, Term level, Term reportOrFormat,
+            Term metadataOrArguments) {
+        if (metadataOrArguments instanceof org.jerlang.type.Map
+                && !(reportOrFormat instanceof org.jerlang.type.Fun)) {
+            return log(level, reportOrFormat, metadataOrArguments);
+        }
+        return log(level, org.jerlang.type.Str.of(
+            org.jerlang.stdlib.io.FormatEngine.format(reportOrFormat, metadataOrArguments)),
+            Maps._new());
+    }
+
+    public static Term macro_log(Term location, Term level, Term format,
+            Term arguments, Term metadata) {
+        return log(level, org.jerlang.type.Str.of(
+            org.jerlang.stdlib.io.FormatEngine.format(format, arguments)), metadata);
     }
 
     /**

@@ -267,14 +267,17 @@ The traps that produce wrong answers rather than crashes: a value live across a
 call must be in a Y register or it is clobbered; a fun's `OldUniq` must be zero
 before the digest is taken; a `string` segment is an offset, not inline bytes.
 
-Status: in progress. The first vertical slice emits a complete BEAM container
+Status: complete. The first vertical slice emits a complete BEAM container
 for functions, clauses, literal patterns (integer, atom, tuple, list, string,
 map, record and `nil`), guard sequences and alternatives, arithmetic BIFs,
 auto-imported BIFs, local and remote calls, tuple/list/string/map/record
 construction, `case`/`if`, `try ... of ... catch` with or without `after`,
 `receive` with selective clauses and an optional `after` timeout, anonymous,
 named and remote funs (`fun M:F/A`), binary generators, short-circuit
-`andalso`/`orelse`, and unary `+`/`-`.
+`andalso`/`orelse`, and unary `+`/`-`. Dynamic remote calls, old-style `catch`,
+`!`, list `++`/`--`, expression comparisons, alias and variable-key map
+patterns, and the guards `not`, `is_map_key/2`, `is_record/2` and
+`is_function/2` are emitted as well.
 Remote calls go through `ImpT` and
 `call_ext`; maps start from `maps:new/0` and update with `put_map_assoc`. Values
 that survive a call are kept in Y registers; every operation result gets a
@@ -297,7 +300,7 @@ expressions (which must raise
 `function_clause`, `case_clause` and `if_clause`) all agree with `erlc`
 behaviour.
 `CodegenInterpreterTest` loads that file through `ModuleLoader`, registers it,
-and makes the same calls through JErlang. Both are green as of 2026-11-03.
+and makes the same calls through JErlang. Both are green as of 2026-11-04.
 
 Binary construction uses `bs_create_bin`; matching uses `bs_start_match3` and a
 flat `bs_match` command list. Non-empty literal tables are written as OTP 28+
@@ -316,17 +319,14 @@ Line tables are emitted, and `erlang:get_module_info/2` exposes `module`,
 `CodegenOtpTest`'s OTP oracle and `CodegenCorpusTest`, which loads the same
 beams in JErlang and checks `run/0 =:= ok`. Named funs, `fun M:F/A`, record
 construction/update/access/patterns, binary generators, arbitrary `=` patterns
-and normalized catch stacktraces are covered by those paths. `StrT` is still
-unused, `module_info(attributes)` does not yet match `erlc`'s `vsn` entry, and
-expression-level line parity is coarser than `erlc`. Unsupported forms raise
-`CodegenException`; they are not silently omitted. The checked-in corpus
-recompile is green, but OTP application boot (`gen_server`, `supervisor`,
-`application`, `proc_lib`, `logger` and `code`) remains the A5 exit test, so A5
-is not done. A probe with the OTP include and library roots reaches codegen and
-stops at old-style `catch` in `gen_server`, dynamic remote calls in `supervisor`,
-`!` in `proc_lib`, an `is_map_key/2` guard in `application`, a guard tuple-shape
-mismatch in `logger`, and an unsupported pattern match in `code`. Those are the
-next measured gaps for the boot exit test.
+and normalized catch stacktraces are covered by those paths. The A5 exit test,
+`CodegenBootTest`, compiles `gen_server`, `supervisor`, `proc_lib`,
+`application`, `logger` and `code` from the installed OTP 29 sources, puts those
+beams ahead of the installed ones, boots the milestone 6 application, calls the
+worker and stops the application again. It is green as of 2026-11-04. `StrT` is
+still unused, `module_info(attributes)` does not yet match `erlc`'s `vsn` entry,
+and expression-level line parity is coarser than `erlc`. Unsupported forms raise
+`CodegenException`; they are not silently omitted.
 
 Two format facts cost a debugging cycle and belong in the next agent's notes.
 The module atom must be first in `AtU8`: OTP derives the module identity from
@@ -340,7 +340,10 @@ the runtime helper prepends, so map update and `get_map_elements` operand
 pairs must be reversed before encoding or the map is built with the wrong
 keys. A `receive after 0` has no timer to wake it, so `waitForMessage` queues
 the process itself when its timeout has already expired; otherwise the
-scheduler sleeps forever. A lambda's FunT label is its body label, not its
+scheduler sleeps forever. A receive clause's message arrives in `x(0)`, so it is
+copied to a Y slot before the clause body is compiled: a body expression such
+as a call can clobber the X registers, and a variable bound to the whole message
+must still read the message afterwards. A lambda's FunT label is its body label, not its
 `func_info` entry label, and its arity includes the captured variables. BEAM
 calls a fun with the arguments first and the captured values after them, so the
 lambda body binds its patterns to the first Y slots and its free names to the

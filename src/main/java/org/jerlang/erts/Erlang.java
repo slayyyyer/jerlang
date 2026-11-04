@@ -10,6 +10,7 @@ import org.jerlang.erts.erlang.ErlangAtomGt;
 import org.jerlang.erts.erlang.ErlangAtomLe;
 import org.jerlang.erts.erlang.ErlangAtomLt;
 import org.jerlang.erts.erlang.ErlangAtomMinus;
+import org.jerlang.erts.erlang.ErlangAtomMinusMinus;
 import org.jerlang.erts.erlang.ErlangAtomMultiply;
 import org.jerlang.erts.erlang.ErlangAtomNe;
 import org.jerlang.erts.erlang.ErlangAtomNeExact;
@@ -68,6 +69,7 @@ import org.jerlang.erts.erlang.ErlangMakeRef;
 import org.jerlang.erts.erlang.ErlangMonitor;
 import org.jerlang.erts.erlang.ErlangMonitorNode;
 import org.jerlang.erts.erlang.ErlangMonotonicTime;
+import org.jerlang.erts.erlang.ErlangNot;
 import org.jerlang.erts.erlang.ErlangNode;
 import org.jerlang.erts.erlang.ErlangNodes;
 import org.jerlang.erts.erlang.ErlangOpenPort;
@@ -133,6 +135,10 @@ public class Erlang {
 
     public static List atom_plus_plus(List a, List b) {
         return ErlangAtomPlusPlus.atom_plus_plus_2(a, b);
+    }
+
+    public static List atom_minus_minus(List a, List b) {
+        return ErlangAtomMinusMinus.atom_minus_minus_2(a, b);
     }
 
     public static Atom atom_eq(Term a, Term b) {
@@ -315,6 +321,11 @@ public class Erlang {
 
     public static Term is_function(Term term) {
         return ErlangIsFunction.is_function_1(term);
+    }
+
+    /** The guard/expression `not` operator. */
+    public static Term _not(Term term) {
+        return ErlangNot.not_1(term);
     }
 
     public static Term is_integer(Term term) {

@@ -44,6 +44,7 @@ public class CodegenOtpTest {
             "         logic/2, negate/1, after_value/1, after_error/1, after_throw/1,",
             "         after_catch/1, after_catch_error/1, after_no_of/1,",
             "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1,",
+            "         receive_saved/0,",
             "         fun_add/1, fun_sub/1, fun_multi/0, fun_zero/0, fun_nested/1,",
             "         fun_apply/2, fun_make/1, bin_lit/0, bin_empty/0, bin_construct/1,",
             "         bin_match/1, bin_tail/1, bin_tail_used/1, bin_string/1, bin_size/1,",
@@ -148,6 +149,9 @@ public class CodegenOtpTest {
             "    receive {echo, X} -> X after 1000 -> timeout end.",
             "receive_timeout(T) ->",
             "    receive {echo, X} -> X after T -> timeout end.",
+            "receive_saved() ->",
+            "    erlang:send(self(), {saved, 7}),",
+            "    receive {saved, _} = Msg -> {length([x]), Msg} end.",
             "fun_add(Y) ->",
             "    F = fun(X) -> X + Y end,",
             "    F(5).",
@@ -221,7 +225,8 @@ public class CodegenOtpTest {
                 + "codegen_sample:after_throw(0), codegen_sample:after_catch(1), "
                 + "codegen_sample:after_catch_error(1), codegen_sample:after_no_of(2)",
             "codegen_sample:receive_queued(), codegen_sample:receive_selective(), "
-                + "codegen_sample:receive_after(), codegen_sample:receive_timeout(0)",
+                + "codegen_sample:receive_after(), codegen_sample:receive_timeout(0), "
+                + "codegen_sample:receive_saved()",
             "codegen_sample:fun_add(3), codegen_sample:fun_sub(4), "
                 + "codegen_sample:fun_multi(), codegen_sample:fun_zero(), "
                 + "codegen_sample:fun_nested(10), "
@@ -277,7 +282,7 @@ public class CodegenOtpTest {
             + "[zero]\n"
             + "[{false,true},{false,true},{x,true},{false,x},-3]\n"
             + "[{2,true},true,true,{caught,true},true,true]\n"
-            + "[7,2,9,timeout]\n"
+            + "[7,2,9,timeout,{1,{saved,7}}]\n"
             + "[8,6,{zero,2},7,15,12]\n"
             + "[<<1,2,3>>,<<>>,<<7,2,97,98>>,{1,2,<<3>>},no,<<2,3>>,{1,<<2,3>>},<<4,5>>,3]\n"
             + "[[4,6],[{1,a},{1,b},{2,a},{2,b}],2,3,<<1,2,3>>]\n"

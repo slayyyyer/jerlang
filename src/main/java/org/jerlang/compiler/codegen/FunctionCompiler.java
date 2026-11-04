@@ -159,6 +159,11 @@ final class FunctionCompiler {
         case "var":
             bindVariable(pattern, target, fail);
             return;
+        case "match":
+            // An alias pattern binds both sides against the same value.
+            bindPattern(tuple.element(3), target, fail);
+            bindPattern(tuple.element(4), target, fail);
+            return;
         case "integer":
         case "char":
             emit(Opcode.is_eq_exact, f(fail), target, integerPattern(pattern));
@@ -256,6 +261,10 @@ final class FunctionCompiler {
         if (is(key, "integer") || is(key, "char")) {
             return integer(key.toTuple().element(3).toInteger());
         }
+        if (is(key, "var")) {
+            // A map pattern key may be a variable bound before the pattern.
+            return value(key);
+        }
         throw unsupported("map pattern key " + tag(key.toTuple()));
     }
 
@@ -286,6 +295,13 @@ final class FunctionCompiler {
     private void guard(Term expression, int fail) {
         Tuple tuple = expression.toTuple();
         String tag = tag(tuple);
+        if (tag.equals("var")) {
+            Term operand = value(expression);
+            emit(Opcode.is_boolean, f(fail), operand);
+            module.atom(Atom.of("true"));
+            emit(Opcode.is_eq_exact, f(fail), operand, atom(Atom.of("true")));
+            return;
+        }
         if (tag.equals("atom")) {
             Atom value = tuple.element(3).toAtom();
             if (value.equals(Atom.of("true"))) {
@@ -310,6 +326,33 @@ final class FunctionCompiler {
 
     private void guardOperator(Tuple tuple, int fail) {
         String operator = tuple.element(3).toAtom().toString();
+        if (operator.equals("orelse")) {
+            // A failing left operand transfers control to the right operand;
+            // success skips it. The guard fail label is shared by both sides.
+            int right = label();
+            int success = label();
+            guard(tuple.element(4), right);
+            emit(Opcode.jump, f(success));
+            emit(Opcode.label, Integer.of(right));
+            guard(tuple.element(5), fail);
+            emit(Opcode.label, Integer.of(success));
+            return;
+        }
+        if (operator.equals("andalso")) {
+            guard(tuple.element(4), fail);
+            guard(tuple.element(5), fail);
+            return;
+        }
+        if (tuple.arity() == 4) {
+            Term operand = value(tuple.element(4));
+            if (operator.equals("not")) {
+                module.atom(Atom.of("false"));
+                emit(Opcode.is_boolean, f(fail), operand);
+                emit(Opcode.is_eq_exact, f(fail), operand, atom(Atom.of("false")));
+                return;
+            }
+            throw unsupported("unary guard operator " + operator);
+        }
         Term left = value(tuple.element(4));
         Term right = value(tuple.element(5));
         switch (operator) {
@@ -344,16 +387,76 @@ final class FunctionCompiler {
 
     private void guardCall(Tuple tuple, int fail) {
         Term target = tuple.element(3);
-        if (!is(target, "atom")) {
-            throw unsupported("non-local guard call");
-        }
-        Atom name = target.toTuple().element(3).toAtom();
         List arguments = tuple.element(4).toList();
+        Atom name;
+        Atom moduleName = null;
+        if (target instanceof Atom) {
+            name = target.toAtom();
+        } else if (is(target, "atom")) {
+            name = target.toTuple().element(3).toAtom();
+        } else if (is(target, "remote")) {
+            Tuple remote = target.toTuple();
+            moduleName = guardAtom(remote.element(3));
+            name = guardAtom(remote.element(4));
+            if (moduleName == null || name == null) {
+                throw unsupported("non-local guard call " + target);
+            }
+            if (!moduleName.equals(Atom.of("erlang"))) {
+                if (moduleName.equals(Atom.of("lists"))
+                    && name.equals(Atom.of("member")) && arguments.length() == 2) {
+                    Term item = value(arguments.head());
+                    Term list = value(arguments.tail().head());
+                    int importIndex = module.importIndex(moduleName, name, 2);
+                    emit(Opcode.bif2, f(fail), Integer.of(importIndex), item, list, x(0));
+                    module.atom(Atom.of("true"));
+                    emit(Opcode.is_eq_exact, f(fail), x(0), atom(Atom.of("true")));
+                    return;
+                }
+                throw unsupported("non-local guard call " + target);
+            }
+        } else {
+            throw unsupported("non-local guard call " + target);
+        }
+        if (name.equals(Atom.of("is_function")) && arguments.length() == 2) {
+            Term fun = value(arguments.head());
+            Term arity = value(arguments.tail().head());
+            emit(Opcode.is_function2, f(fail), fun, arity);
+            return;
+        }
+        if (name.equals(Atom.of("is_record")) && arguments.length() == 2) {
+            Term term = value(arguments.head());
+            Term tag = value(arguments.tail().head());
+            int importIndex = module.importIndex(Atom.of("erlang"), name, 2);
+            emit(Opcode.bif2, f(fail), Integer.of(importIndex), term, tag, x(0));
+            module.atom(Atom.of("true"));
+            emit(Opcode.is_eq_exact, f(fail), x(0), atom(Atom.of("true")));
+            return;
+        }
+        if (name.equals(Atom.of("is_map_key")) && arguments.length() == 2) {
+            Term key = value(arguments.head());
+            Term map = value(arguments.tail().head());
+            emit(Opcode.is_map, f(fail), map);
+            int importIndex = module.importIndex(Atom.of("erlang"), name, 2);
+            emit(Opcode.bif2, f(fail), Integer.of(importIndex), key, map, x(0));
+            module.atom(Atom.of("true"));
+            emit(Opcode.is_eq_exact, f(fail), x(0), atom(Atom.of("true")));
+            return;
+        }
         Opcode opcode = typeTest(name);
         if (opcode == null || arguments.length() != 1) {
             throw unsupported("guard call " + name + "/" + arguments.length());
         }
         emit(opcode, f(fail), value(arguments.head()));
+    }
+
+    private static Atom guardAtom(Term term) {
+        if (term instanceof Atom) {
+            return term.toAtom();
+        }
+        if (is(term, "atom")) {
+            return term.toTuple().element(3).toAtom();
+        }
+        return null;
     }
 
     private static Opcode typeTest(Atom name) {
@@ -456,6 +559,8 @@ final class FunctionCompiler {
             return ifExpression(tuple);
         case "receive":
             return receiveExpression(tuple);
+        case "catch":
+            return catchExpression(tuple);
         case "try":
             return tryExpression(tuple);
         case "fun":
@@ -1013,6 +1118,12 @@ final class FunctionCompiler {
 
         emit(Opcode.label, Integer.of(loop));
         emit(Opcode.loop_rec, f(wait), x(0));
+        // The message arrives in x(0), but a variable bound to it can be used
+        // after an expression that clobbers the x registers, for example
+        // `receive Msg -> f(a), Msg end`. Copy it to a Y slot before the
+        // clause body is compiled, so the binding has a stable home.
+        Term message = newY();
+        emit(Opcode.move, x(0), message);
 
         int index = 0;
         List cursor = clauses;
@@ -1027,7 +1138,7 @@ final class FunctionCompiler {
             if (patterns.length() != 1) {
                 throw unsupported("receive clause with " + patterns.length() + " patterns");
             }
-            bindPattern(patterns.head(), x(0), fail);
+            bindPattern(patterns.head(), message, fail);
             compileGuards(clause.element(4).toList(), fail);
             emit(Opcode.remove_message);
             Term branchResult = bodyValue(clause.element(5).toList());
@@ -1096,6 +1207,36 @@ final class FunctionCompiler {
         emit(Opcode.label, Integer.of(end));
         restoreBranches(outside, joins, branchMaps);
         return result;
+    }
+
+    /**
+     * Lower old-style {@code catch Expr}. The synthesized try has the same
+     * class handling erlc gives it: a throw returns its reason, while errors
+     * and exits return an {@code {'EXIT', Reason}} tuple.
+     */
+    private Term catchExpression(Tuple expression) {
+        int line = expression.element(2).toInteger().toInt();
+        Term body = expression.element(3);
+        Term classVariable = variable(Atom.of("__catch_class"), line);
+        Term reasonVariable = variable(Atom.of("__catch_reason"), line);
+        Term stackVariable = variable(Atom.of("__catch_stack"), line);
+        Term exceptionPattern = Tuple.of(Atom.of("tuple"), Integer.of(line),
+            List.of(classVariable, reasonVariable, stackVariable));
+        Term exitTuple = Tuple.of(Atom.of("tuple"), Integer.of(line),
+            List.of(astAtom(Atom.of("exit"), line), reasonVariable));
+        Term isThrow = Tuple.of(Atom.of("op"), Integer.of(line), Atom.of("=:="),
+            classVariable, astAtom(Atom.of("throw"), line));
+        Term throwClause = Tuple.of(Atom.of("clause"), Integer.of(line), List.nil,
+            List.of(List.of(isThrow)), List.of(reasonVariable));
+        Term exitClause = Tuple.of(Atom.of("clause"), Integer.of(line), List.nil,
+            List.of(List.of(astAtom(Atom.of("true"), line))), List.of(exitTuple));
+        Term result = Tuple.of(Atom.of("if"), Integer.of(line),
+            List.of(throwClause, exitClause));
+        Term catchClause = Tuple.of(Atom.of("clause"), Integer.of(line),
+            List.of(exceptionPattern), List.nil, List.of(result));
+        Tuple syntheticTry = Tuple.of(Atom.of("try"), Integer.of(line),
+            List.of(body), List.nil, List.of(catchClause), List.nil);
+        return tryExpression(syntheticTry);
     }
 
     private Term tryExpression(Tuple expression) {
@@ -1332,10 +1473,24 @@ final class FunctionCompiler {
         if (operator.equals("andalso") || operator.equals("orelse")) {
             return logical(tuple, operator.equals("andalso"));
         }
+        if (operator.equals("!")) {
+            return sendOperator(tuple);
+        }
         if (tuple.arity() == 4) {
             return unary(operator, tuple);
         }
         return arithmetic(operator, tuple);
+    }
+
+    private Term sendOperator(Tuple tuple) {
+        Term target = value(tuple.element(4));
+        Term message = value(tuple.element(5));
+        emit(Opcode.move, target, x(0));
+        emit(Opcode.move, message, x(1));
+        emit(Opcode.send);
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
     }
 
     private Term logical(Tuple tuple, boolean andAlso) {
@@ -1365,6 +1520,15 @@ final class FunctionCompiler {
     }
 
     private Term unary(String operator, Tuple tuple) {
+        if (operator.equals("not")) {
+            Term operand = value(tuple.element(4));
+            int importIndex = module.importIndex(Atom.of("not"), 1);
+            emit(Opcode.move, operand, x(0));
+            emit(Opcode.call_ext, Integer.of(1), Integer.of(importIndex));
+            Term destination = newY();
+            emit(Opcode.move, x(0), destination);
+            return destination;
+        }
         if (!operator.equals("+") && !operator.equals("-")) {
             throw unsupported("unary operator " + operator);
         }
@@ -1399,6 +1563,16 @@ final class FunctionCompiler {
         case "/":
         case "div":
         case "rem":
+        case "++":
+        case "--":
+        case "<":
+        case ">":
+        case "=<":
+        case ">=":
+        case "==":
+        case "/=":
+        case "=:=":
+        case "=/=":
         case "band":
         case "bor":
         case "bxor":
@@ -1432,15 +1606,27 @@ final class FunctionCompiler {
 
         List values = argumentValues(arguments);
         int arity = values.length();
+        if (is(target, "remote")) {
+            Tuple remote = target.toTuple();
+            if (!is(remote.element(3), "atom") || !is(remote.element(4), "atom")) {
+                // A dynamic M:F call becomes erlang:apply/3. The argument list
+                // is built in Y first because evaluating M and F may call code.
+                Term dynamicModule = value(remote.element(3));
+                Term dynamicFunction = value(remote.element(4));
+                Term argumentList = runtimeList(values);
+                emit(Opcode.move, dynamicModule, x(0));
+                emit(Opcode.move, dynamicFunction, x(1));
+                emit(Opcode.move, argumentList, x(2));
+                return remoteCall(Atom.of("erlang"), Atom.of("apply"), 3,
+                    List.of(dynamicModule, dynamicFunction, argumentList));
+            }
+        }
         for (int index = 0; index < arity; index++) {
             emit(Opcode.move, at(values, index), x(index));
         }
 
         if (is(target, "remote")) {
             Tuple remote = target.toTuple();
-            if (!is(remote.element(3), "atom") || !is(remote.element(4), "atom")) {
-                throw unsupported("dynamic remote call");
-            }
             Atom moduleName = remote.element(3).toTuple().element(3).toAtom();
             Atom functionName = remote.element(4).toTuple().element(3).toAtom();
             return remoteCall(moduleName, functionName, arity, values);
@@ -1487,6 +1673,17 @@ final class FunctionCompiler {
             arguments = arguments.tail();
         }
         return reverse(values);
+    }
+
+    private Term runtimeList(List values) {
+        if (values == List.nil) {
+            return List.nil;
+        }
+        Term tail = runtimeList(values.tail());
+        emit(Opcode.test_heap, Integer.of(2), Integer.of(0));
+        Term destination = newY();
+        emit(Opcode.put_list, values.head(), tail, destination);
+        return destination;
     }
 
     private Term callFun(Term fun, List values) {
@@ -1765,31 +1962,42 @@ final class FunctionCompiler {
      * the runtime validates that the target exists and is exported.
      */
     private Term funReference(Tuple reference) {
-        Atom targetModule = module.module();
+        Term moduleTerm;
         Term nameTerm;
         Term arityTerm;
         if (reference.arity() == 3) {
-            nameTerm = reference.element(2);
-            arityTerm = reference.element(3);
+            moduleTerm = atom(module.module());
+            nameTerm = referenceValue(reference.element(2));
+            arityTerm = referenceValue(reference.element(3));
         } else if (reference.arity() == 4) {
-            targetModule = referenceAtom(reference.element(2));
-            nameTerm = reference.element(3);
-            arityTerm = reference.element(4);
+            moduleTerm = referenceValue(reference.element(2));
+            nameTerm = referenceValue(reference.element(3));
+            arityTerm = referenceValue(reference.element(4));
         } else {
             throw unsupported("fun reference with " + (reference.arity() - 1) + " parts");
         }
-        Atom targetName = referenceAtom(nameTerm);
-        int arity = referenceInteger(arityTerm);
-        module.atom(targetModule);
-        module.atom(targetName);
         int importIndex = module.importIndex(Atom.of("erlang"), Atom.of("make_fun"), 3);
-        emit(Opcode.move, atom(targetModule), x(0));
-        emit(Opcode.move, atom(targetName), x(1));
-        emit(Opcode.move, integer(Integer.of(arity)), x(2));
+        emit(Opcode.move, moduleTerm, x(0));
+        emit(Opcode.move, nameTerm, x(1));
+        emit(Opcode.move, arityTerm, x(2));
         emit(Opcode.call_ext, Integer.of(3), Integer.of(importIndex));
         Term destination = newY();
         emit(Opcode.move, x(0), destination);
         return destination;
+    }
+
+    /**
+     * Fun-reference components can be raw parser values (atoms and integers)
+     * or expression nodes (variables for dynamic M:F/A references).
+     */
+    private Term referenceValue(Term term) {
+        if (term instanceof Atom) {
+            return atom((Atom) term);
+        }
+        if (term instanceof org.jerlang.type.Integer) {
+            return term;
+        }
+        return value(term);
     }
 
     private static Atom referenceAtom(Term term) {
@@ -1943,7 +2151,7 @@ final class FunctionCompiler {
         int count = 0;
         if (term instanceof Tuple) {
             Tuple tuple = term.toTuple();
-            if (is(tuple, "try")) {
+            if (is(tuple, "try") || is(tuple, "catch")) {
                 count++;
             }
             for (int index = 1; index <= tuple.arity(); index++) {
