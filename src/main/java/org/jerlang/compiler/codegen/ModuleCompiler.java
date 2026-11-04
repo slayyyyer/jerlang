@@ -22,6 +22,10 @@ import org.jerlang.stdlib.beam_lib.FunctionTableChunk;
 import org.jerlang.stdlib.beam_lib.FunctionTableChunkWriter;
 import org.jerlang.stdlib.beam_lib.ImportTableChunk;
 import org.jerlang.stdlib.beam_lib.LambdaInfo;
+import org.jerlang.stdlib.beam_lib.LineRecord;
+import org.jerlang.stdlib.beam_lib.LineTableChunk;
+import org.jerlang.stdlib.beam_lib.LineTableChunkWriter;
+import org.jerlang.stdlib.beam_lib.LiteralTableChunkWriter;
 import org.jerlang.stdlib.beam_lib.LocalFunctionTableChunk;
 import org.jerlang.stdlib.beam_lib.TableChunkWriter;
 import org.jerlang.type.Atom;
@@ -47,7 +51,13 @@ final class ModuleCompiler {
     private final LinkedHashMap<FunctionKey, FunctionDef> functions = new LinkedHashMap<>();
     private final LinkedHashMap<FunctionKey, Boolean> exports = new LinkedHashMap<>();
     private final java.util.List<LambdaDef> lambdas = new ArrayList<>();
+    private final LinkedHashMap<Atom, RecordDef> records = new LinkedHashMap<>();
+    private final java.util.List<Term> literals = new ArrayList<>();
+    private final java.util.List<LineRecord> lineRecords = new ArrayList<>();
+    private final java.util.Map<String, java.lang.Integer> lineIndexes = new HashMap<>();
+    private int lineInstructions;
     private Atom module;
+    private String source = "generated";
     private int nextLabel = 1;
 
     ModuleCompiler(java.util.List<Term> forms) {
@@ -86,7 +96,13 @@ final class ModuleCompiler {
         chunks.add(BeamFile.ChunkData.of("Code",
             CodeChunkAssembler.write(instructions, atoms, nextLabel,
                 functions.size() + lambdas.size())));
+        if (!lineRecords.isEmpty()) {
+            chunks.add(BeamFile.ChunkData.of("Line", lineChunk()));
+        }
         chunks.add(BeamFile.ChunkData.of("StrT", new byte[0]));
+        if (!literals.isEmpty()) {
+            chunks.add(BeamFile.ChunkData.of("LitT", LiteralTableChunkWriter.write(literals)));
+        }
         chunks.add(BeamFile.ChunkData.of("FunT", functionTable(atoms)));
         chunks.add(BeamFile.ChunkData.of("ImpT", importTable(atoms)));
         chunks.add(BeamFile.ChunkData.of("ExpT", exportTable(atoms)));
@@ -99,6 +115,16 @@ final class ModuleCompiler {
     Atom atom(Atom atom) {
         atoms.putIfAbsent(atom, atoms.size() + 1);
         return atom;
+    }
+
+    int literal(Term term) {
+        for (int index = 0; index < literals.size(); index++) {
+            if (literals.get(index).equals(term)) {
+                return index;
+            }
+        }
+        literals.add(term);
+        return literals.size() - 1;
     }
 
     int importIndex(Atom function, int arity) {
@@ -129,6 +155,23 @@ final class ModuleCompiler {
         return functions.get(new FunctionKey(name, arity));
     }
 
+    RecordDef recordDefinition(Atom name) {
+        return records.get(name);
+    }
+
+    int recordFieldIndex(Atom record, Atom field) {
+        RecordDef definition = records.get(record);
+        if (definition == null) {
+            throw new CodegenException("unknown record " + record);
+        }
+        for (int index = 0; index < definition.fields.size(); index++) {
+            if (definition.fields.get(index).equals(field)) {
+                return index + 1;
+            }
+        }
+        throw new CodegenException("record " + record + " has no field " + field);
+    }
+
     LambdaDef addLambda(Atom ownerName, int ownerArity, List clauses, List freeNames,
         int funArity) {
         int index = lambdas.size();
@@ -155,6 +198,37 @@ final class ModuleCompiler {
         return module;
     }
 
+    String source() {
+        return source;
+    }
+
+    /**
+     * Return the one-based index of a source location in the Line chunk. OTP
+     * line instructions address this table, not a literal term.
+     */
+    int line(String filename, int line) {
+        lineInstructions++;
+        String key = filename + "\u0000" + line;
+        java.lang.Integer existing = lineIndexes.get(key);
+        if (existing != null) {
+            return existing;
+        }
+        int index = lineRecords.size() + 1;
+        lineRecords.add(new LineRecord(Atom.of(filename), line, 1, lineRecords.isEmpty()));
+        lineIndexes.put(key, index);
+        return index;
+    }
+
+    private byte[] lineChunk() {
+        LineTableChunk chunk = new LineTableChunk(new Chunk(ChunkId.LINE, 0, 0),
+            0, 0, lineInstructions, lineRecords.size(), 1);
+        for (int index = 0; index < lineRecords.size(); index++) {
+            chunk.records()[index] = lineRecords.get(index);
+        }
+        chunk.fnames()[0] = new Str(source);
+        return LineTableChunkWriter.write(chunk);
+    }
+
     private void index() {
         for (Term form : forms) {
             if (!(form instanceof Tuple)) {
@@ -172,10 +246,49 @@ final class ModuleCompiler {
         }
         if (module != null) {
             atom(module);
+            moduleInfo();
         }
         for (FunctionDef function : functions.values()) {
             atom(function.name);
         }
+    }
+
+    /**
+     * Every module OTP compiles exports {@code module_info/0,1}, and the code
+     * server calls them while loading an application. They are ordinary
+     * functions here, not a special loader path, so both OTP and JErlang see
+     * the same export table.
+     */
+    private void moduleInfo() {
+        FunctionKey zero = new FunctionKey(Atom.of("module_info"), 0);
+        FunctionKey one = new FunctionKey(Atom.of("module_info"), 1);
+        if (functions.containsKey(zero) || functions.containsKey(one)) {
+            return;
+        }
+
+        Term moduleAtom = astAtom(module);
+        Term remote = Tuple.of(Atom.of("remote"), Integer.of(1), astAtom(Atom.of("erlang")),
+            astAtom(Atom.of("get_module_info")));
+        Term zeroCall = Tuple.of(Atom.of("call"), Integer.of(1), remote,
+            List.of(moduleAtom));
+        Term zeroClause = Tuple.of(Atom.of("clause"), Integer.of(1), List.nil,
+            List.nil, List.of(zeroCall));
+        FunctionDef zeroFunction = new FunctionDef(zero, List.of(zeroClause));
+        functions.put(zero, zeroFunction);
+        exports.put(zero, Boolean.TRUE);
+
+        Term item = Tuple.of(Atom.of("var"), Integer.of(1), Atom.of("Item"));
+        Term oneCall = Tuple.of(Atom.of("call"), Integer.of(1), remote,
+            List.of(moduleAtom, item));
+        Term oneClause = Tuple.of(Atom.of("clause"), Integer.of(1),
+            List.of(item), List.nil, List.of(oneCall));
+        FunctionDef oneFunction = new FunctionDef(one, List.of(oneClause));
+        functions.put(one, oneFunction);
+        exports.put(one, Boolean.TRUE);
+    }
+
+    private static Term astAtom(Atom atom) {
+        return Tuple.of(Atom.of("atom"), Integer.of(1), atom);
     }
 
     private void attribute(Tuple tuple) {
@@ -193,6 +306,33 @@ final class ModuleCompiler {
                 atom(key.name);
                 list = list.tail();
             }
+        } else if (name.equals(Atom.of("file"))) {
+            Term value = tuple.element(4);
+            if (value instanceof Tuple && value.toTuple().arity() >= 1
+                && value.toTuple().element(1) instanceof Str) {
+                source = value.toTuple().element(1).toStr().string();
+            }
+        } else if (name.equals(Atom.of("record"))) {
+            Tuple declaration = tuple.element(4).toTuple();
+            Atom recordName = declaration.element(1).toAtom();
+            List cursor = declaration.element(2).toList();
+            java.util.List<Atom> names = new ArrayList<>();
+            java.util.List<Term> defaults = new ArrayList<>();
+            while (cursor != List.nil) {
+                Term field = cursor.head();
+                if (field instanceof Tuple && is(field.toTuple(), "typed_record_field")) {
+                    field = field.toTuple().element(2);
+                }
+                Tuple definition = field.toTuple();
+                Atom fieldName = definition.element(3).toTuple().element(3).toAtom();
+                names.add(fieldName);
+                defaults.add(definition.arity() >= 4 ? definition.element(4)
+                    : astAtom(Atom.of("undefined")));
+                atom(fieldName);
+                cursor = cursor.tail();
+            }
+            atom(recordName);
+            records.put(recordName, new RecordDef(recordName, names, defaults));
         }
     }
 
@@ -204,6 +344,13 @@ final class ModuleCompiler {
             throw new CodegenException("duplicate function " + name + "/" + arity);
         }
         functions.put(key, new FunctionDef(key, tuple.element(5).toList()));
+    }
+
+    private static int firstLine(List clauses) {
+        if (clauses == List.nil) {
+            return 1;
+        }
+        return clauses.head().toTuple().element(2).toInteger().toInt();
     }
 
     private AtomChunk atomChunk() {
@@ -281,7 +428,7 @@ final class ModuleCompiler {
 
     private Term compileInfo() {
         return List.of(Tuple.of(Atom.of("options"), List.nil),
-            Tuple.of(Atom.of("source"), new Str("generated")),
+            Tuple.of(Atom.of("source"), new Str(source)),
             Tuple.of(Atom.of("version"), new Str("8.0")));
     }
 
@@ -304,6 +451,8 @@ final class ModuleCompiler {
         final int arity;
         final int patternArity;
         final List freeNames;
+        final int line;
+        Atom selfName;
 
         private FunctionDef(FunctionKey key, List clauses) {
             this(key, clauses, key.arity, List.nil);
@@ -316,6 +465,21 @@ final class ModuleCompiler {
             this.arity = key.arity;
             this.patternArity = patternArity;
             this.freeNames = freeNames;
+            this.line = firstLine(clauses);
+        }
+    }
+
+    static final class RecordDef {
+
+        final Atom name;
+        final java.util.List<Atom> fields;
+        final java.util.List<Term> defaults;
+
+        private RecordDef(Atom name, java.util.List<Atom> fields,
+            java.util.List<Term> defaults) {
+            this.name = name;
+            this.fields = fields;
+            this.defaults = defaults;
         }
     }
 

@@ -1,5 +1,6 @@
 package org.jerlang.compiler.codegen;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -31,6 +32,7 @@ final class FunctionCompiler {
     private final int handlerCount;
     private int nextY;
     private int nextHandlerY;
+    private int nextComprehension;
 
     FunctionCompiler(ModuleCompiler module, ModuleCompiler.FunctionDef function,
         java.util.List<Instruction> code) {
@@ -46,21 +48,30 @@ final class FunctionCompiler {
 
     void compile() {
         emit(Opcode.label, Integer.of(function.entry));
+        // The line operand is a one-based index into the Line chunk. OTP puts
+        // the line before func_info; beam_disasm and the loader both rely on
+        // func_info being followed directly by the function's body label.
+        emit(Opcode.line, Integer.of(module.line(module.source(), function.line)));
         emit(Opcode.func_info, atom(module.module()),
             atom(function.name), Integer.of(function.arity));
         emit(Opcode.label, Integer.of(function.body));
+        // Calls enter at the body label, so the metadata line before func_info
+        // is never executed. Emit the same location again where execution
+        // starts; the line table deduplicates it to the same record.
+        emit(Opcode.line, Integer.of(module.line(module.source(), function.line)));
         emit(Opcode.allocate, Integer.of(frameSize), Integer.of(function.arity));
         for (int argument = 0; argument < function.arity; argument++) {
             emit(Opcode.move, x(argument), y(argument));
         }
-        if (handlerCount > 0) {
-            List initialized = List.nil;
-            for (int register = function.arity + handlerCount - 1;
-                register >= function.arity; register--) {
-                initialized = new List(y(register), initialized);
-            }
-            emit(Opcode.init_yregs, initialized);
+        // Garbage collection treats every word in the allocated frame as a
+        // root. Values written by this function are safe, but slots that have
+        // not been assigned yet must still contain a valid term; otherwise the
+        // first GC scans an arbitrary stack word and can crash the VM.
+        List initialized = List.nil;
+        for (int register = frameSize - 1; register >= function.arity; register--) {
+            initialized = new List(y(register), initialized);
         }
+        emit(Opcode.init_yregs, initialized);
 
         for (int index = 0; index < function.clauses.length(); index++) {
             if (index > 0) {
@@ -172,6 +183,9 @@ final class FunctionCompiler {
         case "map":
             bindMapPattern(tuple, target, fail);
             return;
+        case "bin":
+            bindBinaryPattern(tuple, target, fail);
+            return;
         case "tuple":
             List elements = tuple.element(3).toList();
             emit(Opcode.is_tuple, f(fail), target);
@@ -181,6 +195,9 @@ final class FunctionCompiler {
                 emit(Opcode.get_tuple_element, target, Integer.of(index), element);
                 bindPattern(at(elements, index), element, fail);
             }
+            return;
+        case "record":
+            bindRecordPattern(tuple, target, fail);
             return;
         default:
             throw unsupported("pattern " + tag);
@@ -407,8 +424,16 @@ final class FunctionCompiler {
             return cons(tuple.element(3), tuple.element(4));
         case "string":
             return string(tuple.element(3).toList());
+        case "bin":
+            return binaryExpression(tuple);
         case "map":
             return mapExpression(tuple);
+        case "record":
+            return recordExpression(tuple);
+        case "record_field":
+            return recordField(tuple);
+        case "record_index":
+            return recordIndex(tuple);
         case "tuple":
             return tuple(tuple.element(3).toList());
         case "match":
@@ -436,7 +461,13 @@ final class FunctionCompiler {
         case "fun":
             return funExpression(tuple);
         case "named_fun":
-            throw unsupported("named fun");
+            return namedFun(tuple);
+        case "lc":
+            return value(listComprehension(tuple));
+        case "bc":
+            return value(binaryComprehension(tuple));
+        case "mc":
+            return value(mapComprehension(tuple));
         default:
             throw unsupported("expression " + tag);
         }
@@ -448,15 +479,103 @@ final class FunctionCompiler {
             operands = new List(value(elements.head()), operands);
             elements = elements.tail();
         }
-        operands = reverse(operands);
+        return tupleOperands(reverse(operands));
+    }
+
+    private Term tupleOperands(List operands) {
+        emit(Opcode.test_heap, Integer.of(operands.length() + 1), Integer.of(0));
         Term destination = newY();
         emit(Opcode.put_tuple2, destination, operands);
         return destination;
     }
 
+    private Term recordExpression(Tuple expression) {
+        boolean update = expression.arity() == 5;
+        Atom recordName = expression.element(update ? 4 : 3).toAtom();
+        ModuleCompiler.RecordDef definition = module.recordDefinition(recordName);
+        if (definition == null) {
+            throw unsupported("unknown record " + recordName);
+        }
+        List fields = expression.element(update ? 5 : 4).toList();
+        Map<Atom, Term> explicit = new HashMap<>();
+        while (fields != List.nil) {
+            Tuple field = fields.head().toTuple();
+            explicit.put(recordFieldName(field.element(3)), field.element(4));
+            fields = fields.tail();
+        }
+
+        Term base = update ? value(expression.element(3)) : null;
+        List operands = List.nil;
+        for (int index = 0; index < definition.fields.size(); index++) {
+            Term value = explicit.get(definition.fields.get(index));
+            if (value != null) {
+                operands = new List(value(value), operands);
+            } else if (update) {
+                Term slot = newY();
+                emit(Opcode.get_tuple_element, base, Integer.of(index + 1), slot);
+                operands = new List(slot, operands);
+            } else {
+                operands = new List(value(definition.defaults.get(index)), operands);
+            }
+        }
+        operands = reverse(operands);
+        module.atom(recordName);
+        operands = new List(atom(recordName), operands);
+        return tupleOperands(operands);
+    }
+
+    private Term recordField(Tuple expression) {
+        Term base = value(expression.element(3));
+        Atom recordName = expression.element(4).toAtom();
+        Atom field = recordFieldName(expression.element(5));
+        int index = module.recordFieldIndex(recordName, field);
+        Term destination = newY();
+        emit(Opcode.get_tuple_element, base, Integer.of(index), destination);
+        return destination;
+    }
+
+    private Term recordIndex(Tuple expression) {
+        Atom recordName = expression.element(3).toAtom();
+        Atom field = recordFieldName(expression.element(4));
+        return integer(Integer.of(module.recordFieldIndex(recordName, field)));
+    }
+
+    private void bindRecordPattern(Tuple pattern, Term target, int fail) {
+        Atom recordName = pattern.element(3).toAtom();
+        ModuleCompiler.RecordDef definition = module.recordDefinition(recordName);
+        if (definition == null) {
+            throw unsupported("unknown record " + recordName);
+        }
+        List fields = pattern.element(4).toList();
+        emit(Opcode.is_tuple, f(fail), target);
+        emit(Opcode.test_arity, f(fail), target,
+            Integer.of(definition.fields.size() + 1));
+        Term tag = newY();
+        emit(Opcode.get_tuple_element, target, Integer.of(0), tag);
+        module.atom(recordName);
+        emit(Opcode.is_eq_exact, f(fail), tag, atom(recordName));
+        while (fields != List.nil) {
+            Tuple field = fields.head().toTuple();
+            Atom fieldName = recordFieldName(field.element(3));
+            int index = module.recordFieldIndex(recordName, fieldName);
+            Term value = newY();
+            emit(Opcode.get_tuple_element, target, Integer.of(index), value);
+            bindPattern(field.element(4), value, fail);
+            fields = fields.tail();
+        }
+    }
+
+    private static Atom recordFieldName(Term field) {
+        if (!is(field, "atom")) {
+            throw unsupported("record field " + tag(field.toTuple()));
+        }
+        return field.toTuple().element(3).toAtom();
+    }
+
     private Term cons(Term headExpression, Term tailExpression) {
         Term head = value(headExpression);
         Term tail = value(tailExpression);
+        emit(Opcode.test_heap, Integer.of(2), Integer.of(0));
         Term destination = newY();
         emit(Opcode.put_list, head, tail, destination);
         return destination;
@@ -466,6 +585,7 @@ final class FunctionCompiler {
         Term tail = List.nil;
         characters = reverse(characters);
         while (characters != List.nil) {
+            emit(Opcode.test_heap, Integer.of(2), Integer.of(0));
             Term destination = newY();
             emit(Opcode.put_list, integer(characters.head().toInteger()), tail, destination);
             tail = destination;
@@ -504,6 +624,304 @@ final class FunctionCompiler {
         Term destination = newY();
         emit(Opcode.move, x(0), destination);
         return destination;
+    }
+
+    private Term binaryExpression(Tuple expression) {
+        List segments = expression.element(3).toList();
+        if (segments == List.nil) {
+            Term destination = newY();
+            emit(Opcode.move, literal(new org.jerlang.type.Binary(new byte[0])), destination);
+            return destination;
+        }
+        java.util.List<Term> operations = new ArrayList<>();
+        while (segments != List.nil) {
+            Tuple segment = segments.head().toTuple();
+            Term valueExpression = segment.element(3);
+            Term sizeExpression = segment.element(4);
+            BinaryInfo info = binaryInfo(segment.element(5));
+            if (is(valueExpression, "string") && !info.binary && !info.utf8) {
+                List characters = valueExpression.toTuple().element(3).toList();
+                while (characters != List.nil) {
+                    int value = characters.head().toInteger().toInt();
+                    addBinaryOperation(operations, "integer", 1, 1, List.nil,
+                        integerOperand(value), integerOperand(8));
+                    characters = characters.tail();
+                }
+            } else if (info.utf8) {
+                addBinaryOperation(operations, "utf8", 0, 8, info.flags,
+                    binaryValue(value(valueExpression)), Integer.ZERO);
+            } else if (info.binary) {
+                Term size = sizeExpression.equals(Atom.of("default"))
+                    ? module.atom(Atom.of("all")) : value(sizeExpression);
+                addBinaryOperation(operations, info.bits ? "bits" : "binary", 0,
+                    info.unit, info.flags, value(valueExpression), binaryValue(size));
+            } else {
+                Term size = sizeExpression.equals(Atom.of("default"))
+                    ? integerOperand(8) : binaryValue(value(sizeExpression));
+                addBinaryOperation(operations, "integer", 1, info.unit, info.flags,
+                    binaryValue(value(valueExpression)), size);
+            }
+            segments = segments.tail();
+        }
+
+        java.util.Collections.reverse(operations);
+        emit(Opcode.bs_create_bin, f(0), Integer.of(0), Integer.of(1), Integer.of(32),
+            x(0), Tuple.of(Atom.of("list"), List.of(operations)));
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
+    }
+
+    private Term integerOperand(int value) {
+        return Tuple.of(Atom.of("integer"), Integer.of(value));
+    }
+
+    private Term binaryValue(Term term) {
+        return term instanceof Integer ? integerOperand(term.toInteger().toInt()) : term;
+    }
+
+    private void addBinaryOperation(java.util.List<Term> operations, String type,
+        int segment, int unit, Term flags, Term value, Term size) {
+        operations.add(module.atom(Atom.of(type)));
+        operations.add(Integer.of(segment));
+        operations.add(Integer.of(unit));
+        operations.add(flags);
+        operations.add(value);
+        operations.add(size);
+    }
+
+    private void bindBinaryPattern(Tuple pattern, Term target, int fail) {
+        List segments = pattern.element(3).toList();
+        boolean tailMatch = hasBinaryTail(segments);
+        // OTP keeps a tail match context in X1 and extracts into X0 and X2+.
+        // get_tail deliberately writes its result over the context in X1.
+        // Reusing X0 for the context and X1 for the first value corrupts the
+        // first value when get_tail allocates a sub-binary.
+        Term context = tailMatch ? x(1) : x(0);
+        emit(Opcode.bs_start_match3, f(fail), target, Integer.of(1), context);
+        if (tailMatch) {
+            // get_tail may allocate a sub-binary. OTP saves the start
+            // position in X0 first; that also makes X0 a live, valid root
+            // before the command list extracts the first value into it.
+            emit(Opcode.bs_get_position, context, x(0), Integer.of(2));
+        }
+        java.util.List<Term> commands = new ArrayList<>();
+        java.util.List<Term> pendingValues = new ArrayList<>();
+        java.util.List<Term> pendingPatterns = new ArrayList<>();
+        int nextBinaryRegister = tailMatch ? 0 : 1;
+        int liveRegisters = 1;
+        if (segments == List.nil) {
+            commands.add(binaryCommand("ensure_exactly"));
+            commands.add(Integer.ZERO);
+        } else {
+            int fixedBits = 0;
+            List scan = segments;
+            while (scan != List.nil) {
+                Tuple segment = scan.head().toTuple();
+                Term valueExpression = segment.element(3);
+                Term sizeExpression = segment.element(4);
+                BinaryInfo info = binaryInfo(segment.element(5));
+                if (is(valueExpression, "string") || info.binary || info.utf8) {
+                    break;
+                }
+                Term size = sizeExpression.equals(Atom.of("default"))
+                    ? Integer.of(8) : value(sizeExpression);
+                Integer constantSize = constantInteger(size);
+                if (constantSize == null) {
+                    break;
+                }
+                fixedBits += constantSize.toInt() * info.unit;
+                scan = scan.tail();
+            }
+            if (fixedBits > 0) {
+                commands.add(binaryCommand("ensure_at_least"));
+                commands.add(Integer.of(fixedBits));
+                commands.add(Integer.of(8));
+            }
+        }
+        while (segments != List.nil) {
+            Tuple segment = segments.head().toTuple();
+            Term valueExpression = segment.element(3);
+            Term sizeExpression = segment.element(4);
+            BinaryInfo info = binaryInfo(segment.element(5));
+            if (is(valueExpression, "string") && !info.binary && !info.utf8) {
+                List characters = valueExpression.toTuple().element(3).toList();
+                int bits = characters.length() * 8;
+                commands.add(binaryCommand("ensure_at_least"));
+                commands.add(Integer.of(bits));
+                commands.add(Integer.of(8));
+                commands.add(binaryCommand("=:="));
+                commands.add(List.nil);
+                commands.add(Integer.of(bits));
+                BigInteger value = BigInteger.ZERO;
+                while (characters != List.nil) {
+                    value = value.shiftLeft(8)
+                        .or(BigInteger.valueOf(characters.head().toInteger().toLong() & 0xFF));
+                    characters = characters.tail();
+                }
+                commands.add(new Integer(value));
+            } else if (info.utf8) {
+                throw unsupported("utf8 binary pattern segment");
+            } else if (info.binary) {
+                boolean tail = sizeExpression.equals(Atom.of("default"));
+                Term destination = tail ? x(1) : x(nextBinaryRegister);
+                if (!tail) {
+                    nextBinaryRegister = nextBinaryRegister == 0 ? 2 : nextBinaryRegister + 1;
+                }
+                if (tail) {
+                    commands.add(binaryCommand("get_tail"));
+                    commands.add(Integer.of(Math.max(liveRegisters, 2)));
+                    commands.add(Integer.of(info.unit));
+                    commands.add(destination);
+                } else {
+                    commands.add(binaryCommand("binary"));
+                    commands.add(Integer.of(liveRegisters));
+                    commands.add(info.flags);
+                    commands.add(value(sizeExpression));
+                    commands.add(Integer.of(info.unit));
+                    commands.add(destination);
+                }
+                pendingValues.add(destination);
+                pendingPatterns.add(valueExpression);
+                liveRegisters++;
+            } else {
+                Term size = sizeExpression.equals(Atom.of("default"))
+                    ? Integer.of(8) : value(sizeExpression);
+                Integer constantSize = constantInteger(size);
+                if (isUnused(valueExpression) && constantSize != null) {
+                    commands.add(binaryCommand("skip"));
+                    commands.add(Integer.of(constantSize.toInt() * info.unit));
+                    liveRegisters++;
+                } else {
+                    int live = tailMatch ? Math.max(liveRegisters, 2) : liveRegisters;
+                    Term destination = x(nextBinaryRegister);
+                    nextBinaryRegister = nextBinaryRegister == 0 ? 2 : nextBinaryRegister + 1;
+                    commands.add(binaryCommand("integer"));
+                    commands.add(Integer.of(live));
+                    commands.add(info.flags);
+                    commands.add(constantSize != null ? constantSize : size);
+                    commands.add(Integer.of(info.unit));
+                    commands.add(destination);
+                    pendingValues.add(destination);
+                    pendingPatterns.add(valueExpression);
+                    liveRegisters++;
+                }
+            }
+            segments = segments.tail();
+        }
+
+        java.util.Collections.reverse(commands);
+        emit(Opcode.bs_match, f(fail), context,
+            Tuple.of(Atom.of("list"), List.of(commands)));
+        for (int index = 0; index < pendingValues.size(); index++) {
+            Term destination = newY();
+            emit(Opcode.move, pendingValues.get(index), destination);
+            bindPattern(pendingPatterns.get(index), destination, fail);
+        }
+    }
+
+    private boolean hasBinaryTail(List segments) {
+        while (segments != List.nil) {
+            Tuple segment = segments.head().toTuple();
+            BinaryInfo info = binaryInfo(segment.element(5));
+            if (info.binary && segment.element(4).equals(Atom.of("default"))) {
+                return true;
+            }
+            segments = segments.tail();
+        }
+        return false;
+    }
+
+    private static Integer constantInteger(Term term) {
+        if (term instanceof Integer) {
+            return (Integer) term;
+        }
+        if (is(term, "integer") && term.toTuple().arity() >= 2) {
+            Term value = term.toTuple().element(2);
+            if (value instanceof Integer) {
+                return (Integer) value;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isUnused(Term pattern) {
+        if (!is(pattern, "var")) {
+            return false;
+        }
+        return pattern.toTuple().element(3).toAtom().toString().startsWith("_");
+    }
+
+    private Term literal(Term term) {
+        return Tuple.of(Atom.of("literal"), Integer.of(module.literal(term)));
+    }
+
+    private Atom binaryCommand(String name) {
+        Atom atom = Atom.of(name);
+        module.atom(atom);
+        return atom;
+    }
+
+    private BinaryInfo binaryInfo(Term types) {
+        BinaryInfo info = new BinaryInfo();
+        if (!(types instanceof List)) {
+            return info;
+        }
+        List names = types.toList();
+        java.util.List<Term> flags = new ArrayList<>();
+        while (names != List.nil) {
+            Term name = names.head();
+            if (name instanceof Tuple) {
+                Tuple pair = name.toTuple();
+                if (pair.arity() >= 2
+                    && pair.element(1).toAtom().toString().equals("unit")) {
+                    info.unit = pair.element(2).toInteger().toInt();
+                }
+            } else {
+                String value = name.toAtom().toString();
+                switch (value) {
+                case "binary":
+                case "bytes":
+                case "bitstring":
+                    info.binary = true;
+                    info.unit = 8;
+                    break;
+                case "bits":
+                    info.binary = true;
+                    info.bits = true;
+                    info.unit = 1;
+                    break;
+                case "utf8":
+                    info.utf8 = true;
+                    break;
+                case "signed":
+                case "unsigned":
+                case "little":
+                case "big":
+                case "native":
+                case "integer":
+                case "float":
+                    module.atom(name.toAtom());
+                    flags.add(name);
+                    break;
+                default:
+                    break;
+                }
+            }
+            names = names.tail();
+        }
+        if (!flags.isEmpty()) {
+            info.flags = List.of(flags);
+        }
+        return info;
+    }
+
+    private static final class BinaryInfo {
+        boolean binary;
+        boolean bits;
+        boolean utf8;
+        int unit = 1;
+        Term flags = List.nil;
     }
 
     private Term emptyMap() {
@@ -759,11 +1177,19 @@ final class FunctionCompiler {
             emit(Opcode.try_case, handler);
             Term exceptionClass = newY();
             Term reason = newY();
-            Term stacktrace = newY();
+            Term rawStacktrace = newY();
             emit(Opcode.move, x(0), exceptionClass);
             emit(Opcode.move, x(1), reason);
-            emit(Opcode.move, x(2), stacktrace);
+            emit(Opcode.move, x(2), rawStacktrace);
+            // A catch clause that binds Class:Reason:Stack must see a
+            // normalized frame list. The raw value stays in Y for a rethrow,
+            // because raise/2 expects the unprocessed stacktrace.
+            Term stacktrace = newY();
+            emit(Opcode.move, rawStacktrace, x(0));
+            emit(Opcode.build_stacktrace);
+            emit(Opcode.move, x(0), stacktrace);
             Term exception = newY();
+            emit(Opcode.test_heap, Integer.of(4), Integer.of(0));
             emit(Opcode.put_tuple2, exception,
                 new List(exceptionClass, new List(reason, new List(stacktrace, List.nil))));
 
@@ -790,7 +1216,7 @@ final class FunctionCompiler {
 
             emit(Opcode.label, Integer.of(rethrow));
             emit(Opcode.move, exceptionClass, x(0));
-            emit(Opcode.raise, stacktrace, reason);
+            emit(Opcode.raise, rawStacktrace, reason);
         }
 
         if (hasAfter) {
@@ -868,17 +1294,37 @@ final class FunctionCompiler {
     }
 
     private Term bind(Term pattern, Term value) {
-        if (!is(pattern, "var")) {
-            throw unsupported("assignment pattern " + tag(pattern.toTuple()));
+        if (is(pattern, "var")) {
+            Atom name = pattern.toTuple().element(3).toAtom();
+            if (name.equals(Atom.of("_"))) {
+                return value;
+            }
+            Term destination = newY();
+            emit(Opcode.move, value, destination);
+            variables.put(name, destination);
+            return destination;
         }
-        Atom name = pattern.toTuple().element(3).toAtom();
-        if (name.equals(Atom.of("_"))) {
-            return value;
-        }
-        Term destination = newY();
-        emit(Opcode.move, value, destination);
-        variables.put(name, destination);
-        return destination;
+
+        // A match expression accepts the same patterns as a case clause. The
+        // value is copied into a Y slot first so a failing pattern can still
+        // build the badmatch reason after the source X register is clobbered.
+        int fail = label();
+        int end = label();
+        Term result = newY();
+        emit(Opcode.move, value, result);
+        bindPattern(pattern, result, fail);
+        emit(Opcode.jump, f(end));
+        emit(Opcode.label, Integer.of(fail));
+        Term reason = newY();
+        module.atom(Atom.of("badmatch"));
+        emit(Opcode.test_heap, Integer.of(3), Integer.of(0));
+        emit(Opcode.put_tuple2, reason,
+            List.of(atom(Atom.of("badmatch")), result));
+        int errorIndex = module.importIndex(Atom.of("erlang"), Atom.of("error"), 1);
+        emit(Opcode.move, reason, x(0));
+        emit(Opcode.call_ext, Integer.of(1), Integer.of(errorIndex));
+        emit(Opcode.label, Integer.of(end));
+        return result;
     }
 
     private Term operator(Tuple tuple) {
@@ -967,6 +1413,18 @@ final class FunctionCompiler {
     private Term call(Tuple tuple) {
         Term target = tuple.element(3);
         List arguments = tuple.element(4).toList();
+        if (is(target, "var") && function.selfName != null
+            && target.toTuple().element(3).toAtom().equals(function.selfName)) {
+            List values = argumentValues(arguments);
+            if (values.length() != function.patternArity) {
+                throw unsupported("named fun self-call arity " + values.length()
+                    + " does not match " + function.patternArity);
+            }
+            for (int index = 0; index < values.length(); index++) {
+                emit(Opcode.move, at(values, index), x(index));
+            }
+            return selfCall(function, values.length(), values);
+        }
         if (!is(target, "remote") && !is(target, "atom")) {
             Term fun = value(target);
             return callFun(fun, argumentValues(arguments));
@@ -988,6 +1446,9 @@ final class FunctionCompiler {
             return remoteCall(moduleName, functionName, arity, values);
         }
         Atom name = target.toTuple().element(3).toAtom();
+        if (name.equals(function.selfName) && arity == function.patternArity) {
+            return selfCall(function, arity, values);
+        }
         ModuleCompiler.FunctionDef callee = module.functionOrNull(name, arity);
         if (callee != null) {
             emit(Opcode.call, Integer.of(arity), f(callee.body));
@@ -997,6 +1458,23 @@ final class FunctionCompiler {
             throw unsupported("undefined function " + name + "/" + arity);
         }
 
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
+    }
+
+    private Term selfCall(ModuleCompiler.FunctionDef lambda, int arity, List values) {
+        List free = lambda.freeNames;
+        int position = arity;
+        while (free != List.nil) {
+            Term value = variables.get(free.head().toAtom());
+            if (value == null) {
+                throw unsupported("unbound named fun capture " + free.head());
+            }
+            emit(Opcode.move, value, x(position++));
+            free = free.tail();
+        }
+        emit(Opcode.call, Integer.of(lambda.arity), f(lambda.body));
         Term destination = newY();
         emit(Opcode.move, x(0), destination);
         return destination;
@@ -1023,8 +1501,216 @@ final class FunctionCompiler {
         return destination;
     }
 
+    private Term listComprehension(Tuple expression) {
+        int line = expression.element(2).toInteger().toInt();
+        return listComprehension(expression.element(3), expression.element(4).toList(),
+            nil(line), line);
+    }
+
+    private Term binaryComprehension(Tuple expression) {
+        int line = expression.element(2).toInteger().toInt();
+        // A nested <<X>> is already a complete template expression; only a
+        // bare segment such as <<X || ...>> needs bin_element metadata.
+        Term first = expression.element(3);
+        Term segment = is(first, "bin") ? first
+            : Tuple.of(Atom.of("bin"), Integer.of(line),
+                List.of(Tuple.of(Atom.of("bin_element"), Integer.of(line), first,
+                    Atom.of("default"), Atom.of("default"))));
+        Term values = listComprehension(segment, expression.element(4).toList(),
+            nil(line), line);
+        return call(Atom.of("erlang"), Atom.of("list_to_bitstring"),
+            List.of(values), line);
+    }
+
+    private Term mapComprehension(Tuple expression) {
+        int line = expression.element(2).toInteger().toInt();
+        Tuple field = expression.element(3).toTuple();
+        Term pair = Tuple.of(Atom.of("tuple"), Integer.of(line),
+            List.of(field.element(3), field.element(4)));
+        Term values = listComprehension(pair, expression.element(4).toList(),
+            nil(line), line);
+        return call(Atom.of("maps"), Atom.of("from_list"), List.of(values), line);
+    }
+
+    /**
+     * Lower a list comprehension to nested {@code lists:foldr/3} calls. Each
+     * generator becomes one fold and each filter becomes a case whose
+     * non-matching branch returns the accumulator unchanged. Building the
+     * loops from foldr instead of a synthetic recursive function keeps the
+     * generated module's function table limited to source functions and funs.
+     */
+    private Term listComprehension(Term template, List qualifiers, Term accumulator, int line) {
+        if (qualifiers == List.nil) {
+            return cons(template, accumulator, line);
+        }
+
+        int id = nextComprehension++;
+        Term qualifier = qualifiers.head();
+        if (is(qualifier, "generate")) {
+            Tuple generator = qualifier.toTuple();
+            Term element = variable(Atom.of("__lc_elem_" + id), line);
+            Term acc = variable(Atom.of("__lc_acc_" + id), line);
+            Term result = listComprehension(template, qualifiers.tail(), acc, line);
+            Term matched = caseClause(line, generator.element(3), result);
+            Term fallback = caseClause(line, underscore(line), acc);
+            Term body = caseExpression(line, element, matched, fallback);
+            Term clause = Tuple.of(Atom.of("clause"), Integer.of(line),
+                List.of(element, acc), List.nil, List.of(body));
+            Term fun = Tuple.of(Atom.of("fun"), Integer.of(line),
+                Tuple.of(Atom.of("clauses"), List.of(clause)));
+            return call(Atom.of("lists"), Atom.of("foldr"),
+                List.of(fun, accumulator, generator.element(4)), line);
+        }
+        if (is(qualifier, "generate_strict")) {
+            throw unsupported("strict list generator");
+        }
+        if (is(qualifier, "b_generate")) {
+            // The foldr lowering walks a list, so a byte-aligned binary is
+            // converted with binary_to_list/1 and its single-byte pattern is
+            // applied to each element. This is the shape used by the corpus;
+            // bit-sized segments are rejected rather than silently misread.
+            Tuple generator = qualifier.toTuple();
+            Term pattern = generator.element(3);
+            Term element = binaryGeneratorPattern(pattern, line);
+            Term source = call(Atom.of("erlang"), Atom.of("binary_to_list"),
+                List.of(generator.element(4)), line);
+            Term generate = Tuple.of(Atom.of("generate"), Integer.of(line), element, source);
+            return listComprehension(template, new List(generate, qualifiers.tail()),
+                accumulator, line);
+        }
+        if (is(qualifier, "b_generate_strict")) {
+            throw unsupported("strict binary generator");
+        }
+        if (is(qualifier, "m_generate") || is(qualifier, "m_generate_strict")) {
+            throw unsupported("map generator");
+        }
+        if (is(qualifier, "zip")) {
+            throw unsupported("zip generator");
+        }
+
+        Term result = listComprehension(template, qualifiers.tail(), accumulator, line);
+        Term matched = ifClause(line, List.of(qualifier), result);
+        Term fallback = ifClause(line, List.of(astAtom(Atom.of("true"), line)), accumulator);
+        return Tuple.of(Atom.of("if"), Integer.of(line), List.of(matched, fallback));
+    }
+
+    private Term binaryGeneratorPattern(Term pattern, int line) {
+        if (is(pattern, "var")) {
+            return pattern;
+        }
+        if (!is(pattern, "bin")) {
+            throw unsupported("binary generator pattern " + tag(pattern.toTuple()));
+        }
+        List segments = pattern.toTuple().element(3).toList();
+        if (segments.length() != 1) {
+            throw unsupported("binary generator with " + segments.length() + " segments");
+        }
+        Tuple segment = segments.head().toTuple();
+        Term size = segment.element(4);
+        if (!size.equals(Atom.of("default"))
+            && (!(size instanceof Tuple) || !size.toTuple().element(3).equals(Integer.of(8)))) {
+            throw unsupported("binary generator with a non-byte segment size");
+        }
+        Term types = segment.element(5);
+        if (!types.equals(Atom.of("default"))) {
+            throw unsupported("binary generator with segment type " + types);
+        }
+        return segment.element(3);
+    }
+
+    private Term call(Atom moduleName, Atom functionName, List arguments, int line) {
+        Term target = Tuple.of(Atom.of("remote"), Integer.of(line),
+            astAtom(moduleName, line), astAtom(functionName, line));
+        return Tuple.of(Atom.of("call"), Integer.of(line), target, arguments);
+    }
+
+    private static Term caseClause(int line, Term pattern, Term body) {
+        return Tuple.of(Atom.of("clause"), Integer.of(line), List.of(pattern),
+            List.nil, List.of(body));
+    }
+
+    private static Term ifClause(int line, List guardExpressions, Term body) {
+        return Tuple.of(Atom.of("clause"), Integer.of(line), List.nil,
+            List.of(guardExpressions), List.of(body));
+    }
+
+    private static Term caseExpression(int line, Term subject, Term... clauses) {
+        return Tuple.of(Atom.of("case"), Integer.of(line), subject, List.of(clauses));
+    }
+
+    private static Term variable(Atom name, int line) {
+        return Tuple.of(Atom.of("var"), Integer.of(line), name);
+    }
+
+    private static Term underscore(int line) {
+        return variable(Atom.of("_"), line);
+    }
+
+    private static Term astAtom(Atom atom, int line) {
+        return Tuple.of(Atom.of("atom"), Integer.of(line), atom);
+    }
+
+    private static Term nil(int line) {
+        return Tuple.of(Atom.of("nil"), Integer.of(line));
+    }
+
+    private static Term cons(Term head, Term tail, int line) {
+        return Tuple.of(Atom.of("cons"), Integer.of(line), head, tail);
+    }
+
+    private Term namedFun(Tuple expression) {
+        Atom selfName = expression.element(3).toAtom();
+        List clauses = expression.element(4).toList();
+        if (clauses == List.nil) {
+            throw unsupported("empty named fun");
+        }
+        int funArity = at(clauses, 0).toTuple().element(3).toList().length();
+        List cursor = clauses;
+        while (cursor != List.nil) {
+            Tuple clause = cursor.head().toTuple();
+            if (clause.element(3).toList().length() != funArity) {
+                throw unsupported("named fun clauses with different arities");
+            }
+            cursor = cursor.tail();
+        }
+
+        Set<Atom> referenced = new LinkedHashSet<>();
+        collectVariables(clauses, referenced);
+        referenced.remove(selfName);
+        Set<Atom> bound = new LinkedHashSet<>();
+        cursor = clauses;
+        while (cursor != List.nil) {
+            collectVariables(cursor.head().toTuple().element(3), bound);
+            cursor = cursor.tail();
+        }
+        referenced.removeAll(bound);
+
+        List freeNames = List.nil;
+        List freeValues = List.nil;
+        for (Atom name : referenced) {
+            Term value = variables.get(name);
+            if (value != null) {
+                freeNames = new List(name, freeNames);
+                freeValues = new List(value, freeValues);
+            }
+        }
+        freeNames = reverse(freeNames);
+        freeValues = reverse(freeValues);
+
+        ModuleCompiler.LambdaDef lambda = module.addLambda(function.name, function.arity,
+            clauses, freeNames, funArity);
+        lambda.function.selfName = selfName;
+        Term destination = newY();
+        emit(Opcode.make_fun3, Integer.of(lambda.index), destination,
+            Tuple.of(Atom.of("list"), freeValues));
+        return destination;
+    }
+
     private Term funExpression(Tuple expression) {
         Term body = expression.element(3);
+        if (body instanceof Tuple && is(body.toTuple(), "function")) {
+            return funReference(body.toTuple());
+        }
         if (!(body instanceof Tuple) || !is(body.toTuple(), "clauses")) {
             throw unsupported("fun reference");
         }
@@ -1071,6 +1757,61 @@ final class FunctionCompiler {
         emit(Opcode.make_fun3, Integer.of(lambda.index), destination,
             Tuple.of(Atom.of("list"), freeValues));
         return destination;
+    }
+
+    /**
+     * A {function,Name,Arity} (local) or {function,Module,Name,Arity} (remote)
+     * fun reference. Both become an external fun through erlang:make_fun/3;
+     * the runtime validates that the target exists and is exported.
+     */
+    private Term funReference(Tuple reference) {
+        Atom targetModule = module.module();
+        Term nameTerm;
+        Term arityTerm;
+        if (reference.arity() == 3) {
+            nameTerm = reference.element(2);
+            arityTerm = reference.element(3);
+        } else if (reference.arity() == 4) {
+            targetModule = referenceAtom(reference.element(2));
+            nameTerm = reference.element(3);
+            arityTerm = reference.element(4);
+        } else {
+            throw unsupported("fun reference with " + (reference.arity() - 1) + " parts");
+        }
+        Atom targetName = referenceAtom(nameTerm);
+        int arity = referenceInteger(arityTerm);
+        module.atom(targetModule);
+        module.atom(targetName);
+        int importIndex = module.importIndex(Atom.of("erlang"), Atom.of("make_fun"), 3);
+        emit(Opcode.move, atom(targetModule), x(0));
+        emit(Opcode.move, atom(targetName), x(1));
+        emit(Opcode.move, integer(Integer.of(arity)), x(2));
+        emit(Opcode.call_ext, Integer.of(3), Integer.of(importIndex));
+        Term destination = newY();
+        emit(Opcode.move, x(0), destination);
+        return destination;
+    }
+
+    private static Atom referenceAtom(Term term) {
+        if (term instanceof Atom) {
+            return term.toAtom();
+        }
+        if (term instanceof Tuple && is(term.toTuple(), "atom")
+            && term.toTuple().arity() >= 3) {
+            return term.toTuple().element(3).toAtom();
+        }
+        throw unsupported("fun reference with a non-atom name");
+    }
+
+    private static int referenceInteger(Term term) {
+        if (term instanceof Integer) {
+            return term.toInteger().toInt();
+        }
+        if (term instanceof Tuple && is(term.toTuple(), "integer")
+            && term.toTuple().arity() >= 3) {
+            return term.toTuple().element(3).toInteger().toInt();
+        }
+        throw unsupported("fun reference with a non-integer arity");
     }
 
     private void seedFreeVariables(Tuple clause) {

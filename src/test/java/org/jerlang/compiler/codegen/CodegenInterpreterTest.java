@@ -2,6 +2,7 @@ package org.jerlang.compiler.codegen;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.nio.charset.StandardCharsets;
@@ -68,7 +69,11 @@ public class CodegenInterpreterTest {
             "         after_catch/1, after_catch_error/1, after_no_of/1,",
             "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1,",
             "         fun_add/1, fun_sub/1, fun_multi/0, fun_zero/0, fun_nested/1,",
-            "         fun_apply/2, fun_make/1]).",
+            "         fun_apply/2, fun_make/1, bin_lit/0, bin_empty/0, bin_construct/1,",
+            "         bin_match/1, bin_tail/1, bin_tail_used/1, bin_string/1, bin_size/1,",
+            "         double_evens/1, pairs/0, map_comp/1, bin_comp/1,",
+            "         fun_ref/1, fun_local/1, named_fact/1, match_expr/1,",
+            "         bad_match/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -183,7 +188,29 @@ public class CodegenInterpreterTest {
             "    F = fun(X) -> (fun(Z) -> X + Z end)(Y) end,",
             "    F(5).",
             "fun_apply(F, X) -> F(X).",
-            "fun_make(Y) -> fun(X) -> X + Y end."), StandardCharsets.UTF_8);
+            "fun_make(Y) -> fun(X) -> X + Y end.",
+            "bin_lit() -> <<1, 2, 3>>.",
+            "bin_empty() -> <<>>.",
+            "bin_construct(X) -> <<X, 2, \"ab\">>.",
+            "bin_match(Bin) ->",
+            "    case Bin of",
+            "        <<A, B, Rest/binary>> -> {A, B, Rest};",
+            "        _ -> no",
+            "    end.",
+            "bin_tail(<<_A:8, Rest/binary>>) -> Rest.",
+            "bin_tail_used(<<A:8, Rest/binary>>) -> {A, Rest}.",
+            "bin_string(<<\"hi\", Rest/binary>>) -> Rest.",
+            "bin_size(Bin) -> byte_size(Bin).",
+            "double_evens(L) -> [X * 2 || X <- L, X > 1].",
+            "pairs() -> [{X, Y} || X <- [1, 2], Y <- [a, b]].",
+            "map_comp(L) -> #{X => X + 1 || X <- L}.",
+            "bin_comp(L) -> << <<X>> || X <- L >>.",
+            "fun_ref(L) -> F = fun lists:reverse/1, F(L).",
+            "fun_local(X) -> F = fun codegen_sample:fact/1, F(X).",
+            "named_fact(N) -> F = fun G(0) -> 1; G(M) -> M * G(M - 1) end, F(N).",
+            "match_expr(X) -> {A, B} = {X, 2}, [A, B].",
+            "bad_match(X) -> try {A} = {X, 2} catch error:{badmatch, _} -> badmatch end."),
+            StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         Path beam = directory.resolve("codegen_sample.beam");
@@ -273,12 +300,101 @@ public class CodegenInterpreterTest {
         assertEquals(Integer.of(15), apply(module, "fun_nested", 1, Integer.of(10)));
         Term fun = apply(module, "fun_make", 1, Integer.of(3));
         assertEquals(Integer.of(8), apply(module, "fun_apply", 2, fun, Integer.of(5)));
+        assertEquals(org.jerlang.type.List.of(Integer.of(3), Integer.of(2), Integer.of(1)),
+            apply(module, "fun_ref", 1,
+                org.jerlang.type.List.of(Integer.ONE, Integer.of(2), Integer.of(3))));
+        assertEquals(Integer.of(120), apply(module, "fun_local", 1, Integer.of(5)));
+        assertEquals(Integer.of(120), apply(module, "named_fact", 1, Integer.of(5)));
+        assertEquals(Integer.of("2432902008176640000"),
+            apply(module, "fact", 1, Integer.of(20)));
+        assertEquals(Integer.of(3628800), apply(module, "named_fact", 1, Integer.of(10)));
+        assertEquals(org.jerlang.type.List.of(Integer.of(7), Integer.of(2)),
+            apply(module, "match_expr", 1, Integer.of(7)));
+        assertEquals(Atom.of("badmatch"), apply(module, "bad_match", 1, Integer.of(7)));
+        assertEquals(org.jerlang.type.Binary.of(1, 2, 3), apply(module, "bin_lit", 0));
+        assertEquals(org.jerlang.type.Binary.of(), apply(module, "bin_empty", 0));
+        assertEquals(org.jerlang.type.Binary.of(7, 2, 97, 98),
+            apply(module, "bin_construct", 1, Integer.of(7)));
+        assertEquals(org.jerlang.type.Tuple.of(Integer.of(1), Integer.of(2),
+            org.jerlang.type.Binary.of(3)),
+            apply(module, "bin_match", 1, org.jerlang.type.Binary.of(1, 2, 3)));
+        assertEquals(Atom.of("no"), apply(module, "bin_match", 1, Atom.of("no")));
+        assertEquals(org.jerlang.type.Binary.of(2, 3),
+            apply(module, "bin_tail", 1, org.jerlang.type.Binary.of(1, 2, 3)));
+        assertEquals(org.jerlang.type.Tuple.of(Integer.of(1),
+            org.jerlang.type.Binary.of(2, 3)),
+            apply(module, "bin_tail_used", 1, org.jerlang.type.Binary.of(1, 2, 3)));
+        assertEquals(org.jerlang.type.Binary.of(4, 5),
+            apply(module, "bin_string", 1, org.jerlang.type.Binary.of(104, 105, 4, 5)));
+        assertEquals(Integer.of(3), apply(module, "bin_size", 1,
+            org.jerlang.type.Binary.of(1, 2, 3)));
+        assertEquals(org.jerlang.type.List.of(Integer.of(4), Integer.of(6)),
+            apply(module, "double_evens", 1,
+                org.jerlang.type.List.of(Integer.ONE, Integer.of(2), Integer.of(3))));
+        assertEquals(org.jerlang.type.List.of(
+            org.jerlang.type.Tuple.of(Integer.ONE, Atom.of("a")),
+            org.jerlang.type.Tuple.of(Integer.ONE, Atom.of("b")),
+            org.jerlang.type.Tuple.of(Integer.of(2), Atom.of("a")),
+            org.jerlang.type.Tuple.of(Integer.of(2), Atom.of("b"))),
+            apply(module, "pairs", 0));
+        assertEquals(org.jerlang.type.Binary.of(1, 2, 3),
+            apply(module, "bin_comp", 1,
+                org.jerlang.type.List.of(Integer.ONE, Integer.of(2), Integer.of(3))));
+        Map comprehensionMap = (Map) apply(module, "map_comp", 1,
+            org.jerlang.type.List.of(Integer.ONE, Integer.of(2)));
+        assertEquals(Integer.of(2), comprehensionMap.get(Integer.ONE));
+        assertEquals(Integer.of(3), comprehensionMap.get(Integer.of(2)));
         try {
             apply(module, "only_zero", 1, Integer.of(1));
             fail("expected function_clause");
         } catch (org.jerlang.erts.erlang.Error error) {
             assertEquals(Atom.of("function_clause"), error.reason());
         }
+
+        assertEquals(Atom.of("codegen_sample"),
+            apply(module, "module_info", 1, Atom.of("module")));
+        assertEquals(Atom.of("false"), apply(module, "module_info", 1, Atom.of("native")));
+        assertEquals(org.jerlang.type.List.nil,
+            apply(module, "module_info", 1, Atom.of("native_addresses")));
+        Term digest = apply(module, "module_info", 1, Atom.of("md5"));
+        assertTrue(digest instanceof org.jerlang.type.Binary);
+        assertEquals(16, ((org.jerlang.type.Binary) digest).toByteArray().length);
+
+        org.jerlang.type.List exports = apply(module, "module_info", 1,
+            Atom.of("exports")).toList();
+        assertTrue(contains(exports, org.jerlang.type.Tuple.of(Atom.of("add"), Integer.of(2))));
+        assertTrue(contains(exports, org.jerlang.type.Tuple.of(Atom.of("module_info"),
+            Integer.ZERO)));
+        org.jerlang.type.List functions = apply(module, "module_info", 1,
+            Atom.of("functions")).toList();
+        assertTrue(contains(functions, org.jerlang.type.Tuple.of(Atom.of("risky"), Integer.ONE)));
+        assertEquals(3, apply(module, "module_info", 1, Atom.of("compile"))
+            .toList().length());
+        assertTrue(apply(module, "module_info", 1, Atom.of("attributes"))
+            instanceof org.jerlang.type.List);
+
+        try {
+            apply(module, "risky", 1, Integer.ONE);
+            fail("expected badarg");
+        } catch (org.jerlang.erts.erlang.Error error) {
+            org.jerlang.type.List stack = error.stacktrace().toList();
+            assertTrue("empty stacktrace", stack.length() > 0);
+            org.jerlang.type.Tuple frame = stack.head().toTuple();
+            assertEquals(Atom.of("risky"), frame.element(2));
+            org.jerlang.type.List location = frame.element(4).toList();
+            assertEquals(Atom.of("line"), location.tail().head().toTuple().element(1));
+            assertTrue(location.tail().head().toTuple().element(2).toInteger().toInt() > 0);
+        }
+    }
+
+    private static boolean contains(org.jerlang.type.List list, Term term) {
+        while (list != org.jerlang.type.List.nil) {
+            if (list.head().equals(term)) {
+                return true;
+            }
+            list = list.tail();
+        }
+        return false;
     }
 
     private static void assertError(Module module, String function, int arity,

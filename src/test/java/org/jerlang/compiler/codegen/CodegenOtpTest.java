@@ -45,7 +45,11 @@ public class CodegenOtpTest {
             "         after_catch/1, after_catch_error/1, after_no_of/1,",
             "         receive_queued/0, receive_selective/0, receive_after/0, receive_timeout/1,",
             "         fun_add/1, fun_sub/1, fun_multi/0, fun_zero/0, fun_nested/1,",
-            "         fun_apply/2, fun_make/1]).",
+            "         fun_apply/2, fun_make/1, bin_lit/0, bin_empty/0, bin_construct/1,",
+            "         bin_match/1, bin_tail/1, bin_tail_used/1, bin_string/1, bin_size/1,",
+            "         double_evens/1, pairs/0, map_comp/1, bin_comp/1,",
+            "         fun_ref/1, fun_local/1, named_fact/1, match_expr/1,",
+            "         bad_match/1]).",
             "add(A, B) -> A + B.",
             "answer() -> 42.",
             "fact(0) -> 1;",
@@ -160,7 +164,29 @@ public class CodegenOtpTest {
             "    F = fun(X) -> (fun(Z) -> X + Z end)(Y) end,",
             "    F(5).",
             "fun_apply(F, X) -> F(X).",
-            "fun_make(Y) -> fun(X) -> X + Y end."), StandardCharsets.UTF_8);
+            "fun_make(Y) -> fun(X) -> X + Y end.",
+            "bin_lit() -> <<1, 2, 3>>.",
+            "bin_empty() -> <<>>.",
+            "bin_construct(X) -> <<X, 2, \"ab\">>.",
+            "bin_match(Bin) ->",
+            "    case Bin of",
+            "        <<A, B, Rest/binary>> -> {A, B, Rest};",
+            "        _ -> no",
+            "    end.",
+            "bin_tail(<<_A:8, Rest/binary>>) -> Rest.",
+            "bin_tail_used(<<A:8, Rest/binary>>) -> {A, Rest}.",
+            "bin_string(<<\"hi\", Rest/binary>>) -> Rest.",
+            "bin_size(Bin) -> byte_size(Bin).",
+            "double_evens(L) -> [X * 2 || X <- L, X > 1].",
+            "pairs() -> [{X, Y} || X <- [1, 2], Y <- [a, b]].",
+            "map_comp(L) -> #{X => X + 1 || X <- L}.",
+            "bin_comp(L) -> << <<X>> || X <- L >>.",
+            "fun_ref(L) -> F = fun lists:reverse/1, F(L).",
+            "fun_local(X) -> F = fun codegen_sample:fact/1, F(X).",
+            "named_fact(N) -> F = fun G(0) -> 1; G(M) -> M * G(M - 1) end, F(N).",
+            "match_expr(X) -> {A, B} = {X, 2}, [A, B].",
+            "bad_match(X) -> try {A} = {X, 2} catch error:{badmatch, _} -> badmatch end."),
+            StandardCharsets.UTF_8);
 
         List<Term> forms = Parser.parseForms(Preprocessor.scanFile(source));
         byte[] beam = Codegen.compile(forms);
@@ -200,7 +226,32 @@ public class CodegenOtpTest {
                 + "codegen_sample:fun_multi(), codegen_sample:fun_zero(), "
                 + "codegen_sample:fun_nested(10), "
                 + "codegen_sample:fun_apply(fun(A) -> A * 2 end, 6)",
-            "try codegen_sample:only_zero(1) catch error:function_clause -> function_clause end"
+            "codegen_sample:bin_lit(), codegen_sample:bin_empty(), "
+                + "codegen_sample:bin_construct(7), "
+                + "codegen_sample:bin_match(<<1,2,3>>), codegen_sample:bin_match(no), "
+                + "codegen_sample:bin_tail(<<1,2,3>>), "
+                + "codegen_sample:bin_tail_used(<<1,2,3>>), "
+                + "codegen_sample:bin_string(<<104,105,4,5>>), "
+                + "codegen_sample:bin_size(<<1,2,3>>)",
+            "codegen_sample:double_evens([1,2,3]), codegen_sample:pairs(), "
+                + "maps:get(1, codegen_sample:map_comp([1,2])), "
+                + "maps:get(2, codegen_sample:map_comp([1,2])), "
+                + "codegen_sample:bin_comp([1,2,3])",
+            "try codegen_sample:only_zero(1) catch error:function_clause -> function_clause end",
+            "codegen_sample:module_info(module), codegen_sample:module_info(native), "
+                + "codegen_sample:module_info(native_addresses), "
+                + "is_binary(codegen_sample:module_info(md5))",
+            "is_list(codegen_sample:module_info(exports)), "
+                + "is_list(codegen_sample:module_info(functions)), "
+                + "is_list(codegen_sample:module_info(attributes))",
+            "is_list(codegen_sample:module_info(compile)), "
+                + "try codegen_sample:risky(1) catch error:badarg:Stack -> "
+                + "{codegen_sample, risky, 1, Loc} = hd(Stack), "
+                + "is_integer(proplists:get_value(line, Loc)) end",
+            "codegen_sample:fun_ref([1,2,3]), codegen_sample:fun_local(5), "
+                + "codegen_sample:named_fact(5)",
+            "codegen_sample:fact(20), codegen_sample:named_fact(10)",
+            "codegen_sample:match_expr(7), codegen_sample:bad_match(7)"
         };
         StringBuilder output = new StringBuilder();
         for (String group : groups) {
@@ -228,7 +279,15 @@ public class CodegenOtpTest {
             + "[{2,true},true,true,{caught,true},true,true]\n"
             + "[7,2,9,timeout]\n"
             + "[8,6,{zero,2},7,15,12]\n"
-            + "[function_clause]\n", output.toString());
+            + "[<<1,2,3>>,<<>>,<<7,2,97,98>>,{1,2,<<3>>},no,<<2,3>>,{1,<<2,3>>},<<4,5>>,3]\n"
+            + "[[4,6],[{1,a},{1,b},{2,a},{2,b}],2,3,<<1,2,3>>]\n"
+            + "[function_clause]\n"
+            + "[codegen_sample,false,[],true]\n"
+            + "[true,true,true]\n"
+            + "[true,true]\n"
+            + "[[3,2,1],120,120]\n"
+            + "[2432902008176640000,3628800]\n"
+            + "[[7,2],badmatch]\n", output.toString());
         assertTrue("the generated file was not recognized as a module",
             Files.size(beamFile) > 100);
     }

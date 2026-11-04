@@ -16,6 +16,7 @@ import org.jerlang.erts.erlang.ErlangAtomNeExact;
 import org.jerlang.erts.erlang.ErlangAtomPlus;
 import org.jerlang.erts.erlang.ErlangAtomPlusPlus;
 import org.jerlang.erts.erlang.ErlangBinaryPart;
+import org.jerlang.erts.erlang.ErlangBinaryToList;
 import org.jerlang.erts.erlang.ErlangBinaryToTerm;
 import org.jerlang.erts.erlang.ErlangBitstringToList;
 import org.jerlang.erts.erlang.ErlangCancelTimer;
@@ -194,6 +195,10 @@ public class Erlang {
 
     public static Term binary_to_term(Binary binary) {
         return ErlangBinaryToTerm.binary_to_term_1(binary);
+    }
+
+    public static List binary_to_list(Binary binary) {
+        return ErlangBinaryToList.binary_to_list_1(binary);
     }
 
     public static List bitstring_to_list(BitString bitString) {

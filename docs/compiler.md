@@ -269,11 +269,12 @@ before the digest is taken; a `string` segment is an offset, not inline bytes.
 
 Status: in progress. The first vertical slice emits a complete BEAM container
 for functions, clauses, literal patterns (integer, atom, tuple, list, string,
-map and `nil`), guard sequences and alternatives, arithmetic BIFs, auto-imported
-BIFs, local and remote calls, tuple/list/string/map construction, `case`/`if`,
-`try ... of ... catch` with or without `after`, `receive` with selective
-clauses and an optional `after` timeout, anonymous funs with captures, nested
-funs and higher-order calls, short-circuit `andalso`/`orelse`, and unary `+`/`-`.
+map, record and `nil`), guard sequences and alternatives, arithmetic BIFs,
+auto-imported BIFs, local and remote calls, tuple/list/string/map/record
+construction, `case`/`if`, `try ... of ... catch` with or without `after`,
+`receive` with selective clauses and an optional `after` timeout, anonymous,
+named and remote funs (`fun M:F/A`), binary generators, short-circuit
+`andalso`/`orelse`, and unary `+`/`-`.
 Remote calls go through `ImpT` and
 `call_ext`; maps start from `maps:new/0` and update with `put_map_assoc`. Values
 that survive a call are kept in Y registers; every operation result gets a
@@ -290,6 +291,7 @@ try/catch and try/of/catch error and throw paths, try-after cleanup on normal,
 throw, error, catch-body and `try_clause` paths, receive with queued messages,
 selective scanning, timed wakeups and zero timeouts, fun captures, arity zero,
 multiple lambda clauses, nested lambdas and a fun passed into a compiled call,
+binary construction and matching (including explicit sizes and used tails),
 short-circuit booleans, unary arithmetic, and unmatched function/case/if
 expressions (which must raise
 `function_clause`, `case_clause` and `if_clause`) all agree with `erlc`
@@ -297,11 +299,34 @@ behaviour.
 `CodegenInterpreterTest` loads that file through `ModuleLoader`, registers it,
 and makes the same calls through JErlang. Both are green as of 2026-11-03.
 
-The slice has no line table or `StrT`/`LitT` use, no `module_info`, no binaries,
-or comprehensions. Named funs and `fun M:F/A` references are also still
-unsupported. Unsupported forms raise
-`CodegenException`; they are not silently omitted. The full corpus recompile
-and OTP application boot remain the A5 exit test, so A5 is not done.
+Binary construction uses `bs_create_bin`; matching uses `bs_start_match3` and a
+flat `bs_match` command list. Non-empty literal tables are written as OTP 28+
+uncompressed `LitT`. A `binary` tail match keeps its context in X1 so `get_tail`
+can write the tail over it, saves the position in X0, and extracts fixed fields
+into X0 and X2+. Sizes in match commands are emitted as plain integers, while
+`bs_create_bin` constants keep the signed `{integer,N}` operand tag OTP expects.
+Tuple and list construction emit `test_heap` first; `test_heap` is a no-op in
+JErlang, but OTP corrupts the heap without it. These changes are covered by
+`bin_lit`, `bin_empty`, `bin_construct`, `bin_match`, `bin_tail`,
+`bin_tail_used`, `bin_string` and `bin_size` in both consumer tests.
+
+Line tables are emitted, and `erlang:get_module_info/2` exposes `module`,
+`exports`, `functions`, `attributes`, `compile`, `md5`, `native` and
+`native_addresses`. The checked-in corpus now recompiles and runs through both
+`CodegenOtpTest`'s OTP oracle and `CodegenCorpusTest`, which loads the same
+beams in JErlang and checks `run/0 =:= ok`. Named funs, `fun M:F/A`, record
+construction/update/access/patterns, binary generators, arbitrary `=` patterns
+and normalized catch stacktraces are covered by those paths. `StrT` is still
+unused, `module_info(attributes)` does not yet match `erlc`'s `vsn` entry, and
+expression-level line parity is coarser than `erlc`. Unsupported forms raise
+`CodegenException`; they are not silently omitted. The checked-in corpus
+recompile is green, but OTP application boot (`gen_server`, `supervisor`,
+`application`, `proc_lib`, `logger` and `code`) remains the A5 exit test, so A5
+is not done. A probe with the OTP include and library roots reaches codegen and
+stops at old-style `catch` in `gen_server`, dynamic remote calls in `supervisor`,
+`!` in `proc_lib`, an `is_map_key/2` guard in `application`, a guard tuple-shape
+mismatch in `logger`, and an unsupported pattern match in `code`. Those are the
+next measured gaps for the boot exit test.
 
 Two format facts cost a debugging cycle and belong in the next agent's notes.
 The module atom must be first in `AtU8`: OTP derives the module identity from
