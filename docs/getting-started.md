@@ -88,10 +88,10 @@ does not exist:
 |--------|---------|
 | `-o DIR` | Write `.beam` files to `DIR` (default `.`) |
 | `-I DIR` | Add `DIR` to the `-include` search path |
-| `-pa DIR` | Add `DIR` as a library root for `-include_lib` |
+| `-pa DIR` | Add `DIR` as a library root for `-include_lib` and parse-transform beams |
 | `-Dname[=value]` | Define a macro; without a value it is `true` |
 | `-W` | Lint and print warnings (`-W0` disables, `-Werror` fails the build) |
-| `+debug_info` | Accepted; line tables are already part of every beam |
+| `+debug_info` | Accepted; line tables are already emitted, and transforms see the flag |
 | `+warnings_as_errors` | Same as `-Werror` |
 | `--` | Treat the remaining arguments as source files |
 
@@ -100,6 +100,21 @@ directory. `-include_lib("app/include/file.hrl")` resolves `app` under each
 `-pa` root, using the `app-version` directory layout OTP uses. `-Dname=value`
 scans the value as Erlang tokens, so `-DLEVEL=2` defines an integer,
 `-DNAME=worker` an atom, and `-DFLAG` the atom `true`, matching `erlc`.
+
+`-compile({parse_transform, Module}).` and
+`-compile([{parse_transform, Module}]).` run a transform after parsing and
+before linting. The module must export `parse_transform/2` and is loaded from a
+`-pa` root, the working directory, or the ordinary code path. It runs in a
+started JErlang VM and receives the forms plus OTP-shaped options:
+`debug_info`, `warnings_as_errors`, `{i, Dir}` and `{d, Name, Value}`. Modules
+beside the transform are loadable from `-pa` too, so a transform may call a
+helper compiled into the same directory. The transform may itself have been
+compiled by JErlang.
+
+A transform that spawns an Erlang process has a 30 second default bound. The
+Java API can change it with `parseTransformTimeoutMillis`; zero disables the
+bound. A timeout is a compile error and does not write a beam. Parse transforms
+are trusted compile-time code, not a sandbox.
 
 The same compiler is available as a Java API when the command line is not the
 right surface:

@@ -9,6 +9,7 @@ reflective call away — not a separate node, a port or an external term format
 round trip.
 
 The published artifact is `io.github.slayyyyer:jerlang:1.1.0` on Maven Central.
+The source tree is at 2.0.0; that release is not published yet.
 
 ```xml
 <dependency>
@@ -64,7 +65,8 @@ Two examples show both directions, and both are compiled and run in CI:
 - **Java interop.** The `java` module for reflection from Erlang, and
   `org.jerlang.api.Node` for embedding the runtime in a JVM application.
 - **Compilation.** A `compile` command turns Erlang source into BEAM without
-  `erlc`; `-I`, `-pa`, `-D`, `-W` and `+debug_info` are supported.
+  `erlc`; `-I`, `-pa`, `-D`, `-W`, `+debug_info` and parse transforms are
+  supported.
 
 ## What does not work
 

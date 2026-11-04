@@ -118,6 +118,21 @@ public class Module {
     }
 
     public Term apply(FunctionSignature signature, Term params) throws Error {
+        return apply(signature, params, 0L);
+    }
+
+    /**
+     * Apply a function and bound the time a process spawned for this call may
+     * run. A timeout of zero keeps the historical unbounded behaviour; a
+     * positive value kills the spawned process before throwing. Calls already
+     * running inside an Erlang process cannot be interrupted this way, so they
+     * remain unbounded.
+     */
+    public Term apply(FunctionSignature signature, Term params, long timeoutMillis)
+            throws Error {
+        if (timeoutMillis < 0) {
+            throw new IllegalArgumentException("timeout must not be negative");
+        }
         if (!hasFunction(signature)) {
             // A call to a function the module does not export, or does not
             // have at all, is what OTP reports as undef.
@@ -144,8 +159,21 @@ public class Module {
                 // scheduler wakeup under every call made from Java. The state
                 // is not the signal: EXITING is reached inside nested calls
                 // too, before the outer activation has produced its result.
-                while (!process.awaitExit(1000)) {
-                    // The process is still running.
+                long deadline = timeoutMillis == 0L ? Long.MAX_VALUE
+                    : System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS
+                        .toNanos(timeoutMillis);
+                while (!process.awaitExit(awaitSlice(deadline))) {
+                    if (deadline != Long.MAX_VALUE && System.nanoTime() >= deadline) {
+                        // `kill` is uncatchable and wakes a process parked in a
+                        // receive. A transform that is stuck in native Java
+                        // code can still outlive this call; it is a daemonless
+                        // scheduler process, but the compiler does not wait for
+                        // it beyond the grace period below.
+                        process.exitSignal(Atom.of("kill"), process.pid());
+                        VirtualMachine.instance().wake(process);
+                        process.awaitExit(1000L);
+                        throw new ApplyTimeoutException(signature, timeoutMillis);
+                    }
                 }
                 Throwable failure = process.failure();
                 if (failure != null) {
@@ -483,6 +511,36 @@ public class Module {
 
     public boolean hasFunction(FunctionSignature functionSignature) {
         return exported_functions.containsKey(functionSignature);
+    }
+
+    private static long awaitSlice(long deadline) {
+        if (deadline == Long.MAX_VALUE) {
+            return 1000L;
+        }
+        long remaining = Math.max(1L,
+            (deadline - System.nanoTime()) / 1_000_000L);
+        return Math.min(1000L, remaining);
+    }
+
+    /**
+     * A process did not finish within the caller's deadline and was sent an
+     * uncatchable kill signal.
+     */
+    public static final class ApplyTimeoutException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        private final long timeoutMillis;
+
+        private ApplyTimeoutException(FunctionSignature signature, long timeoutMillis) {
+            super(signature + " did not finish within " + timeoutMillis + " ms");
+            this.timeoutMillis = timeoutMillis;
+        }
+
+        public long timeoutMillis() {
+            return timeoutMillis;
+        }
+
     }
 
     public Atom name() {

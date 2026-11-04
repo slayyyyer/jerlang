@@ -156,7 +156,7 @@ $ curl -s localhost:8080/kv/name
 $ curl -s -X PUT --data-binary 'Berlin' -o /dev/null -w '%{http_code}\n' localhost:8080/kv/city
 204
 $ curl -s localhost:8080/kv
-[{"key":"name","value":"replaced"},{"key":"city","value":"Berlin"}]
+[{"key":"city","value":"Berlin"},{"key":"name","value":"value with \"quotes\" and\na newline"}]
 $ curl -s localhost:8080/kv/missing
 {"error":"not_found","detail":"missing"}
 $ curl -s -X DELETE localhost:8080/kv/city -o /dev/null -w '%{http_code}\n'

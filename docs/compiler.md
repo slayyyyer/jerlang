@@ -388,11 +388,41 @@ agrees with `erlc`. `-W` runs the A4 linter; lint errors stop the beam, and
 ignored flags. The command never invokes `erlc`.
 
 **Exit test:** CI compiles the corpus with the shipped command and no `erlc` on
-the machine, then runs the suite. `CompilerCommandTest` is that test: it
-compiles `src/test/erl/corpus` through `CompilerCommand`, loads every beam in
-JErlang and runs `run/0`; a second case covers an `-include` header, an
-`-include_lib` application root, `-D` macros, `-W`, `-Werror`, `-o` and
-`+debug_info`.
+  the machine, then runs the suite. `CompilerCommandTest` is that test: it
+  compiles `src/test/erl/corpus` through `CompilerCommand`, loads every beam in
+  JErlang and runs `run/0`; a second case covers an `-include` header, an
+  `-include_lib` application root, `-D` macros, `-W`, `-Werror`, `-o` and
+  `+debug_info`.
+
+### A7 — Parse transforms
+
+Scope: run `-compile({parse_transform, Module}).` and entries in a
+`-compile([...])` option list after parsing and before linting or code
+generation, load the transform from `-pa` or the code path, execute it in
+JErlang, and report a missing or malformed transform as a compile error.
+
+Status: complete. A transform receives the parsed forms and an OTP-shaped
+compiler option list containing `debug_info`, `warnings_as_errors`,
+`{i, Dir}` and `{d, Name, Value}` entries. `-pa` roots are searched directly,
+under `ebin`, and under versioned application directories; the working
+directory and the ordinary code path are the fallbacks. The directory holding
+the transform is put on the code path for the call, so helper modules beside it
+load as well.
+
+The compiler starts a VM only when a transform is present and shuts it down
+again if it was the one that started it. A transform that has to spawn an
+Erlang process is bounded by `parseTransformTimeoutMillis` (30 seconds by
+default; zero disables the bound in the Java API). The timeout is a compile
+error, not a warning, and no beam is written. This is not an OS sandbox:
+trusted transform code can still call `erlang:halt/1` or leave native work
+behind.
+
+**Exit test:** `ParseTransformTest` compiles a transform module with JErlang,
+compiles a subject through `jerlang compile -pa ...`, loads the resulting beam
+and checks the rewritten function. It also covers ordered transforms, a
+transform helper loaded from `-pa`, compiler options, timeout failure, and a
+missing transform. `CompilerApiTest` covers failed `Result`s and preservation
+of an existing beam after a failed compile.
 
 ## Timeline, re-estimated for agent execution
 
@@ -507,18 +537,19 @@ These are the choices that would otherwise be made differently in each session:
   emitter actually uses, so an older runtime can still load a simple module.
 * **No optimization pass.** Emit straightforward code. `beam_ssa_opt` parity is
   explicitly out of scope, and any time spent there is time not spent on A5.
-* **Parse transforms are unsupported in the first cut**, with a clear compile
-  error naming the transform. Running them inside JErlang is feasible precisely
-  because the runtime can execute `erl_syntax`-style code, but it is a stretch
-  goal after A5, not a dependency of it.
+* **Parse transforms run in a started VM with OTP-shaped compiler options.**
+  They are loaded from `-pa` or the code path and run before linting and code
+  generation. The options carry `debug_info`, `warnings_as_errors`, include
+  directories and macro definitions; the form interface is already OTP's.
 * **Native records are gated on the runtime.** The compiler may only emit the
   native-record opcodes once the data type exists; today constructing one raises
   a named error by design.
 * **`-spec`, `-type`, `-callback` are stored, not checked.** `dialyzer` is not
   in scope.
-* **Version.** `pom.xml` stays at 1.1.0 until `org.jerlang.compiler` becomes
-  public, then moves to 2.0.0-SNAPSHOT. The `japicmp` baseline is refreshed at
-  release, per `docs/release.md`. No session bumps the version on its own.
+* **Version.** The compiler API is public, so `pom.xml` is at 2.0.0. The
+  published artifact, download instructions and example builds stay on 1.1.0
+  until 2.0.0 is released. The `japicmp` baseline is refreshed at release, per
+  `docs/release.md`. No session bumps the version on its own.
 
 ## Non-goals
 
@@ -549,8 +580,10 @@ exists only to make the compiler's own tests pass.
 ## Working on this branch
 
 * Branch: `v2.0.0-alpha`. Nothing here ships until 2.0.0.
-* Build and test: `mvn -B test`. A single milestone's tests should be runnable
-  with `-Dtest=...` and stay under two minutes.
+* Build and test: `mvn -B test`. CI runs `mvn -B verify`, which adds the shaded
+  jar, the packaged-jar compile smoke test and the japicmp API gate. A single
+  milestone's tests should be runnable with `-Dtest=...` and stay under two
+  minutes.
 * If `mvn` is not on the PATH, the toolchain used here is in `../.tools`:
   a JDK 21 and Maven 3.9.9. Point `JAVA_HOME` at the JDK and run that
   `mvn.cmd`; `-o` works once the local repository is populated.

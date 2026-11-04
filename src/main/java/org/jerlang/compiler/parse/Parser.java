@@ -2283,12 +2283,24 @@ public final class Parser {
         return new org.jerlang.type.Binary(value);
     }
 
-    private static final class ParseException extends RuntimeException {
+    /**
+     * A source that scanned but does not match the grammar. The line is the
+     * line the parser had reached, which is the best location the abstract
+     * format can retain.
+     */
+    public static final class ParseException extends RuntimeException {
 
         private static final long serialVersionUID = 1L;
 
-        ParseException(int line, String message) {
+        private final int line;
+
+        public ParseException(int line, String message) {
             super("line " + line + ": " + message);
+            this.line = line;
+        }
+
+        public int line() {
+            return line;
         }
 
     }

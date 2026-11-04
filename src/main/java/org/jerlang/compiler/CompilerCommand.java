@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.jerlang.compiler.Compiler.CompileException;
 import org.jerlang.compiler.codegen.CodegenException;
 import org.jerlang.compiler.lint.Diagnostic;
 import org.jerlang.compiler.preprocess.PreprocessException;
@@ -33,9 +34,9 @@ public final class CompilerCommand {
         "Usage: jerlang compile [options] file.erl ...",
         "",
         "Options:",
-        "  -o DIR              write beam files to DIR (default: .)",
+        "  -o DIR, -oDIR       write beam files to DIR (default: .)",
         "  -I DIR              add DIR to the -include search path",
-        "  -pa DIR             add DIR as a library root for -include_lib",
+        "  -pa DIR             add DIR for -include_lib, parse transforms and their helpers",
         "  -Dname[=value]      define a macro (without a value: true)",
         "  -W                  lint and print warnings",
         "  -W0                 disable warnings",
@@ -115,7 +116,9 @@ public final class CompilerCommand {
                     builder.warningsAsErrors(true);
                     break;
                 default:
-                    if (argument.startsWith("-I") && argument.length() > 2) {
+                    if (argument.startsWith("-o") && argument.length() > 2) {
+                        builder.outputDirectory(Paths.get(argument.substring(2)));
+                    } else if (argument.startsWith("-I") && argument.length() > 2) {
                         builder.includePath(argument.substring(2));
                     } else if (argument.startsWith("-pa") && argument.length() > 3) {
                         builder.libraryPath(argument.substring(3));
@@ -130,6 +133,9 @@ public final class CompilerCommand {
                         }
                     } else if (argument.startsWith("-") && argument.length() > 1) {
                         err.println("jerlang compile: unknown option " + argument);
+                        return 2;
+                    } else if (argument.isEmpty()) {
+                        err.println("jerlang compile: source path is empty");
                         return 2;
                     } else {
                         sources.add(Paths.get(argument));
@@ -164,11 +170,18 @@ public final class CompilerCommand {
                 } catch (CodegenException error) {
                     err.println(source + ": " + error.getMessage());
                     status = 1;
+                } catch (CompileException error) {
+                    print(source, error.diagnostics(), err);
+                    status = 1;
                 } catch (IOException error) {
                     err.println(source + ": " + error.getMessage());
                     status = 1;
                 } catch (RuntimeException error) {
-                    err.println(source + ": " + error.getMessage());
+                    // A compiler bug must stay visible instead of looking like
+                    // an ordinary source diagnostic. The command still fails
+                    // with 1, but the stack trace is preserved for a bug report.
+                    err.println(source + ": internal compiler error: " + error);
+                    error.printStackTrace(err);
                     status = 1;
                 }
             }
@@ -204,8 +217,9 @@ public final class CompilerCommand {
             PrintStream err) {
         switch (option.substring(1)) {
         case "debug_info":
-            // Line tables are part of every beam; the option is accepted so a
-            // build script written for erlc keeps working.
+            // Line tables are part of every beam; the flag is still passed to
+            // parse transforms because OTP exposes it in their option list.
+            builder.debugInfo(true);
             return 0;
         case "warnings_as_errors":
             builder.warnings(true);

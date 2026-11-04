@@ -1,9 +1,11 @@
 package org.jerlang.compiler;
 
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -11,10 +13,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.jerlang.compiler.codegen.Codegen;
+import org.jerlang.compiler.codegen.CodegenException;
 import org.jerlang.compiler.lint.Diagnostic;
 import org.jerlang.compiler.lint.Linter;
 import org.jerlang.compiler.parse.Parser;
+import org.jerlang.compiler.parse.Parser.ParseException;
+import org.jerlang.compiler.preprocess.PreprocessException;
 import org.jerlang.compiler.preprocess.Preprocessor;
+import org.jerlang.compiler.scan.ScanException;
 import org.jerlang.type.Atom;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
@@ -55,16 +61,26 @@ public final class Compiler {
 
     /**
      * Compile one source and return the BEAM bytes. Nothing is written; the
-     * caller owns the output. A lint error, or a warning when warnings are
-     * errors, raises {@link CompileException}.
+     * caller owns the output. A lint error, a failed parse transform, or a
+     * warning when warnings are errors, raises {@link CompileException}.
      */
     public static byte[] compile(Path source, Options options) throws IOException {
-        Parsed parsed = parse(source, options);
-        List<Diagnostic> diagnostics = lint(parsed.forms, options);
+        List<Term> forms = parse(source, options);
+        try {
+            forms = ParseTransforms.apply(forms, options);
+        } catch (ParseTransformException error) {
+            throw new CompileException(source, Collections.singletonList(
+                Diagnostic.error(error.line(), error.getMessage())));
+        }
+        List<Diagnostic> diagnostics = lint(forms, options);
         if (fails(diagnostics, options)) {
             throw new CompileException(source, diagnostics);
         }
-        return Codegen.compile(parsed.forms);
+        try {
+            return Codegen.compile(forms);
+        } catch (CodegenException error) {
+            throw compileError(source, 1, error.getMessage());
+        }
     }
 
     /**
@@ -73,16 +89,34 @@ public final class Compiler {
      * command can print every diagnostic and continue with the next file.
      */
     public static Result compileFile(Path source, Options options) throws IOException {
-        Parsed parsed = parse(source, options);
-        List<Diagnostic> diagnostics = lint(parsed.forms, options);
-        if (fails(diagnostics, options)) {
-            return new Result(parsed.module, null, diagnostics);
+        try {
+            List<Term> forms = parse(source, options);
+            try {
+                forms = ParseTransforms.apply(forms, options);
+            } catch (ParseTransformException error) {
+                return new Result(null, null, Collections.singletonList(
+                    Diagnostic.error(error.line(), error.getMessage())));
+            }
+            Atom module = moduleName(source, forms);
+            List<Diagnostic> diagnostics = lint(forms, options);
+            if (fails(diagnostics, options)) {
+                return new Result(module, null, diagnostics);
+            }
+            byte[] bytes;
+            try {
+                bytes = Codegen.compile(forms);
+            } catch (CodegenException error) {
+                return new Result(module, null, Collections.singletonList(
+                    Diagnostic.error(1, error.getMessage())));
+            }
+            Path directory = options.outputDirectory().toAbsolutePath().normalize();
+            Files.createDirectories(directory);
+            Path beam = directory.resolve(module.toString() + ".beam");
+            writeAtomically(directory, beam, bytes);
+            return new Result(module, beam, diagnostics);
+        } catch (CompileException error) {
+            return new Result(null, null, error.diagnostics());
         }
-        Path directory = options.outputDirectory().toAbsolutePath().normalize();
-        Files.createDirectories(directory);
-        Path beam = directory.resolve(parsed.module.toString() + ".beam");
-        Files.write(beam, Codegen.compile(parsed.forms));
-        return new Result(parsed.module, beam, diagnostics);
     }
 
     private static boolean fails(List<Diagnostic> diagnostics, Options options) {
@@ -103,19 +137,28 @@ public final class Compiler {
         return Linter.lint(forms);
     }
 
-    private static Parsed parse(Path source, Options options) throws IOException {
+    private static List<Term> parse(Path source, Options options) throws CompileException {
         Path absolute = source.toAbsolutePath().normalize();
-        List<Term> forms = Parser.parseForms(Preprocessor.scanFile(absolute,
-            options.includePath(), options.libraryPath(), options.otpRelease(),
-            options.defines()));
-        return new Parsed(moduleName(absolute, forms), forms);
+        try {
+            return Parser.parseForms(Preprocessor.scanFile(absolute,
+                options.includePath(), options.libraryPath(), options.otpRelease(),
+                options.defines()));
+        } catch (PreprocessException error) {
+            throw compileError(source, error.line(), error.getMessage());
+        } catch (ScanException error) {
+            throw compileError(source, error.line(), error.getMessage());
+        } catch (ParseException error) {
+            throw compileError(source, error.line(), error.getMessage());
+        } catch (IOException error) {
+            throw compileError(source, 1, error.getMessage());
+        }
     }
 
     /**
      * The beam file is named after the -module attribute, not the source file,
      * which is also what erlc does.
      */
-    private static Atom moduleName(Path source, List<Term> forms) throws IOException {
+    private static Atom moduleName(Path source, List<Term> forms) throws CompileException {
         for (Term form : forms) {
             if (!(form instanceof Tuple)) {
                 continue;
@@ -130,19 +173,35 @@ public final class Compiler {
                 return (Atom) tuple.element(4);
             }
         }
-        throw new IOException("no -module attribute in " + source);
+        throw compileError(source, 1, "no -module attribute");
     }
 
-    private static final class Parsed {
+    private static CompileException compileError(Path source, int line, String message) {
+        return new CompileException(source, Collections.singletonList(
+            Diagnostic.error(line, message)));
+    }
 
-        private final Atom module;
-        private final List<Term> forms;
-
-        private Parsed(Atom module, List<Term> forms) {
-            this.module = module;
-            this.forms = forms;
+    /**
+     * A beam is visible only after its complete contents are in place. Writing
+     * the temporary file beside the target keeps the final move atomic on the
+     * same filesystem, and a failed build can never truncate a good beam from
+     * an earlier compile.
+     */
+    private static void writeAtomically(Path directory, Path beam, byte[] bytes)
+            throws IOException {
+        Path temporary = Files.createTempFile(directory,
+            "." + beam.getFileName().toString() + "-", ".tmp");
+        try {
+            Files.write(temporary, bytes);
+            try {
+                Files.move(temporary, beam, StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException error) {
+                Files.move(temporary, beam, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temporary);
         }
-
     }
 
     /**
@@ -156,6 +215,8 @@ public final class Compiler {
         private final Path outputDirectory;
         private final boolean warnings;
         private final boolean warningsAsErrors;
+        private final boolean debugInfo;
+        private final long parseTransformTimeoutMillis;
         private final int otpRelease;
 
         private Options(Builder builder) {
@@ -168,6 +229,8 @@ public final class Compiler {
             this.outputDirectory = builder.outputDirectory;
             this.warnings = builder.warnings;
             this.warningsAsErrors = builder.warningsAsErrors;
+            this.debugInfo = builder.debugInfo;
+            this.parseTransformTimeoutMillis = builder.parseTransformTimeoutMillis;
             this.otpRelease = builder.otpRelease;
         }
 
@@ -203,6 +266,19 @@ public final class Compiler {
             return warningsAsErrors;
         }
 
+        /**
+         * Whether +debug_info was requested. The compiler always emits line
+         * tables, but the flag is visible to parse transforms in their option
+         * list, as it is under OTP.
+         */
+        public boolean debugInfo() {
+            return debugInfo;
+        }
+
+        public long parseTransformTimeoutMillis() {
+            return parseTransformTimeoutMillis;
+        }
+
         public int otpRelease() {
             return otpRelease;
         }
@@ -215,6 +291,8 @@ public final class Compiler {
             private Path outputDirectory = Paths.get(".");
             private boolean warnings;
             private boolean warningsAsErrors;
+            private boolean debugInfo;
+            private long parseTransformTimeoutMillis = 30_000L;
             private int otpRelease = DEFAULT_OTP_RELEASE;
 
             private Builder() {
@@ -233,8 +311,10 @@ public final class Compiler {
             }
 
             /**
-             * A library root for -include_lib. It is the directory that holds
-             * the app-version directories, not an ebin directory.
+             * A library root for -include_lib and parse-transform beams. It is
+             * the directory that holds the app-version directories, not an
+             * ebin directory; a transform may also sit directly in it or in an
+             * ebin directory below it.
              */
             public Builder libraryPath(String root) {
                 libraryPath.add(require(root, "library root"));
@@ -274,6 +354,25 @@ public final class Compiler {
 
             public Builder warningsAsErrors(boolean warningsAsErrors) {
                 this.warningsAsErrors = warningsAsErrors;
+                return this;
+            }
+
+            public Builder debugInfo(boolean debugInfo) {
+                this.debugInfo = debugInfo;
+                return this;
+            }
+
+            /**
+             * Bound a parse transform that has to spawn an Erlang process. The
+             * default is 30 seconds; zero disables the bound, matching the
+             * historical behaviour of Module.apply/2.
+             */
+            public Builder parseTransformTimeoutMillis(long timeoutMillis) {
+                if (timeoutMillis < 0) {
+                    throw new IllegalArgumentException(
+                        "parse transform timeout must not be negative");
+                }
+                this.parseTransformTimeoutMillis = timeoutMillis;
                 return this;
             }
 
@@ -336,7 +435,8 @@ public final class Compiler {
     }
 
     /**
-     * A lint error, or a warning treated as one, stopped the compilation.
+     * A lint error, a parse-transform failure, or a warning treated as one
+     * stopped the compilation.
      */
     public static final class CompileException extends IOException {
 

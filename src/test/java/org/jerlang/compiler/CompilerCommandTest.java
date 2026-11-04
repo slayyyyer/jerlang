@@ -150,6 +150,52 @@ public class CompilerCommandTest {
         assertTrue(run.err.contains("unsupported compiler option"));
     }
 
+    @Test
+    public void commandHandlesHelpAttachedOutputAndPartialFailures() throws Exception {
+        Run help = run(Collections.singletonList("--help"));
+        assertEquals(0, help.status);
+        assertTrue(help.out.contains("Usage: jerlang compile"));
+
+        Path root = Files.createTempDirectory("jerlc-hardening");
+        Path source = root.resolve("cli_hardening.erl");
+        Files.write(source, Arrays.asList(
+            "-module(cli_hardening).",
+            "-export([value/0]).",
+            "value() -> 1.",
+            "unused() -> 1."));
+
+        Path attached = root.resolve("attached");
+        Run attachedRun = run(Arrays.asList("-o" + attached, source.toString()));
+        assertEquals(attachedRun.err, 0, attachedRun.status);
+        assertTrue(Files.isRegularFile(attached.resolve("cli_hardening.beam")));
+
+        Path end = root.resolve("end");
+        Run endRun = run(Arrays.asList("-o", end.toString(), "--", source.toString()));
+        assertEquals(endRun.err, 0, endRun.status);
+        assertTrue(Files.isRegularFile(end.resolve("cli_hardening.beam")));
+
+        Path quiet = root.resolve("quiet");
+        Run quietRun = run(Arrays.asList("-W0", "-o", quiet.toString(), source.toString()));
+        assertEquals(quietRun.err, 0, quietRun.status);
+        assertFalse(quietRun.err.contains("Warning:"));
+
+        Path warned = root.resolve("warned");
+        Run warnedRun = run(Arrays.asList("-W", "-o", warned.toString(), source.toString()));
+        assertEquals(warnedRun.err, 0, warnedRun.status);
+        assertTrue(warnedRun.err, warnedRun.err.contains("Warning:"));
+
+        Path partial = root.resolve("partial");
+        Run partialRun = run(Arrays.asList("-o", partial.toString(), source.toString(),
+            root.resolve("missing.erl").toString()));
+        assertEquals(1, partialRun.status);
+        assertTrue(Files.isRegularFile(partial.resolve("cli_hardening.beam")));
+        assertTrue(partialRun.err, partialRun.err.contains("missing.erl"));
+
+        Run missingValue = run(Collections.singletonList("-o"));
+        assertEquals(2, missingValue.status);
+        assertTrue(missingValue.err.contains("-o needs a value"));
+    }
+
     private static Module load(String name, Path beam) throws Throwable {
         ModuleRegistry.unregister(Atom.of(name));
         Module module = ModuleLoader.load(Atom.of(name), beam.toFile());
