@@ -137,6 +137,14 @@ public class OperandReader extends AbstractReader {
                 BigInteger.valueOf(value), 0, Integer.of(value));
         }
         int width = readLength(b);
+        // The width is read out of the file, so it is checked against what the
+        // file can still supply. Without this a mutated instruction can make
+        // the decoder allocate a huge array and spend minutes shifting a
+        // BigInteger, which is a hang rather than a refusal.
+        if (width < 0 || width > inputStream().available()) {
+            throw new IllegalArgumentException("bignum length " + width
+                + " exceeds the " + inputStream().available() + " bytes left in the file");
+        }
         byte[] bytes = new byte[width];
         readBytes(bytes);
         BigInteger value = BigInteger.ZERO;
