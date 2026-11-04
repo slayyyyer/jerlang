@@ -97,7 +97,22 @@ public final class Preprocessor {
      */
     public static List<List<Token>> scanFile(Path file, List<String> includePath,
         List<String> libraryPath, int otpRelease) throws IOException {
+        return scanFile(file, includePath, libraryPath, otpRelease,
+            Collections.emptyMap());
+    }
+
+    /**
+     * Preprocess with macros a command line supplied. epp defines -Dname as
+     * true and -Dname=value as the tokens of value; the source may still
+     * redefine or undefine either.
+     */
+    public static List<List<Token>> scanFile(Path file, List<String> includePath,
+        List<String> libraryPath, int otpRelease, Map<String, String> predefined)
+        throws IOException {
         Preprocessor preprocessor = new Preprocessor(includePath, libraryPath, otpRelease);
+        for (Map.Entry<String, String> entry : predefined.entrySet()) {
+            preprocessor.predefine(entry.getKey(), entry.getValue());
+        }
         // epp records the name it was given, and the oracle is given absolute
         // paths. Resolving here keeps ?FILE and every -file form absolute even
         // when the caller passed a path relative to the working directory.
@@ -106,6 +121,22 @@ public final class Preprocessor {
         preprocessor.forms.add(fileForm(name, 1));
         preprocessor.process(absolute, name, true);
         return preprocessor.forms;
+    }
+
+    private void predefine(String name, String value) {
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("macro name is empty");
+        }
+        List<Token> body;
+        if (value == null) {
+            body = Collections.singletonList(Token.of(ATOM, 1, Atom.of("true")));
+        } else {
+            body = new ArrayList<>(Scanner.scan(value));
+            // A value is an expression, not a form; a trailing dot would be
+            // part of the expansion if it survived the scan.
+            body.removeIf(token -> token.category().equals(DOT));
+        }
+        macros.put(macroKey(name, -1), new Macro(name, null, body));
     }
 
     private void process(Path file, String fileName, boolean top) throws IOException {

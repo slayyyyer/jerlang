@@ -1,9 +1,11 @@
 package org.jerlang.erts;
 
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import org.jerlang.FunctionSignature;
+import org.jerlang.compiler.CompilerCommand;
 import org.jerlang.erts.dist.DistCookie;
 import org.jerlang.erts.dist.DistNodeName;
 import org.jerlang.erts.emulator.EmulatorFlag;
@@ -28,6 +30,10 @@ public class Emulator {
     private static final HashMap<Atom, List> userFlags = Runtime.userFlags();
 
     public static void main(String[] args) {
+        if (args.length > 0 && "compile".equals(args[0])) {
+            System.exit(CompilerCommand.run(Arrays.copyOfRange(args, 1, args.length)));
+            return;
+        }
         parse(args);
         Shell.start();
     }

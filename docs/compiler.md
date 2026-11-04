@@ -378,8 +378,21 @@ entry point, and documentation in `getting-started.md`.
 `Opcode.arity()` and `ModuleLoader` get reshaped if the emitter wants them
 different. After 2.0.0 the `japicmp` gate freezes them again.
 
+Status: complete. `org.jerlang.compiler.Compiler` is the public entry point;
+`CompilerCommand` is the `compile` subcommand of the runnable jar
+(`java -jar jerlang.jar compile ...`). It accepts `-o`, `-I`, `-pa`, `-D`,
+`-W`, `-W0`, `-Werror`, `+debug_info` and `+warnings_as_errors`. `-Dname`
+expands to `true` and `-Dname=value` scans the value as Erlang tokens, so it
+agrees with `erlc`. `-W` runs the A4 linter; lint errors stop the beam, and
+`-Werror` makes warnings stop it too. Unknown options are errors, not silently
+ignored flags. The command never invokes `erlc`.
+
 **Exit test:** CI compiles the corpus with the shipped command and no `erlc` on
-the machine, then runs the suite.
+the machine, then runs the suite. `CompilerCommandTest` is that test: it
+compiles `src/test/erl/corpus` through `CompilerCommand`, loads every beam in
+JErlang and runs `run/0`; a second case covers an `-include` header, an
+`-include_lib` application root, `-D` macros, `-W`, `-Werror`, `-o` and
+`+debug_info`.
 
 ## Timeline, re-estimated for agent execution
 
