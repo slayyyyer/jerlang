@@ -5,7 +5,7 @@ reach a client that is not waiting for a reply. The transport is server-sent
 events, the rooms are processes, the history is an ETS table, and the Java side
 is still fixed plumbing that you never edit to add a feature.
 
-`io.github.slayyyyer:jerlang:1.0.0` comes from Maven Central, as in the
+`io.github.slayyyyer:jerlang:1.1.0` comes from Maven Central, as in the
 `http-service` example.
 
 ## Running it

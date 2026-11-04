@@ -1,0 +1,111 @@
+beam 1
+
+chunk Line 21
+version 0
+flags 0
+count 5
+record 0 6 0
+end
+
+chunk Atom 63
+count 9
+atom 1 select
+atom 2 test
+atom 3 a
+atom 4 b
+atom 5 two
+atom 6 one
+atom 7 module_info
+atom 8 erlang
+atom 9 get_module_info
+end
+
+chunk Code 219
+header 16 0 153 19 3
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 56 is_nonempty_list (int 5 0 0 5) (int 3 0 0 0)
+ins 65 get_list (int 3 0 0 0) (int 3 0 0 1) (int 3 0 0 2)
+ins 45 is_integer (int 5 0 0 14) (int 3 0 0 1)
+ins 59 select_val (int 3 0 0 1) (int 5 0 0 14) (list (int 0 0 0 4) (int 1 1 0 116) (int 5 0 0 3) (int 1 1 0 111) (int 5 0 0 4))
+ins 1 label (int 0 0 0 3)
+ins 43 is_eq_exact (int 5 0 0 14) (int 3 0 0 2) (literal (int 0 0 0 0))
+ins 61 jump (int 5 0 0 9)
+ins 1 label (int 0 0 0 4)
+ins 43 is_eq_exact (int 5 0 0 14) (int 3 0 0 2) (literal (int 0 0 0 1))
+ins 61 jump (int 5 0 0 10)
+ins 1 label (int 0 0 0 5)
+ins 57 is_tuple (int 5 0 0 8) (int 3 0 0 0)
+ins 60 select_tuple_arity (int 3 0 0 0) (int 5 0 0 14) (list (int 0 0 0 4) (int 0 0 0 1) (int 5 0 0 6) (int 0 0 0 2) (int 5 0 0 7))
+ins 1 label (int 0 0 0 6)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 0 0 14) (int 3 0 0 1) (int 2 0 0 3)
+ins 61 jump (int 5 0 0 10)
+ins 1 label (int 0 0 0 7)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 2)
+ins 43 is_eq_exact (int 5 0 0 14) (int 3 0 0 1) (int 2 0 0 3)
+ins 43 is_eq_exact (int 5 0 0 14) (int 3 0 0 2) (int 2 0 0 4)
+ins 61 jump (int 5 0 0 9)
+ins 1 label (int 0 0 0 8)
+ins 48 is_atom (int 5 0 0 11) (int 3 0 0 0)
+ins 59 select_val (int 3 0 0 0) (int 5 0 0 14) (list (int 0 0 0 4) (int 2 0 0 5) (int 5 0 0 9) (int 2 0 0 6) (int 5 0 0 10))
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 1 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 10)
+ins 64 move (int 1 0 0 1) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 11)
+ins 45 is_integer (int 5 0 0 14) (int 3 0 0 0)
+ins 59 select_val (int 3 0 0 0) (int 5 0 0 14) (list (int 0 0 0 4) (int 1 0 0 2) (int 5 0 0 12) (int 1 0 0 1) (int 5 0 0 13))
+ins 1 label (int 0 0 0 12)
+ins 64 move (literal (int 0 0 0 2)) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 13)
+ins 64 move (literal (int 0 0 0 3)) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 14)
+ins 64 move (literal (int 0 0 0 4)) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 15)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 0)
+ins 1 label (int 0 1 0 16)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 1 0 17)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 1)
+ins 1 label (int 0 1 0 18)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 8 9 1
+import 8 9 2
+end
+
+chunk ExpT 40
+count 3
+export 7 1 18
+export 7 0 16
+export 2 1 2
+end
+
+chunk LitT 45
+hex 00000039789c63606060656060606bce66602acf87b1f252812c76208bb9042c
+hex 0866e62344fd12fd00ff500a2c
+end

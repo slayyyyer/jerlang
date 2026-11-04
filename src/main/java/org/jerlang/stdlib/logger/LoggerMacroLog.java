@@ -12,9 +12,16 @@ public class LoggerMacroLog {
 
     public static Term dispatch(List params) {
         switch (params.length()) {
+        case 3:
+            return Logger.macro_log(params.head(), params.tail().head(),
+                params.tail().tail().head());
         case 4:
             return Logger.macro_log(params.head(), params.tail().head(),
                 params.tail().tail().head(), params.tail().tail().tail().head());
+        case 5:
+            return Logger.macro_log(params.head(), params.tail().head(),
+                params.tail().tail().head(), params.tail().tail().tail().head(),
+                params.tail().tail().tail().tail().head());
         default:
             throw Error.badarg;
         }

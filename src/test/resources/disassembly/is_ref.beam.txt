@@ -1,0 +1,76 @@
+beam 1
+
+chunk Line 22
+version 0
+flags 0
+count 6
+record 0 6 0
+record 0 9 0
+end
+
+chunk Atom 91
+count 9
+atom 1 is_ref
+atom 2 test_is_ref
+atom 3 true
+atom 4 false
+atom 5 test_get_ref
+atom 6 erlang
+atom 7 make_ref
+atom 8 module_info
+atom 9 get_module_info
+end
+
+chunk Code 96
+header 16 0 153 10 4
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 50 is_reference (int 5 0 0 3) (int 3 0 0 0)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 64 move (int 2 0 0 4) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 2)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 78 call_ext_only (int 0 0 0 0) (int 0 0 0 0)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 0)
+ins 1 label (int 0 0 0 7)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 1)
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 1)
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 2)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 40
+count 3
+import 6 7 0
+import 6 9 1
+import 6 9 2
+end
+
+chunk ExpT 52
+count 4
+export 8 1 9
+export 8 0 7
+export 5 0 5
+export 2 1 2
+end

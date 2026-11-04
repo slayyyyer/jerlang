@@ -533,7 +533,10 @@ public class Process extends ProcessOrPort {
         // Putting it back closes that window: execute() resumes a WAITING
         // process that has a message from the receive label, and terminates
         // one that has a pending exit before it runs.
-        if ((hasMessage() || hasPendingExit()) && scheduler() != null) {
+        //
+        // A zero timeout has no timer to wake the process, so it has to be
+        // queued here as well.
+        if ((hasMessage() || hasPendingExit() || waitTimedOut) && scheduler() != null) {
             VirtualMachine.instance().wake(this);
         }
     }

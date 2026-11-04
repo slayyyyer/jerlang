@@ -6,10 +6,11 @@ An Erlang runtime for the [Java Virtual Machine](https://en.wikipedia.org/wiki/J
 
 > **Fork notice:** this project began as a fork of [jerlang/jerlang](https://github.com/jerlang/jerlang) and is continued in this repository.
 
-Published to Maven Central as `io.github.slayyyyer:jerlang:1.1.0`. The
-documentation site is at <https://slayyyyer.github.io/jerlang/>.
+Published to Maven Central as `io.github.slayyyyer:jerlang:1.1.0`. The source
+tree is at 2.0.0; that release is not published yet. The documentation site is
+at <https://slayyyyer.github.io/jerlang/>.
 
-JErlang reads the BEAM files that `erlc` produces and interprets them on the JVM. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.
+JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loads the BEAM files that `erlc` produces. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.
 
 ## Intended goals
 
@@ -71,7 +72,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 
 **Tests**
 
-- A 556-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
+- A 645-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
 
 ### What does not work yet
 
@@ -133,11 +134,13 @@ The type mapping is specified row by row in [docs/java-interop.md](docs/java-int
 
 ## Compiled Erlang
 
-JErlang does not compile Erlang source. Compile it with `erlc` and load the resulting `.beam` from the working directory or from a directory that `-pa`, `-pz` or `ERL_LIBS` puts on the code path:
+JErlang can compile Erlang source itself; beams produced by `erlc` still load too. Load the resulting `.beam` from the working directory or from a directory that `-pa`, `-pz` or `ERL_LIBS` puts on the code path:
 
 ```sh
-erlc -o src/test/resources src/test/erl/bridge_demo.erl
+java -jar target/jerlang-<version>.jar compile -o build hello.erl
 ```
+
+`compile -I`, `-pa`, `-D`, `-W` and `+debug_info` cover headers, library roots, macros, parse transforms and warnings. The command never invokes `erlc`; see [Getting started](docs/getting-started.md) for the full option list.
 
 Modules built by current OTP releases need the loader support described in [docs/beam-compatibility.md](docs/beam-compatibility.md).
 

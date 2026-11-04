@@ -2,12 +2,14 @@
 
 An Erlang runtime for the Java Virtual Machine.
 
-JErlang reads the BEAM files that `erlc` produces and interprets them on the
-JVM. Processes, message passing, links, monitors and distribution are
-implemented in Java, and Java code is one reflective call away — not a separate
-node, a port or an external term format round trip.
+JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also
+loads the BEAM files that `erlc` produces. Processes, message passing, links,
+monitors and distribution are implemented in Java, and Java code is one
+reflective call away — not a separate node, a port or an external term format
+round trip.
 
 The published artifact is `io.github.slayyyyer:jerlang:1.1.0` on Maven Central.
+The source tree is at 2.0.0; that release is not published yet.
 
 ```xml
 <dependency>
@@ -62,6 +64,9 @@ Two examples show both directions, and both are compiled and run in CI:
   exit.
 - **Java interop.** The `java` module for reflection from Erlang, and
   `org.jerlang.api.Node` for embedding the runtime in a JVM application.
+- **Compilation.** A `compile` command turns Erlang source into BEAM without
+  `erlc`; `-I`, `-pa`, `-D`, `-W`, `+debug_info` and parse transforms are
+  supported.
 
 ## What does not work
 
@@ -82,7 +87,7 @@ the one remaining language-feature gap (native records).
 ## Where to read next
 
 - **[Getting started](getting-started.md)** — install it, compile a module with
-  `erlc`, run it, and embed the runtime in Java.
+  the `compile` command or `erlc`, run it, and embed the runtime in Java.
 - **[Java interoperability](java-interop.md)** — the value mapping between
   Erlang terms and Java types, object handle rules, and the embedding API.
 - **[Distribution](distribution.md)** — the protocol, EPMD, links and monitors,
@@ -91,3 +96,5 @@ the one remaining language-feature gap (native records).
 - **[Benchmarks](benchmarks.md)** — measured against BEAM on the same machine.
 - **[Roadmap](roadmap.md)** — milestones, and what was dropped from the original
   plan and why.
+- **[Compiling Erlang](compiler.md)** — the compiler, its command-line surface,
+  and what emitting `.beam` files from Erlang source costs.

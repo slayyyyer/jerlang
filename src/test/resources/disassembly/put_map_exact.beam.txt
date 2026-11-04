@@ -1,0 +1,94 @@
+beam 1
+
+chunk Line 24
+version 0
+flags 0
+count 9
+record 0 7 0
+record 0 8 0
+record 0 9 0
+record 0 12 0
+end
+
+chunk Atom 78
+count 10
+atom 1 put_map_exact
+atom 2 test
+atom 3 a
+atom 4 b
+atom 5 badmap
+atom 6 erlang
+atom 7 error
+atom 8 id
+atom 9 module_info
+atom 10 get_module_info
+end
+
+chunk Code 132
+header 16 0 156 10 4
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 0)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 4 call (int 0 0 0 1) (int 5 0 0 5)
+ins 156 is_map (int 5 0 0 3) (int 3 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 155 put_map_exact (int 5 0 0 0) (int 3 0 0 0) (int 3 0 0 0) (int 0 0 0 1) (list (int 0 0 0 4) (int 2 0 0 3) (int 1 0 0 2) (int 2 0 0 4) (int 1 0 0 3))
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 1)
+ins 70 put_tuple (int 0 0 0 2) (int 3 0 0 1)
+ins 71 put (int 2 0 0 5)
+ins 71 put (int 3 0 0 0)
+ins 64 move (int 3 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 4)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 1)
+ins 1 label (int 0 0 0 5)
+ins 19 return
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 0)
+ins 1 label (int 0 0 0 7)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 1)
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 1)
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 2)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 40
+count 3
+import 6 7 1
+import 6 10 1
+import 6 10 2
+end
+
+chunk ExpT 40
+count 3
+export 9 1 9
+export 9 0 7
+export 2 0 2
+end
+
+chunk LitT 35
+hex 0000001a789c63606060646060106a2e01924c290c8c89898c40322991090022
+hex 03035f
+end

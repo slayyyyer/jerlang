@@ -1,0 +1,105 @@
+beam 1
+
+chunk Line 26
+version 0
+flags 0
+count 10
+record 0 7 0
+record 0 8 0
+record 0 14 0
+record 0 15 0
+record 0 19 0
+end
+
+chunk Atom 75
+count 9
+atom 1 case_end
+atom 2 test
+atom 3 error
+atom 4 test_case
+atom 5 ok
+atom 6 id
+atom 7 module_info
+atom 8 erlang
+atom 9 get_module_info
+end
+
+chunk Code 156
+header 16 0 153 13 5
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 14 allocate_zero (int 0 0 0 1) (int 0 0 0 0)
+ins 104 try (int 4 0 0 0) (int 5 0 0 3)
+ins 153 line (int 0 0 0 2)
+ins 4 call (int 0 0 0 0) (int 5 0 0 5)
+ins 105 try_end (int 4 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 106 try_case (int 4 0 0 0)
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 4) (int 0 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 0)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 4 call (int 0 0 0 1) (int 5 0 0 8)
+ins 57 is_tuple (int 5 0 0 6) (int 3 0 0 0)
+ins 58 test_arity (int 5 0 0 6) (int 3 0 0 0) (int 0 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 3 0 0 1)
+ins 43 is_eq_exact (int 5 0 0 6) (int 3 0 0 1) (int 2 0 0 5)
+ins 64 move (int 2 0 0 5) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 4)
+ins 74 case_end (int 3 0 0 0)
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 5)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 6) (int 0 0 0 1)
+ins 1 label (int 0 0 0 8)
+ins 19 return
+ins 1 label (int 0 0 0 9)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 0)
+ins 1 label (int 0 0 0 10)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 11)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 1)
+ins 1 label (int 0 0 0 12)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 8 9 1
+import 8 9 2
+end
+
+chunk ExpT 40
+count 3
+export 7 1 12
+export 7 0 10
+export 2 0 2
+end
+
+chunk LitT 27
+hex 0000000f789c63606060646060606fce604a644c64020008ad01bb
+end

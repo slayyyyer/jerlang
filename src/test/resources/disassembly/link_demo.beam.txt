@@ -1,0 +1,1357 @@
+beam 1
+
+chunk AtU8 817
+count -74
+atom 1 link_demo
+atom 2 linked_crash
+atom 3 erlang
+atom 4 self
+atom 5 link_and_wait
+atom 6 spawn
+atom 7 process
+atom 8 monitor
+atom 9 linked
+atom 10 go
+atom 11 DOWN
+atom 12 boom
+atom 13 ok
+atom 14 no_down
+atom 15 error
+atom 16 no_link
+atom 17 crash_after_go
+atom 18 link
+atom 19 never
+atom 20 exit
+atom 21 trapped_crash
+atom 22 true
+atom 23 trap_exit
+atom 24 process_flag
+atom 25 false
+atom 26 EXIT
+atom 27 normal_return
+atom 28 spawn_link
+atom 29 normal
+atom 30 no_normal_exit
+atom 31 no_exit_message
+atom 32 exit_signal
+atom 33 wait_plain
+atom 34 die
+atom 35 no_exit
+atom 36 kill
+atom 37 wait_notify
+atom 38 ready
+atom 39 killed
+atom 40 not_killed
+atom 41 not_ready
+atom 42 stop
+atom 43 unlink_test
+atom 44 unlink
+atom 45 still_linked
+atom 46 demonitor_test
+atom 47 demonitor
+atom 48 down_after_demonitor
+atom 49 monitor_dead
+atom 50 noproc
+atom 51 no_noproc
+atom 52 link_dead
+atom 53 registry
+atom 54 link_demo_name
+atom 55 whereis
+atom 56 undefined
+atom 57 register
+atom 58 is_process_alive
+atom 59 registered
+atom 60 unregister
+atom 61 spawn_link_crash
+atom 62 spawn_link_fun
+atom 63 spawn_monitor_test
+atom 64 spawn_monitor
+atom 65 spawn_monitor_fun
+atom 66 spawn_opt_link_monitor
+atom 67 spawn_opt
+atom 68 spawn_opt_fun
+atom 69 member
+atom 70 module_info
+atom 71 get_module_info
+atom 72 -spawn_opt_fun/0-fun-0-
+atom 73 -spawn_monitor_fun/0-fun-0-
+atom 74 -spawn_link_fun/0-fun-0-
+end
+
+chunk Code 3582
+header 16 0 181 156 26
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 13 allocate_heap (int 0 0 0 3) (int 0 0 0 2) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 9 bif0 (int 0 0 0 0) (int 3 0 0 0)
+ins 69 put_list (int 3 0 0 0) (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 5) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 175 recv_marker_reserve (int 4 0 0 2)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 2)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 173 recv_marker_bind (int 4 0 0 2) (int 3 0 0 0)
+ins 1 label (int 0 0 0 3)
+ins 23 loop_rec (int 5 0 0 8) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 0 0 7) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 9)
+ins 21 remove_message
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 64 move (int 2 0 0 10) (int 3 0 0 1)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 2))
+ins 153 line (int 0 0 0 4)
+ins 20 send
+ins 176 recv_marker_use (int 4 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 23 loop_rec (int 5 0 0 6) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 0 0 5) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 0 0 5) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 0 0 5) (int 3 0 0 0) (int 2 0 0 12)
+ins 43 is_eq_exact (int 5 0 0 5) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 0 0 5) (int 3 0 0 3) (typed-register (int 4 0 0 1) (int 0 0 0 2))
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 3)
+ins 19 return
+ins 1 label (int 0 0 0 5)
+ins 24 loop_rec_end (int 5 0 0 4)
+ins 1 label (int 0 0 0 6)
+ins 26 wait_timeout (int 5 0 0 4) (int 1 1 0 2000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 64 move (int 2 0 0 14) (int 3 0 0 0)
+ins 153 line (int 0 0 0 5)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 3)
+ins 1 label (int 0 0 0 7)
+ins 24 loop_rec_end (int 5 0 0 3)
+ins 1 label (int 0 0 0 8)
+ins 26 wait_timeout (int 5 0 0 3) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 1 0 16) (int 3 0 0 0)
+ins 153 line (int 0 0 0 6)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 3)
+ins 1 label (int 0 0 0 9)
+ins 153 line (int 0 0 0 7)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 1)
+ins 1 label (int 0 0 0 10)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 1)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 64 move (int 2 1 0 17) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 8)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 153 line (int 0 0 0 9)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 4)
+ins 16 test_heap (int 0 0 0 3) (int 0 0 0 0)
+ins 164 put_tuple2 (int 3 0 0 1) (list (int 0 0 0 2) (int 2 0 0 9) (int 4 0 0 0))
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 2) (int 4 0 0 0) (int 4 0 0 1))
+ins 153 line (int 0 0 0 10)
+ins 20 send
+ins 1 label (int 0 0 0 11)
+ins 23 loop_rec (int 5 0 0 13) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 0 0 12) (int 3 0 0 0) (int 2 1 0 19)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 2)
+ins 19 return
+ins 1 label (int 0 0 0 12)
+ins 24 loop_rec_end (int 5 0 0 11)
+ins 1 label (int 0 0 0 13)
+ins 25 wait (int 5 0 0 11)
+ins 1 label (int 0 0 0 14)
+ins 153 line (int 0 0 0 11)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 17) (int 0 0 0 0)
+ins 1 label (int 0 0 0 15)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 0)
+ins 1 label (int 0 1 0 16)
+ins 23 loop_rec (int 5 1 0 18) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 17) (int 3 0 0 0) (int 2 0 0 10)
+ins 21 remove_message
+ins 64 move (int 2 0 0 12) (int 3 0 0 0)
+ins 153 line (int 0 0 0 12)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 5) (int 0 0 0 0)
+ins 1 label (int 0 1 0 17)
+ins 24 loop_rec_end (int 5 1 0 16)
+ins 1 label (int 0 1 0 18)
+ins 25 wait (int 5 1 0 16)
+ins 1 label (int 0 1 0 19)
+ins 153 line (int 0 0 0 13)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 21) (int 0 0 0 0)
+ins 1 label (int 0 1 0 20)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 2 1 0 22) (int 3 0 0 1)
+ins 64 move (int 2 1 0 23) (int 3 0 0 0)
+ins 153 line (int 0 0 0 14)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 6)
+ins 43 is_eq_exact (int 5 1 0 28) (int 3 0 0 0) (int 2 1 0 25)
+ins 64 move (int 2 1 0 17) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 15)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 153 line (int 0 1 0 16)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 4)
+ins 64 move (int 2 0 0 10) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 17)
+ins 20 send
+ins 1 label (int 0 1 0 21)
+ins 23 loop_rec (int 5 1 0 26) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 25) (int 3 0 0 0) (int 0 0 0 3) (int 2 1 0 26)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 25) (int 3 0 0 0) (int 2 0 0 12)
+ins 43 is_eq_exact (int 5 1 0 25) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 21 remove_message
+ins 64 move (int 2 1 0 27) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 18)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 7)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 1 label (int 0 1 0 22)
+ins 23 loop_rec (int 5 1 0 24) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 23) (int 3 0 0 0) (int 0 0 0 3) (int 2 1 0 26)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 23) (int 3 0 0 0) (int 2 1 0 29)
+ins 43 is_eq_exact (int 5 1 0 23) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 21 remove_message
+ins 64 move (int 2 1 0 25) (int 3 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 64 move (int 2 1 0 23) (int 3 0 0 0)
+ins 153 line (int 0 1 0 19)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 6)
+ins 43 is_eq_exact (int 5 1 0 27) (int 3 0 0 0) (int 2 1 0 22)
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 23)
+ins 24 loop_rec_end (int 5 1 0 22)
+ins 1 label (int 0 1 0 24)
+ins 26 wait_timeout (int 5 1 0 22) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 1 0 30) (int 3 0 0 0)
+ins 153 line (int 0 1 0 20)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 1)
+ins 1 label (int 0 1 0 25)
+ins 24 loop_rec_end (int 5 1 0 21)
+ins 1 label (int 0 1 0 26)
+ins 26 wait_timeout (int 5 1 0 21) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 1 0 31) (int 3 0 0 0)
+ins 153 line (int 0 1 0 21)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 1)
+ins 1 label (int 0 1 0 27)
+ins 153 line (int 0 1 0 19)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 28)
+ins 153 line (int 0 0 0 14)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 29)
+ins 153 line (int 0 1 0 22)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 27) (int 0 0 0 0)
+ins 1 label (int 0 1 0 30)
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 31)
+ins 153 line (int 0 1 0 23)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 32) (int 0 0 0 0)
+ins 1 label (int 0 1 0 32)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 2) (int 4 0 0 0) (int 4 0 0 1))
+ins 64 move (int 2 1 0 33) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 24)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 175 recv_marker_reserve (int 4 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 1 0 25)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 2)
+ins 173 recv_marker_bind (int 4 0 0 1) (int 3 0 0 0)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 64 move (int 2 1 0 34) (int 3 0 0 1)
+ins 153 line (int 0 1 0 26)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 36) (int 3 0 0 0) (int 2 1 0 22)
+ins 176 recv_marker_use (int 4 0 0 1)
+ins 1 label (int 0 1 0 33)
+ins 23 loop_rec (int 5 1 0 35) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 34) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 34) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 34) (int 3 0 0 0) (int 2 1 0 34)
+ins 43 is_eq_exact (int 5 1 0 34) (int 3 0 0 1) (typed-register (int 4 0 0 1) (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 1 0 34) (int 3 0 0 3) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 2)
+ins 19 return
+ins 1 label (int 0 1 0 34)
+ins 24 loop_rec_end (int 5 1 0 33)
+ins 1 label (int 0 1 0 35)
+ins 26 wait_timeout (int 5 1 0 33) (int 1 1 0 2000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 64 move (int 2 1 0 35) (int 3 0 0 0)
+ins 153 line (int 0 1 0 27)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 36)
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 153 line (int 0 1 0 26)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 37)
+ins 153 line (int 0 1 0 28)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 36) (int 0 0 0 0)
+ins 1 label (int 0 1 0 38)
+ins 13 allocate_heap (int 0 0 0 3) (int 0 0 0 2) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 9 bif0 (int 0 0 0 0) (int 3 0 0 0)
+ins 69 put_list (int 3 0 0 0) (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 1 0 37) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 29)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 175 recv_marker_reserve (int 4 0 0 2)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 1 0 30)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 2)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 173 recv_marker_bind (int 4 0 0 2) (int 3 0 0 0)
+ins 1 label (int 0 1 0 39)
+ins 23 loop_rec (int 5 1 0 45) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 44) (int 3 0 0 0) (int 2 1 0 38)
+ins 21 remove_message
+ins 64 move (int 2 1 0 36) (int 3 0 0 1)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 2))
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 31)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 43) (int 3 0 0 0) (int 2 1 0 22)
+ins 176 recv_marker_use (int 4 0 0 0)
+ins 1 label (int 0 1 0 40)
+ins 23 loop_rec (int 5 1 0 42) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 41) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 41) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 41) (int 3 0 0 0) (int 2 1 0 39)
+ins 43 is_eq_exact (int 5 1 0 41) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 1 0 41) (int 3 0 0 3) (typed-register (int 4 0 0 1) (int 0 0 0 2))
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 3)
+ins 19 return
+ins 1 label (int 0 1 0 41)
+ins 24 loop_rec_end (int 5 1 0 40)
+ins 1 label (int 0 1 0 42)
+ins 26 wait_timeout (int 5 1 0 40) (int 1 1 0 2000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 64 move (int 2 1 0 40) (int 3 0 0 0)
+ins 153 line (int 0 1 0 32)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 3)
+ins 1 label (int 0 1 0 43)
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 153 line (int 0 1 0 31)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 44)
+ins 24 loop_rec_end (int 5 1 0 39)
+ins 1 label (int 0 1 0 45)
+ins 26 wait_timeout (int 5 1 0 39) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 1 0 41) (int 3 0 0 0)
+ins 153 line (int 0 1 0 33)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 3)
+ins 1 label (int 0 1 0 46)
+ins 153 line (int 0 1 0 34)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 37) (int 0 0 0 1)
+ins 1 label (int 0 1 0 47)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (int 2 1 0 22) (int 3 0 0 1)
+ins 64 move (int 2 1 0 23) (int 3 0 0 0)
+ins 153 line (int 0 1 0 35)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 6)
+ins 64 move (int 2 1 0 38) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 153 line (int 0 1 0 36)
+ins 20 send
+ins 1 label (int 0 1 0 48)
+ins 23 loop_rec (int 5 1 0 50) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 49) (int 3 0 0 0) (int 2 1 0 42)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 49)
+ins 24 loop_rec_end (int 5 1 0 48)
+ins 1 label (int 0 1 0 50)
+ins 25 wait (int 5 1 0 48)
+ins 1 label (int 0 1 0 51)
+ins 153 line (int 0 1 0 37)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 33) (int 0 0 0 0)
+ins 1 label (int 0 1 0 52)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 0)
+ins 1 label (int 0 1 0 53)
+ins 23 loop_rec (int 5 1 0 55) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 54) (int 3 0 0 0) (int 2 1 0 42)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 54)
+ins 24 loop_rec_end (int 5 1 0 53)
+ins 1 label (int 0 1 0 55)
+ins 25 wait (int 5 1 0 53)
+ins 1 label (int 0 1 0 56)
+ins 153 line (int 0 1 0 38)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 43) (int 0 0 0 0)
+ins 1 label (int 0 1 0 57)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 2 1 0 22) (int 3 0 0 1)
+ins 64 move (int 2 1 0 23) (int 3 0 0 0)
+ins 153 line (int 0 1 0 39)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 6)
+ins 43 is_eq_exact (int 5 1 0 62) (int 3 0 0 0) (int 2 1 0 25)
+ins 64 move (int 2 1 0 17) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 40)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 153 line (int 0 1 0 41)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 4)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 42)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 9)
+ins 43 is_eq_exact (int 5 1 0 61) (int 3 0 0 0) (int 2 1 0 22)
+ins 64 move (int 2 0 0 10) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 43)
+ins 20 send
+ins 1 label (int 0 1 0 58)
+ins 23 loop_rec (int 5 1 0 60) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 59) (int 3 0 0 0) (int 0 0 0 3) (int 2 1 0 26)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 59) (int 3 0 0 0) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 21 remove_message
+ins 64 move (int 2 1 0 45) (int 3 0 0 0)
+ins 153 line (int 0 1 0 44)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 1)
+ins 1 label (int 0 1 0 59)
+ins 24 loop_rec_end (int 5 1 0 58)
+ins 1 label (int 0 1 0 60)
+ins 26 wait_timeout (int 5 1 0 58) (int 1 1 0 1000)
+ins 22 timeout
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 61)
+ins 153 line (int 0 1 0 42)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 62)
+ins 153 line (int 0 1 0 39)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 63)
+ins 153 line (int 0 1 0 45)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 46) (int 0 0 0 0)
+ins 1 label (int 0 1 0 64)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 2) (int 4 0 0 0) (int 4 0 0 1))
+ins 64 move (int 2 1 0 33) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 46)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 175 recv_marker_reserve (int 4 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 1 0 47)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 2)
+ins 173 recv_marker_bind (int 4 0 0 1) (int 3 0 0 0)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 153 line (int 0 1 0 48)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 10)
+ins 43 is_eq_exact (int 5 1 0 69) (int 3 0 0 0) (int 2 1 0 22)
+ins 64 move (int 2 1 0 34) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 153 line (int 0 1 0 49)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 68) (int 3 0 0 0) (int 2 1 0 22)
+ins 176 recv_marker_use (int 4 0 0 1)
+ins 1 label (int 0 1 0 65)
+ins 23 loop_rec (int 5 1 0 67) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 66) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 66) (int 3 0 0 0) (typed-register (int 4 0 0 1) (int 0 0 0 1))
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 21 remove_message
+ins 64 move (int 2 1 0 48) (int 3 0 0 0)
+ins 153 line (int 0 1 0 50)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 66)
+ins 24 loop_rec_end (int 5 1 0 65)
+ins 1 label (int 0 1 0 67)
+ins 26 wait_timeout (int 5 1 0 65) (int 1 1 0 1000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 2)
+ins 19 return
+ins 1 label (int 0 1 0 68)
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 153 line (int 0 1 0 49)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 69)
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 153 line (int 0 1 0 48)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 70)
+ins 153 line (int 0 1 0 51)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 49) (int 0 0 0 0)
+ins 1 label (int 0 1 0 71)
+ins 12 allocate (int 0 0 0 3) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 3) (int 4 0 0 0) (int 4 0 0 1) (int 4 0 0 2))
+ins 64 move (int 2 1 0 33) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 52)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 175 recv_marker_reserve (int 4 0 0 2)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 1 0 53)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 2)
+ins 173 recv_marker_bind (int 4 0 0 2) (int 3 0 0 0)
+ins 64 move (int 3 0 0 0) (int 4 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 64 move (int 2 1 0 34) (int 3 0 0 1)
+ins 153 line (int 0 1 0 54)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 78) (int 3 0 0 0) (int 2 1 0 22)
+ins 176 recv_marker_use (int 4 0 0 2)
+ins 1 label (int 0 1 0 72)
+ins 23 loop_rec (int 5 1 0 77) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 76) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 76) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 76) (int 3 0 0 0) (int 2 1 0 34)
+ins 43 is_eq_exact (int 5 1 0 76) (int 3 0 0 1) (typed-register (int 4 0 0 2) (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 1 0 76) (int 3 0 0 3) (typed-register (int 4 0 0 1) (int 0 0 0 2))
+ins 174 recv_marker_clear (int 4 0 0 2)
+ins 21 remove_message
+ins 175 recv_marker_reserve (int 4 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 1)
+ins 64 move (int 2 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 1 0 55)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 2)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 173 recv_marker_bind (int 4 0 0 2) (int 3 0 0 0)
+ins 176 recv_marker_use (int 3 0 0 0)
+ins 1 label (int 0 1 0 73)
+ins 23 loop_rec (int 5 1 0 75) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 74) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 74) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 74) (int 3 0 0 0) (int 2 1 0 50)
+ins 43 is_eq_exact (int 5 1 0 74) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 1 0 74) (int 3 0 0 3) (typed-register (int 4 0 0 1) (int 0 0 0 2))
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 3)
+ins 19 return
+ins 1 label (int 0 1 0 74)
+ins 24 loop_rec_end (int 5 1 0 73)
+ins 1 label (int 0 1 0 75)
+ins 26 wait_timeout (int 5 1 0 73) (int 1 1 0 2000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 64 move (int 2 1 0 51) (int 3 0 0 0)
+ins 153 line (int 0 1 0 56)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 3)
+ins 1 label (int 0 1 0 76)
+ins 24 loop_rec_end (int 5 1 0 72)
+ins 1 label (int 0 1 0 77)
+ins 26 wait_timeout (int 5 1 0 72) (int 1 1 0 2000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 2)
+ins 64 move (int 2 0 0 14) (int 3 0 0 0)
+ins 153 line (int 0 1 0 57)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 3)
+ins 1 label (int 0 1 0 78)
+ins 174 recv_marker_clear (int 4 0 0 2)
+ins 153 line (int 0 1 0 54)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 79)
+ins 153 line (int 0 1 0 58)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 52) (int 0 0 0 0)
+ins 1 label (int 0 1 0 80)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 2) (int 4 0 0 0) (int 4 0 0 1))
+ins 64 move (int 2 1 0 22) (int 3 0 0 1)
+ins 64 move (int 2 1 0 23) (int 3 0 0 0)
+ins 153 line (int 0 1 0 59)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 6)
+ins 43 is_eq_exact (int 5 1 0 88) (int 3 0 0 0) (int 2 1 0 25)
+ins 64 move (int 2 1 0 33) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 60)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 175 recv_marker_reserve (int 4 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 7) (int 3 0 0 0)
+ins 153 line (int 0 1 0 61)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 2)
+ins 173 recv_marker_bind (int 4 0 0 1) (int 3 0 0 0)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 64 move (int 2 1 0 34) (int 3 0 0 1)
+ins 153 line (int 0 1 0 62)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 87) (int 3 0 0 0) (int 2 1 0 22)
+ins 176 recv_marker_use (int 4 0 0 1)
+ins 1 label (int 0 1 0 81)
+ins 23 loop_rec (int 5 1 0 86) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 85) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 85) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 85) (int 3 0 0 0) (int 2 1 0 34)
+ins 43 is_eq_exact (int 5 1 0 85) (int 3 0 0 1) (typed-register (int 4 0 0 1) (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 1 0 85) (int 3 0 0 3) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 21 remove_message
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 1))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 63)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 4)
+ins 1 label (int 0 1 0 82)
+ins 23 loop_rec (int 5 1 0 84) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 83) (int 3 0 0 0) (int 0 0 0 3) (int 2 1 0 26)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 83) (int 3 0 0 0) (int 2 1 0 50)
+ins 43 is_eq_exact (int 5 1 0 83) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 2)
+ins 19 return
+ins 1 label (int 0 1 0 83)
+ins 24 loop_rec_end (int 5 1 0 82)
+ins 1 label (int 0 1 0 84)
+ins 26 wait_timeout (int 5 1 0 82) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 1 0 51) (int 3 0 0 0)
+ins 153 line (int 0 1 0 64)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 85)
+ins 24 loop_rec_end (int 5 1 0 81)
+ins 1 label (int 0 1 0 86)
+ins 26 wait_timeout (int 5 1 0 81) (int 1 1 0 2000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 64 move (int 2 0 0 14) (int 3 0 0 0)
+ins 153 line (int 0 1 0 65)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 87)
+ins 174 recv_marker_clear (int 4 0 0 1)
+ins 153 line (int 0 1 0 62)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 88)
+ins 153 line (int 0 1 0 59)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 89)
+ins 153 line (int 0 1 0 66)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 53) (int 0 0 0 0)
+ins 1 label (int 0 1 0 90)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 2 1 0 54) (int 3 0 0 0)
+ins 153 line (int 0 1 0 67)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 11)
+ins 43 is_eq_exact (int 5 1 0 100) (int 3 0 0 0) (int 2 1 0 56)
+ins 64 move (int 2 1 0 33) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 68)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 1 0 54) (int 3 0 0 0)
+ins 153 line (int 0 1 0 69)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 12)
+ins 43 is_eq_exact (int 5 1 0 99) (int 3 0 0 0) (int 2 1 0 22)
+ins 64 move (int 2 1 0 54) (int 3 0 0 0)
+ins 153 line (int 0 1 0 70)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 11)
+ins 43 is_eq_exact (int 5 1 0 98) (int 3 0 0 0) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 71)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 13)
+ins 43 is_eq_exact (int 5 1 0 97) (int 3 0 0 0) (int 2 1 0 22)
+ins 7 call_ext (int 0 0 0 0) (int 0 0 0 14)
+ins 64 move (int 2 1 0 54) (int 3 0 0 1)
+ins 153 line (int 0 1 0 72)
+ins 4 call (int 0 0 0 2) (int 5 1 0 143)
+ins 43 is_eq_exact (int 5 1 0 96) (int 3 0 0 0) (int 2 1 0 22)
+ins 64 move (int 2 1 0 54) (int 3 0 0 0)
+ins 153 line (int 0 1 0 73)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 15)
+ins 43 is_eq_exact (int 5 1 0 95) (int 3 0 0 0) (int 2 1 0 22)
+ins 64 move (int 2 1 0 54) (int 3 0 0 0)
+ins 153 line (int 0 1 0 74)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 11)
+ins 43 is_eq_exact (int 5 1 0 94) (int 3 0 0 0) (int 2 1 0 56)
+ins 64 move (int 2 1 0 34) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 75)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 93) (int 3 0 0 0) (int 2 1 0 22)
+ins 1 label (int 0 1 0 91)
+ins 26 wait_timeout (int 5 1 0 91) (int 1 1 0 200)
+ins 22 timeout
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 1 0 76)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 13)
+ins 43 is_eq_exact (int 5 1 0 92) (int 3 0 0 0) (int 2 1 0 25)
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 92)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 93)
+ins 153 line (int 0 1 0 75)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 94)
+ins 153 line (int 0 1 0 74)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 95)
+ins 153 line (int 0 1 0 73)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 96)
+ins 153 line (int 0 1 0 72)
+ins 72 badmatch (int 2 1 0 25)
+ins 1 label (int 0 1 0 97)
+ins 153 line (int 0 1 0 71)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 98)
+ins 153 line (int 0 1 0 70)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 99)
+ins 153 line (int 0 1 0 69)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 100)
+ins 153 line (int 0 1 0 67)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 101)
+ins 153 line (int 0 1 0 77)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 61) (int 0 0 0 0)
+ins 1 label (int 0 1 0 102)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 2 1 0 22) (int 3 0 0 1)
+ins 64 move (int 2 1 0 23) (int 3 0 0 0)
+ins 153 line (int 0 1 0 78)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 6)
+ins 43 is_eq_exact (int 5 1 0 106) (int 3 0 0 0) (int 2 1 0 25)
+ins 64 move (int 2 1 0 17) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 79)
+ins 7 call_ext (int 0 0 0 3) (int 0 0 0 7)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 64 move (int 2 0 0 10) (int 3 0 0 1)
+ins 153 line (int 0 1 0 80)
+ins 20 send
+ins 1 label (int 0 1 0 103)
+ins 23 loop_rec (int 5 1 0 105) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 104) (int 3 0 0 0) (int 0 0 0 3) (int 2 1 0 26)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 104) (int 3 0 0 0) (int 2 0 0 12)
+ins 43 is_eq_exact (int 5 1 0 104) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 104)
+ins 24 loop_rec_end (int 5 1 0 103)
+ins 1 label (int 0 1 0 105)
+ins 26 wait_timeout (int 5 1 0 103) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 1 0 35) (int 3 0 0 0)
+ins 153 line (int 0 1 0 81)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 1)
+ins 1 label (int 0 1 0 106)
+ins 153 line (int 0 1 0 78)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 107)
+ins 153 line (int 0 1 0 82)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 62) (int 0 0 0 0)
+ins 1 label (int 0 1 0 108)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 2 1 0 22) (int 3 0 0 1)
+ins 64 move (int 2 1 0 23) (int 3 0 0 0)
+ins 153 line (int 0 1 0 83)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 6)
+ins 43 is_eq_exact (int 5 1 0 112) (int 3 0 0 0) (int 2 1 0 25)
+ins 16 test_heap (allocation (int 0 0 0 3) (int 0 0 0 0) (int 0 0 0 0) (int 0 0 0 1) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 1)) (int 0 0 0 0)
+ins 171 make_fun3 (int 0 0 0 0) (int 3 0 0 0) (list (int 0 0 0 0))
+ins 153 line (int 0 1 0 84)
+ins 7 call_ext (int 0 0 0 1) (int 0 1 0 16)
+ins 64 move (int 3 0 0 0) (int 4 0 0 0)
+ins 1 label (int 0 1 0 109)
+ins 23 loop_rec (int 5 1 0 111) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 110) (int 3 0 0 0) (int 0 0 0 3) (int 2 1 0 26)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 110) (int 3 0 0 0) (int 2 0 0 12)
+ins 43 is_eq_exact (int 5 1 0 110) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 2))
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 110)
+ins 24 loop_rec_end (int 5 1 0 109)
+ins 1 label (int 0 1 0 111)
+ins 26 wait_timeout (int 5 1 0 109) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 1 0 35) (int 3 0 0 0)
+ins 153 line (int 0 1 0 85)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 1)
+ins 1 label (int 0 1 0 112)
+ins 153 line (int 0 1 0 83)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 113)
+ins 153 line (int 0 1 0 86)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 63) (int 0 0 0 0)
+ins 1 label (int 0 1 0 114)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 175 recv_marker_reserve (int 4 0 0 1)
+ins 64 move (int 2 1 0 33) (int 3 0 0 1)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 87)
+ins 7 call_ext (int 0 0 0 3) (int 0 1 0 17)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 173 recv_marker_bind (int 4 0 0 1) (int 4 0 0 0)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 4 0 0 1)
+ins 64 move (int 2 1 0 34) (int 3 0 0 1)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 88)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 118) (int 3 0 0 0) (int 2 1 0 22)
+ins 176 recv_marker_use (int 4 0 0 0)
+ins 1 label (int 0 1 0 115)
+ins 23 loop_rec (int 5 1 0 117) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 116) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 116) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 116) (int 3 0 0 0) (int 2 1 0 34)
+ins 43 is_eq_exact (int 5 1 0 116) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 1 0 116) (int 3 0 0 3) (typed-register (int 4 0 0 1) (int 0 0 0 2))
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 2)
+ins 19 return
+ins 1 label (int 0 1 0 116)
+ins 24 loop_rec_end (int 5 1 0 115)
+ins 1 label (int 0 1 0 117)
+ins 26 wait_timeout (int 5 1 0 115) (int 1 1 0 2000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 64 move (int 2 0 0 14) (int 3 0 0 0)
+ins 153 line (int 0 1 0 89)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 118)
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 153 line (int 0 1 0 88)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 119)
+ins 153 line (int 0 1 0 90)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 65) (int 0 0 0 0)
+ins 1 label (int 0 1 0 120)
+ins 13 allocate_heap (int 0 0 0 2) (allocation (int 0 0 0 3) (int 0 0 0 0) (int 0 0 0 0) (int 0 0 0 1) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 1)) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 171 make_fun3 (int 0 0 0 1) (int 3 0 0 0) (list (int 0 0 0 0))
+ins 175 recv_marker_reserve (int 4 0 0 1)
+ins 153 line (int 0 1 0 91)
+ins 7 call_ext (int 0 0 0 1) (int 0 1 0 18)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 4 0 0 0)
+ins 173 recv_marker_bind (int 4 0 0 1) (int 4 0 0 0)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 4 0 0 1)
+ins 64 move (int 2 1 0 36) (int 3 0 0 1)
+ins 64 move (int 4 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 92)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 124) (int 3 0 0 0) (int 2 1 0 22)
+ins 176 recv_marker_use (int 4 0 0 0)
+ins 1 label (int 0 1 0 121)
+ins 23 loop_rec (int 5 1 0 123) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 122) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 122) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 122) (int 3 0 0 0) (int 2 1 0 39)
+ins 43 is_eq_exact (int 5 1 0 122) (int 3 0 0 1) (typed-register (int 4 0 0 0) (int 0 0 0 1))
+ins 43 is_eq_exact (int 5 1 0 122) (int 3 0 0 3) (typed-register (int 4 0 0 1) (int 0 0 0 2))
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 2)
+ins 19 return
+ins 1 label (int 0 1 0 122)
+ins 24 loop_rec_end (int 5 1 0 121)
+ins 1 label (int 0 1 0 123)
+ins 26 wait_timeout (int 5 1 0 121) (int 1 1 0 2000)
+ins 22 timeout
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 64 move (int 2 0 0 14) (int 3 0 0 0)
+ins 153 line (int 0 1 0 93)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 124)
+ins 174 recv_marker_clear (int 4 0 0 0)
+ins 153 line (int 0 1 0 92)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 125)
+ins 153 line (int 0 1 0 94)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 66) (int 0 0 0 0)
+ins 1 label (int 0 1 0 126)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 2) (int 4 0 0 0) (int 4 0 0 1))
+ins 64 move (int 2 1 0 22) (int 3 0 0 1)
+ins 64 move (int 2 1 0 23) (int 3 0 0 0)
+ins 153 line (int 0 1 0 95)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 6)
+ins 43 is_eq_exact (int 5 1 0 134) (int 3 0 0 0) (int 2 1 0 25)
+ins 64 move (int 2 0 0 0) (int 3 0 0 2)
+ins 64 move (int 2 1 0 17) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 3)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 1 0 96)
+ins 7 call_ext (int 0 0 0 4) (int 0 1 0 19)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 57 is_tuple (int 5 1 0 133) (int 3 0 0 0)
+ins 58 test_arity (int 5 1 0 133) (int 3 0 0 0) (int 0 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 4 0 0 0)
+ins 64 move (int 2 0 0 10) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 97)
+ins 20 send
+ins 1 label (int 0 1 0 127)
+ins 23 loop_rec (int 5 1 0 132) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 131) (int 3 0 0 0) (int 0 0 0 3) (int 2 1 0 26)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 131) (int 3 0 0 0) (int 2 0 0 12)
+ins 43 is_eq_exact (int 5 1 0 131) (int 3 0 0 1) (int 4 0 0 0)
+ins 21 remove_message
+ins 66 get_tuple_element (int 4 0 0 1) (int 0 0 0 1) (int 4 0 0 1)
+ins 1 label (int 0 1 0 128)
+ins 23 loop_rec (int 5 1 0 130) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 129) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 129) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 129) (int 3 0 0 0) (int 2 0 0 12)
+ins 43 is_eq_exact (int 5 1 0 129) (int 3 0 0 1) (int 4 0 0 1)
+ins 43 is_eq_exact (int 5 1 0 129) (int 3 0 0 3) (int 4 0 0 0)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 2)
+ins 19 return
+ins 1 label (int 0 1 0 129)
+ins 24 loop_rec_end (int 5 1 0 128)
+ins 1 label (int 0 1 0 130)
+ins 26 wait_timeout (int 5 1 0 128) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 0 0 14) (int 3 0 0 0)
+ins 153 line (int 0 1 0 98)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 131)
+ins 24 loop_rec_end (int 5 1 0 127)
+ins 1 label (int 0 1 0 132)
+ins 26 wait_timeout (int 5 1 0 127) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 1 0 35) (int 3 0 0 0)
+ins 153 line (int 0 1 0 99)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 133)
+ins 153 line (int 0 1 0 96)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 134)
+ins 153 line (int 0 1 0 95)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 135)
+ins 153 line (int 0 1 0 100)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 68) (int 0 0 0 0)
+ins 1 label (int 0 1 0 136)
+ins 13 allocate_heap (int 0 0 0 2) (allocation (int 0 0 0 3) (int 0 0 0 0) (int 0 0 0 0) (int 0 0 0 1) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 1)) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 2) (int 4 0 0 0) (int 4 0 0 1))
+ins 171 make_fun3 (int 0 0 0 2) (int 3 0 0 0) (list (int 0 0 0 0))
+ins 64 move (literal (int 0 0 0 1)) (int 3 0 0 1)
+ins 153 line (int 0 1 0 101)
+ins 7 call_ext (int 0 0 0 2) (int 0 1 0 20)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 57 is_tuple (int 5 1 0 141) (int 3 0 0 0)
+ins 58 test_arity (int 5 1 0 141) (int 3 0 0 0) (int 0 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 0) (int 4 0 0 0)
+ins 64 move (int 2 1 0 36) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 153 line (int 0 1 0 102)
+ins 7 call_ext (int 0 0 0 2) (int 0 0 0 8)
+ins 43 is_eq_exact (int 5 1 0 140) (int 3 0 0 0) (int 2 1 0 22)
+ins 66 get_tuple_element (int 4 0 0 1) (int 0 0 0 1) (int 4 0 0 1)
+ins 1 label (int 0 1 0 137)
+ins 23 loop_rec (int 5 1 0 139) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 1 0 138) (int 3 0 0 0) (int 0 0 0 5) (int 2 0 0 11)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 2) (int 3 0 0 2)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 3) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 4) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 138) (int 3 0 0 2) (int 2 0 0 7)
+ins 43 is_eq_exact (int 5 1 0 138) (int 3 0 0 0) (int 2 1 0 39)
+ins 43 is_eq_exact (int 5 1 0 138) (int 3 0 0 1) (int 4 0 0 1)
+ins 43 is_eq_exact (int 5 1 0 138) (int 3 0 0 3) (int 4 0 0 0)
+ins 21 remove_message
+ins 64 move (int 2 0 0 13) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 2)
+ins 19 return
+ins 1 label (int 0 1 0 138)
+ins 24 loop_rec_end (int 5 1 0 137)
+ins 1 label (int 0 1 0 139)
+ins 26 wait_timeout (int 5 1 0 137) (int 1 1 0 2000)
+ins 22 timeout
+ins 64 move (int 2 0 0 14) (int 3 0 0 0)
+ins 153 line (int 0 1 0 103)
+ins 8 call_ext_last (int 0 0 0 1) (int 0 0 0 3) (int 0 0 0 2)
+ins 1 label (int 0 1 0 140)
+ins 153 line (int 0 1 0 102)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 141)
+ins 153 line (int 0 1 0 101)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 142)
+ins 153 line (int 0 1 0 104)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 69) (int 0 0 0 2)
+ins 1 label (int 0 1 0 143)
+ins 56 is_nonempty_list (int 5 1 0 145) (int 3 0 0 0)
+ins 65 get_list (int 3 0 0 0) (int 3 0 0 2) (int 3 0 0 0)
+ins 43 is_eq_exact (int 5 1 0 144) (int 3 0 0 2) (int 2 1 0 54)
+ins 64 move (int 2 1 0 22) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 144)
+ins 6 call_only (int 0 0 0 2) (int 5 1 0 143)
+ins 1 label (int 0 1 0 145)
+ins 52 is_nil (int 5 1 0 142) (int 3 0 0 0)
+ins 64 move (int 2 1 0 25) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 146)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 70) (int 0 0 0 0)
+ins 1 label (int 0 1 0 147)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 1 0 21)
+ins 1 label (int 0 1 0 148)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 70) (int 0 0 0 1)
+ins 1 label (int 0 1 0 149)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 1 0 22)
+ins 1 label (int 0 1 0 150)
+ins 153 line (int 0 1 0 101)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 72) (int 0 0 0 0)
+ins 1 label (int 0 1 0 151)
+ins 6 call_only (int 0 0 0 0) (int 5 1 0 52)
+ins 1 label (int 0 1 0 152)
+ins 153 line (int 0 1 0 91)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 73) (int 0 0 0 0)
+ins 1 label (int 0 1 0 153)
+ins 6 call_only (int 0 0 0 0) (int 5 1 0 52)
+ins 1 label (int 0 1 0 154)
+ins 153 line (int 0 1 0 84)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 74) (int 0 0 0 0)
+ins 1 label (int 0 1 0 155)
+ins 64 move (int 2 0 0 12) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 5)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 280
+count 23
+import 3 4 0
+import 3 6 3
+import 3 8 2
+import 3 15 1
+import 3 18 1
+import 3 20 1
+import 3 24 2
+import 3 28 3
+import 3 20 2
+import 3 44 1
+import 3 47 1
+import 3 55 1
+import 3 57 2
+import 3 58 1
+import 3 59 0
+import 3 60 1
+import 3 28 1
+import 3 64 3
+import 3 64 1
+import 3 67 4
+import 3 67 2
+import 3 71 1
+import 3 71 2
+end
+
+chunk ExpT 268
+count 22
+export 70 1 149
+export 70 0 147
+export 68 0 136
+export 66 0 126
+export 65 0 120
+export 63 0 114
+export 62 0 108
+export 61 0 102
+export 53 0 90
+export 52 0 80
+export 49 0 71
+export 46 0 64
+export 43 0 57
+export 33 0 52
+export 37 1 47
+export 36 0 38
+export 32 0 32
+export 27 0 30
+export 21 0 20
+export 17 0 15
+export 5 1 10
+export 2 0 2
+end
+
+chunk FunT 76
+count 3
+lambda 74 0 155 0 0 129567131
+lambda 73 0 153 1 0 129567131
+lambda 72 0 151 2 0 129567131
+end
+
+chunk LitT 72
+hex 000000000000000200000016836c0000000277046c696e6b77076d6f6e69746f
+hex 726a00000022836c0000000277076d6f6e69746f72680277087072696f726974
+hex 797704686967686a
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 52
+count 4
+local 74 0 155
+local 73 0 153
+local 72 0 151
+local 69 2 143
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e100009c368e5f265879a9122d4
+hex fb753321f76a6a
+end
+
+chunk CInf 118
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b0042633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f6c696e6b5f64656d6f2e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 257
+version 0
+flags 0
+count 136
+record 1 18 1
+record 1 20 0
+record 1 21 0
+record 1 23 0
+record 1 30 0
+record 1 25 0
+record 1 33 0
+record 1 34 0
+record 1 35 0
+record 1 36 0
+record 1 39 0
+record 1 40 0
+record 1 43 0
+record 1 44 0
+record 1 45 0
+record 1 46 0
+record 1 47 0
+record 1 56 0
+record 1 62 0
+record 1 60 0
+record 1 51 0
+record 1 65 0
+record 1 69 0
+record 1 70 0
+record 1 71 0
+record 1 72 0
+record 1 76 0
+record 1 83 0
+record 1 84 0
+record 1 85 0
+record 1 90 0
+record 1 94 0
+record 1 88 0
+record 1 97 0
+record 1 98 0
+record 1 99 0
+record 1 102 0
+record 1 105 0
+record 1 106 0
+record 1 107 0
+record 1 108 0
+record 1 109 0
+record 1 110 0
+record 1 112 0
+record 1 117 0
+record 1 118 0
+record 1 119 0
+record 1 120 0
+record 1 121 0
+record 1 123 0
+record 1 129 0
+record 1 130 0
+record 1 131 0
+record 1 132 0
+record 1 138 0
+record 1 142 0
+record 1 136 0
+record 1 146 0
+record 1 147 0
+record 1 148 0
+record 1 149 0
+record 1 150 0
+record 1 156 0
+record 1 160 0
+record 1 154 0
+record 1 163 0
+record 1 164 0
+record 1 165 0
+record 1 166 0
+record 1 167 0
+record 1 168 0
+record 1 169 0
+record 1 170 0
+record 1 171 0
+record 1 172 0
+record 1 174 0
+record 1 178 0
+record 1 179 0
+record 1 180 0
+record 1 181 0
+record 1 185 0
+record 1 188 0
+record 1 189 0
+record 1 190 0
+record 1 194 0
+record 1 197 0
+record 1 198 0
+record 1 199 0
+record 1 203 0
+record 1 206 0
+record 1 207 0
+record 1 208 0
+record 1 212 0
+record 1 215 0
+record 1 216 0
+record 1 217 0
+record 1 218 0
+record 1 227 0
+record 1 222 0
+record 1 230 0
+record 1 231 0
+record 1 232 0
+record 1 236 0
+record 1 239 0
+filename 0 src/test/erl/link_demo.erl
+end
+
+chunk Type 14
+hex 00000004000000031fff04000100
+end

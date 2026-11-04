@@ -74,4 +74,5 @@ nav:
       - Benchmarks: benchmarks.md
   - Project:
       - Roadmap: roadmap.md
+      - Compiling Erlang: compiler.md
       - Releasing: release.md

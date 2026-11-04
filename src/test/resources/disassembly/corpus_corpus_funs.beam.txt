@@ -1,0 +1,236 @@
+beam 1
+
+chunk AtU8 159
+count -15
+atom 1 corpus_funs
+atom 2 run
+atom 3 ok
+atom 4 sum_pairs
+atom 5 erlang
+atom 6 +
+atom 7 lists
+atom 8 reverse
+atom 9 module_info
+atom 10 get_module_info
+atom 11 -run/0-fun-4-
+atom 12 -run/0-fun-3-
+atom 13 -run/0-lc$^2/1-0-
+atom 14 -run/0-fun-1-
+atom 15 -run/0-fun-0-
+end
+
+chunk Code 395
+header 16 0 181 25 9
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 1) (int 0 0 0 0)
+ins 172 init_yregs (list (int 0 0 0 1) (int 4 0 0 0))
+ins 64 move (int 1 0 0 3) (int 3 0 0 1)
+ins 64 move (int 1 0 0 2) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 4 call (int 0 0 0 2) (int 5 1 0 24)
+ins 43 is_eq_exact (int 5 0 0 6) (typed-register (int 3 0 0 0) (int 0 0 0 1)) (int 1 0 0 5)
+ins 16 test_heap (allocation (int 0 0 0 3) (int 0 0 0 0) (int 0 0 0 0) (int 0 0 0 1) (int 0 0 0 0) (int 0 0 0 2) (int 0 0 0 1)) (int 0 0 0 0)
+ins 171 make_fun3 (int 0 0 0 0) (int 4 0 0 0) (list (int 0 0 0 0))
+ins 64 move (int 4 0 0 0) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 3)
+ins 4 call (int 0 0 0 2) (int 5 1 0 19)
+ins 43 is_eq_exact (int 5 0 0 5) (typed-register (int 3 0 0 0) (int 0 0 0 2)) (literal (int 0 0 0 1))
+ins 64 move (int 1 0 0 5) (int 3 0 0 1)
+ins 64 move (int 4 0 0 0) (int 3 0 0 0)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 0 0 4)
+ins 4 call (int 0 0 0 2) (int 5 1 0 17)
+ins 43 is_eq_exact (int 5 0 0 4) (int 3 0 0 0) (int 1 0 0 6)
+ins 153 line (int 0 0 0 5)
+ins 4 call (int 0 0 0 0) (int 5 0 0 15)
+ins 64 move (int 2 0 0 0) (int 3 0 0 1)
+ins 64 move (literal (int 0 0 0 2)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 6)
+ins 4 call (int 0 0 0 2) (int 5 0 0 8)
+ins 43 is_eq_exact (int 5 0 0 3) (typed-register (int 3 0 0 0) (int 0 0 0 3)) (literal (int 0 0 0 3))
+ins 64 move (int 2 0 0 3) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 4)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 3)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 7)
+ins 153 line (int 0 0 0 7)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 4) (int 0 0 0 2)
+ins 1 label (int 0 0 0 8)
+ins 56 is_nonempty_list (int 5 0 0 9) (int 3 0 0 0)
+ins 65 get_list (int 3 0 0 0) (int 3 0 0 2) (int 3 0 0 0)
+ins 66 get_tuple_element (int 3 0 0 2) (int 0 0 0 0) (int 3 0 0 3)
+ins 66 get_tuple_element (int 3 0 0 2) (int 0 0 0 1) (int 3 0 0 2)
+ins 153 line (int 0 0 0 8)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 4) (int 0 0 0 0) (typed-register (int 3 0 0 3) (int 0 0 0 4)) (typed-register (int 3 0 0 2) (int 0 0 0 5)) (int 3 0 0 2)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 3)
+ins 69 put_list (int 3 0 0 2) (int 3 0 0 1) (int 3 0 0 1)
+ins 6 call_only (int 0 0 0 2) (int 5 0 0 8)
+ins 1 label (int 0 0 0 9)
+ins 64 move (int 3 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 9)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 1)
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 0)
+ins 1 label (int 0 0 0 11)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 2)
+ins 1 label (int 0 0 0 12)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 1)
+ins 1 label (int 0 0 0 13)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 3)
+ins 1 label (int 0 0 0 14)
+ins 153 line (int 0 0 0 10)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 11) (int 0 0 0 0)
+ins 1 label (int 0 0 0 15)
+ins 64 move (int 1 0 0 7) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 16)
+ins 153 line (int 0 0 0 11)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 12) (int 0 0 0 2)
+ins 1 label (int 0 1 0 17)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 2)
+ins 169 swap (int 3 0 0 0) (int 3 0 0 1)
+ins 75 call_fun (int 0 0 0 1)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 18)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 13) (int 0 0 0 2)
+ins 1 label (int 0 1 0 19)
+ins 56 is_nonempty_list (int 5 1 0 20) (int 3 0 0 0)
+ins 12 allocate (int 0 0 0 2) (int 0 0 0 2)
+ins 64 move (int 3 0 0 1) (int 4 0 0 1)
+ins 65 get_list (int 3 0 0 0) (int 3 0 0 0) (int 4 0 0 0)
+ins 4 call (int 0 0 0 1) (int 5 1 0 22)
+ins 64 move (int 4 0 0 0) (int 3 0 0 2)
+ins 64 move (int 4 0 0 1) (int 3 0 0 1)
+ins 64 move (int 3 0 0 0) (int 4 0 0 1)
+ins 136 trim (int 0 0 0 1) (int 0 0 0 1)
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 4 call (int 0 0 0 2) (int 5 1 0 19)
+ins 16 test_heap (int 0 0 0 2) (int 0 0 0 1)
+ins 69 put_list (int 4 0 0 0) (int 3 0 0 0) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 1)
+ins 19 return
+ins 1 label (int 0 1 0 20)
+ins 19 return
+ins 1 label (int 0 1 0 21)
+ins 153 line (int 0 0 0 12)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 14) (int 0 0 0 1)
+ins 1 label (int 0 1 0 22)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 1) (int 0 0 0 0) (int 3 0 0 0) (int 1 0 0 1) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 23)
+ins 153 line (int 0 0 0 13)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 15) (int 0 0 0 2)
+ins 1 label (int 0 1 0 24)
+ins 125 gc_bif2 (int 5 0 0 0) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 0) (int 3 0 0 1) (int 3 0 0 0)
+ins 19 return
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 52
+count 4
+import 5 6 2
+import 7 8 1
+import 5 10 1
+import 5 10 2
+end
+
+chunk ExpT 40
+count 3
+export 9 1 13
+export 9 0 11
+export 2 0 2
+end
+
+chunk FunT 28
+count 1
+lambda 14 1 22 0 0 48017893
+end
+
+chunk LitT 63
+hex 000000000000000400000007836b000301020300000007836b00030203040000
+hex 0013836c000000026802610161026802610361046a00000006836b00020307
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 76
+count 6
+local 15 2 24
+local 14 1 22
+local 13 2 19
+local 12 2 17
+local 11 0 15
+local 4 2 8
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e10009a96c06956c7ae8cb05e06
+hex 01aa3c965b6a6a
+end
+
+chunk CInf 127
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b004b633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f636f727075732f636f727075735f66756e732e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 77
+version 0
+flags 0
+count 19
+record 1 7 1
+record 1 9 0
+record 1 12 0
+record 1 15 0
+record 1 19 0
+record 1 21 0
+record 1 24 0
+record 1 27 0
+record 1 25 0
+record 1 17 0
+record 1 14 0
+record 1 11 0
+record 1 8 0
+filename 0 src/test/erl/corpus/corpus_funs.erl
+end
+
+chunk Type 52
+hex 00000004000000061fff00280004008460200000000000000001000000000000
+hex 0003602000000000000000020000000000000004
+end

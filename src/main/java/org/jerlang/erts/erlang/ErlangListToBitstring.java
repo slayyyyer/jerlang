@@ -29,7 +29,6 @@ public class ErlangListToBitstring {
      * http://www.erlang.org/doc/man/erlang.html#list_to_bitstring-1
      */
     public static BitString list_to_bitstring_1(List list) {
-        System.out.println("list_to_bitstring: " + list);
         try (BitStringOutputStream bsos = new BitStringOutputStream()) {
             while (list.length() > 0) {
                 bsos.write(list.head());

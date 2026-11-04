@@ -1,9 +1,10 @@
 package org.jerlang.stdlib.beam_lib;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.jerlang.FunctionSignature;
-import org.jerlang.type.List;
 
 /**
  * = Local Function Table Chunk
@@ -26,8 +27,22 @@ public class LocalFunctionTableChunk extends Chunk {
         locals.add(functionSignature);
     }
 
-    public List locals() {
-        return List.of(locals);
+    /**
+     * The local functions as an Erlang list. {@code List.of} builds its result
+     * by prepending, so this list is in reverse file order; it exists for the
+     * interpreter, which looks records up by signature and does not care.
+     */
+    public org.jerlang.type.List locals() {
+        return org.jerlang.type.List.of(locals);
+    }
+
+    /**
+     * The local functions in file order, for the writer. The order is part of
+     * the chunk: a table written backwards is the same table to the loader and
+     * a different chunk to {@code beam_lib:md5/1}.
+     */
+    public List<FunctionSignature> records() {
+        return Collections.unmodifiableList(locals);
     }
 
     @Override

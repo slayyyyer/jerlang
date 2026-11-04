@@ -1,0 +1,87 @@
+beam 1
+
+chunk Line 26
+version 0
+flags 0
+count 10
+record 0 7 0
+record 0 8 0
+record 0 9 0
+record 0 10 0
+record 0 11 0
+record 0 12 0
+end
+
+chunk Atom 50
+count 5
+atom 1 float
+atom 2 test
+atom 3 module_info
+atom 4 erlang
+atom 5 get_module_info
+end
+
+chunk Code 158
+header 16 0 153 7 3
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 153 line (int 0 0 0 2)
+ins 97 fconv (int 3 0 0 0) (float-register 0)
+ins 96 fmove (literal (int 0 0 0 0)) (float-register 16)
+ins 94 fclearerror
+ins 98 fadd (int 5 0 0 0) (float-register 0) (float-register 16) (float-register 0)
+ins 153 line (int 0 0 0 3)
+ins 96 fmove (literal (int 0 0 0 0)) (float-register 16)
+ins 100 fmul (int 5 0 0 0) (float-register 0) (float-register 16) (float-register 0)
+ins 153 line (int 0 0 0 4)
+ins 96 fmove (literal (int 0 0 0 0)) (float-register 16)
+ins 101 fdiv (int 5 0 0 0) (float-register 0) (float-register 16) (float-register 0)
+ins 153 line (int 0 0 0 5)
+ins 102 fnegate (int 5 0 0 0) (float-register 0) (float-register 0)
+ins 153 line (int 0 0 0 6)
+ins 16 test_heap (allocation (int 0 0 0 2) (int 0 0 0 0) (int 0 0 0 0) (int 0 0 0 1) (int 0 0 0 1)) (int 0 0 0 1)
+ins 96 fmove (literal (int 0 0 0 0)) (float-register 16)
+ins 99 fsub (int 5 0 0 0) (float-register 0) (float-register 16) (float-register 0)
+ins 95 fcheckerror (int 5 0 0 0)
+ins 96 fmove (float-register 0) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 3) (int 0 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 3) (int 0 0 0 1)
+ins 1 label (int 0 0 0 6)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 4 5 1
+import 4 5 2
+end
+
+chunk ExpT 40
+count 3
+export 3 1 6
+export 3 0 4
+export 2 1 2
+end
+
+chunk LitT 26
+hex 00000012789c63606060646060e06a76b3ffc100060010e3020c
+end

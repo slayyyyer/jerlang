@@ -1,7 +1,7 @@
 # mnesia service
 
 The same shape as `http-service` — Gradle pulls
-`io.github.slayyyyer:jerlang:1.0.0`, Java is fixed plumbing, the routes are
+`io.github.slayyyyer:jerlang:1.1.0`, Java is fixed plumbing, the routes are
 `.erl` — with one difference that matters: **the data is not in the JVM**. It is
 in mnesia on an Erlang/OTP node, reached over distribution. The JVM node loads no
 mnesia modules and never starts mnesia; it speaks the distribution protocol and

@@ -17,7 +17,7 @@ what the code does today, not against the original intent.
 | Scheduler | One scheduler thread per processor with no balancing. A process gets 1,000 instructions per slice, and a CPU-bound loop in its outermost activation yields at the next instruction boundary; `process_info(reductions)` reports the count. Cross-module tail calls switch instruction streams in place, so a tail loop stays preemptible; a yield inside a nested non-tail call is still deferred until that call returns. Run queues are split by max/high/normal/low priority, and `process_flag(priority, ...)` moves a queued process. All timers use one 512-slot, 1 ms timer wheel. |
 | Tests | 556 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 19 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks, the distribution benchmarks and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
-| CI | GitHub Actions runs `mvn -B test` on pull requests and pushes to `master`, an `otp` job that runs the OTP-backed behaviour tests, and a `conformance` job that installs OTP and enforces the pass-rate floor. |
+| CI | GitHub Actions runs `mvn -B verify` on pull requests and pushes to `master`, including the shaded-jar compile smoke test and the API gate; an `otp` job runs the OTP-backed behaviour tests, and a `conformance` job installs OTP and enforces the pass-rate floor. |
 | Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
 
 The 0.4 claim — "multi-node applications can be interpreted" — is true for
@@ -52,7 +52,9 @@ Explicit non-goals for 1.0:
   code is the replacement for NIFs; bridging to OpenSSL is a separate project.
 * Hot code upgrade and OTP release handling.
 * `global` name registration and multi-node `global` locks.
-* Bytecode compilation as a prerequisite for correctness.
+* Bytecode compilation as a prerequisite for correctness. That boundary holds
+  for the 1.x line; 2.0 adds a compiler as a separate track, planned in
+  [compiler.md](compiler.md).
 
 ## Milestones
 
@@ -382,3 +384,15 @@ credible story; if it does not, the gaps are known and finite.
   says so in [release.md](release.md).
 * **Hot upgrade.** Deferred, and should be stated as such; production users who
   need it are not served by this runtime yet.
+
+## 2.0 — compiling Erlang source
+
+1.x reads what `erlc` produces. 2.0 adds the other half: an Erlang source
+compiler that emits standard OTP 29 `.beam` files, so a JVM-only deployment
+does not need an Erlang installation to build its own modules, and the
+interpreter gets a second, independent reader of the format it already parses.
+
+The plan, its milestones, its definition of "BEAM compatible" and the
+agent-adjusted estimates are in [compiler.md](compiler.md). Nothing in that
+track is a prerequisite for a 1.x release, and the 1.x compatibility bar is
+unchanged.

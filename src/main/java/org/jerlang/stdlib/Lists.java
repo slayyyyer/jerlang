@@ -5,6 +5,8 @@ import org.jerlang.stdlib.lists.ListsConcat;
 import org.jerlang.stdlib.lists.ListsDelete;
 import org.jerlang.stdlib.lists.ListsDuplicate;
 import org.jerlang.stdlib.lists.ListsFlatten;
+import org.jerlang.stdlib.lists.ListsFoldl;
+import org.jerlang.stdlib.lists.ListsFoldr;
 import org.jerlang.stdlib.lists.ListsKeyfind;
 import org.jerlang.stdlib.lists.ListsKeymember;
 import org.jerlang.stdlib.lists.ListsKeysearch;
@@ -46,6 +48,14 @@ public class Lists {
 
     public static List flatten(List deepList, List tail) {
         return ListsFlatten.flatten_2(deepList, tail);
+    }
+
+    public static Term foldl(Term fun, Term acc, List list) {
+        return ListsFoldl.foldl_3(fun, acc, list);
+    }
+
+    public static Term foldr(Term fun, Term acc, List list) {
+        return ListsFoldr.foldr_3(fun, acc, list);
     }
 
     /**

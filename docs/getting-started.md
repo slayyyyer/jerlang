@@ -1,15 +1,18 @@
 # Getting started
 
-JErlang runs compiled Erlang on the JVM. It does not compile Erlang source, so
-the workflow is always the same: compile with `erlc`, then load the `.beam`.
+JErlang runs compiled Erlang on the JVM and ships its own compiler. The
+workflow is the same either way: compile to a `.beam`, then load it. The
+`compile` command needs no Erlang installation; beams produced by `erlc` still
+load unchanged.
 
 Two things to know before starting:
 
 - **Java 21 or newer** is required, for building and for running.
-- **Erlang/OTP 29** is needed only if the code uses OTP's own modules
-  (`gen_server`, `supervisor`, `application`, `logger`, …) or if you want to
-  connect to an OTP node. A module that only uses `erlang`, `lists`, `maps` and
-  the other built-in modules needs no Erlang installation.
+- **Erlang/OTP 29** is needed at run time if the code uses OTP's own modules
+  (`gen_server`, `supervisor`, `application`, `logger`, …) or connects to an
+  OTP node, and at compile time only if it includes OTP headers. A module that
+  only uses `erlang`, `lists`, `maps` and the other built-in modules needs no
+  Erlang installation at all.
 
 ## Install
 
@@ -74,17 +77,73 @@ greet(Name) ->
 ```
 
 ```sh
-erlc -o build hello.erl
+java -jar jerlang-1.1.0.jar compile -o build hello.erl
 java -jar jerlang-1.1.0.jar -pa build
 ```
+
+`compile` takes one or more source files and creates the output directory if it
+does not exist:
+
+| Option | Meaning |
+|--------|---------|
+| `-o DIR` | Write `.beam` files to `DIR` (default `.`) |
+| `-I DIR` | Add `DIR` to the `-include` search path |
+| `-pa DIR` | Add `DIR` as a library root for `-include_lib` and parse-transform beams |
+| `-Dname[=value]` | Define a macro; without a value it is `true` |
+| `-W` | Lint and print warnings (`-W0` disables, `-Werror` fails the build) |
+| `+debug_info` | Accepted; line tables are already emitted, and transforms see the flag |
+| `+warnings_as_errors` | Same as `-Werror` |
+| `--` | Treat the remaining arguments as source files |
+
+`-include("...")` resolves next to the source and then under each `-I`
+directory. `-include_lib("app/include/file.hrl")` resolves `app` under each
+`-pa` root, using the `app-version` directory layout OTP uses. `-Dname=value`
+scans the value as Erlang tokens, so `-DLEVEL=2` defines an integer,
+`-DNAME=worker` an atom, and `-DFLAG` the atom `true`, matching `erlc`.
+
+`-compile({parse_transform, Module}).` and
+`-compile([{parse_transform, Module}]).` run a transform after parsing and
+before linting. The module must export `parse_transform/2` and is loaded from a
+`-pa` root, the working directory, or the ordinary code path. It runs in a
+started JErlang VM and receives the forms plus OTP-shaped options:
+`debug_info`, `warnings_as_errors`, `{i, Dir}` and `{d, Name, Value}`. Modules
+beside the transform are loadable from `-pa` too, so a transform may call a
+helper compiled into the same directory. The transform may itself have been
+compiled by JErlang.
+
+A transform that spawns an Erlang process has a 30 second default bound. The
+Java API can change it with `parseTransformTimeoutMillis`; zero disables the
+bound. A timeout is a compile error and does not write a beam. Parse transforms
+are trusted compile-time code, not a sandbox.
+
+The same compiler is available as a Java API when the command line is not the
+right surface:
+
+```java
+Compiler.Options options = Compiler.Options.builder()
+    .outputDirectory(Paths.get("build"))
+    .includePath("include")
+    .define("DEBUG", null)
+    .warnings(true)
+    .build();
+Compiler.Result result = Compiler.compileFile(Paths.get("hello.erl"), options);
+if (!result.success()) {
+    for (Diagnostic diagnostic : result.diagnostics()) {
+        System.err.println(diagnostic.format());
+    }
+}
+```
+
+`Compiler.compile` returns the beam bytes without writing a file.
 
 ```erlang
 1> hello:greet("erlang").
 "hello, erlang"
 ```
 
-`-pa` prepends a directory to the code path; `-pz` appends, and `ERL_LIBS`
-works the way it does in OTP. The module loader also looks in the working
+At run time, `-pa` prepends a directory to the code path; `-pz` appends, and
+`ERL_LIBS` works the way it does in OTP. The compile command's `-pa` is an
+`-include_lib` library root, not a run-time code path. The module loader also looks in the working
 directory, so a `.beam` next to where the JVM was started needs no flag.
 
 Note the module search path is process-wide state. Embedded applications that

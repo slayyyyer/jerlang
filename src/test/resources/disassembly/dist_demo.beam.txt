@@ -1,0 +1,136 @@
+beam 1
+
+chunk AtU8 114
+count -12
+atom 1 dist_demo
+atom 2 echo_roundtrip
+atom 3 erlang
+atom 4 self
+atom 5 echo
+atom 6 timeout
+atom 7 node_name
+atom 8 node
+atom 9 peer_nodes
+atom 10 nodes
+atom 11 module_info
+atom 12 get_module_info
+end
+
+chunk Code 151
+header 16 0 181 14 5
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 2)
+ins 1 label (int 0 0 0 2)
+ins 13 allocate_heap (int 0 0 0 0) (int 0 0 0 6) (int 0 0 0 2)
+ins 9 bif0 (int 0 0 0 0) (int 3 0 0 2)
+ins 164 put_tuple2 (int 3 0 0 0) (list (int 0 0 0 2) (int 2 0 0 5) (int 3 0 0 0))
+ins 164 put_tuple2 (int 3 0 0 1) (list (int 0 0 0 2) (int 3 0 0 2) (int 3 0 0 1))
+ins 153 line (int 0 0 0 2)
+ins 20 send
+ins 1 label (int 0 0 0 3)
+ins 23 loop_rec (int 5 0 0 5) (int 3 0 0 0)
+ins 159 is_tagged_tuple (int 5 0 0 4) (int 3 0 0 0) (int 0 0 0 2) (int 2 0 0 5)
+ins 66 get_tuple_element (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 21 remove_message
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 4)
+ins 24 loop_rec_end (int 5 0 0 3)
+ins 1 label (int 0 0 0 5)
+ins 26 wait_timeout (int 5 0 0 3) (int 1 2 2 5000)
+ins 22 timeout
+ins 64 move (int 2 0 0 6) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 0)
+ins 1 label (int 0 0 0 7)
+ins 9 bif0 (int 0 0 0 1) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 8)
+ins 153 line (int 0 0 0 4)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 0)
+ins 1 label (int 0 0 0 9)
+ins 78 call_ext_only (int 0 0 0 0) (int 0 0 0 2)
+ins 1 label (int 0 0 0 10)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 11) (int 0 0 0 0)
+ins 1 label (int 0 0 0 11)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 3)
+ins 1 label (int 0 0 0 12)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 11) (int 0 0 0 1)
+ins 1 label (int 0 0 0 13)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 4)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 64
+count 5
+import 3 4 0
+import 3 8 0
+import 3 10 0
+import 3 12 1
+import 3 12 2
+end
+
+chunk ExpT 64
+count 5
+export 11 1 13
+export 11 0 11
+export 9 0 9
+export 7 0 7
+export 2 2 2
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 4
+count 0
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e1000826e68de498019ef596d74
+hex 86806c48d36a6a
+end
+
+chunk CInf 118
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b0042633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f65726c2f646973745f64656d6f2e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 55
+version 0
+flags 0
+count 6
+record 1 10 1
+record 1 11 0
+record 1 18 0
+record 1 21 0
+filename 0 src/test/erl/dist_demo.erl
+end
+
+chunk Type 10
+hex 00000004000000011fff
+end

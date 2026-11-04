@@ -1,0 +1,282 @@
+beam 1
+
+chunk AtU8 207
+count -18
+atom 1 bs_get_utf
+atom 2 test8
+atom 3 ensure_at_least
+atom 4 test16
+atom 5 test32
+atom 6 test8_unicode
+atom 7 test16_unicode
+atom 8 test32_unicode
+atom 9 test8_bad
+atom 10 matched
+atom 11 no_match
+atom 12 test16_bad
+atom 13 test32_bad
+atom 14 test16_little
+atom 15 test32_little
+atom 16 module_info
+atom 17 erlang
+atom 18 get_module_info
+end
+
+chunk Code 662
+header 16 0 182 46 13
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 1)
+ins 1 label (int 0 0 0 2)
+ins 166 bs_start_match3 (int 5 0 0 4) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 138 bs_get_utf8 (int 5 0 0 3) (typed-register (int 3 0 0 1) (int 0 0 0 1)) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 182 bs_match (int 5 0 0 3) (int 3 0 0 1) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 153 line (int 0 0 0 2)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 4) (int 0 0 0 1)
+ins 1 label (int 0 0 0 6)
+ins 166 bs_start_match3 (int 5 0 0 8) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 140 bs_get_utf16 (int 5 0 0 7) (typed-register (int 3 0 0 1) (int 0 0 0 1)) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 182 bs_match (int 5 0 0 7) (int 3 0 0 1) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 7)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 8)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 9)
+ins 153 line (int 0 0 0 3)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 5) (int 0 0 0 1)
+ins 1 label (int 0 0 0 10)
+ins 166 bs_start_match3 (int 5 0 0 12) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 142 bs_get_utf32 (int 5 0 0 11) (typed-register (int 3 0 0 1) (int 0 0 0 1)) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 182 bs_match (int 5 0 0 11) (int 3 0 0 1) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 11)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 12)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 13)
+ins 153 line (int 0 0 0 4)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 6) (int 0 0 0 1)
+ins 1 label (int 0 0 0 14)
+ins 166 bs_start_match3 (int 5 1 0 16) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 138 bs_get_utf8 (int 5 0 0 15) (typed-register (int 3 0 0 1) (int 0 0 0 1)) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 182 bs_match (int 5 0 0 15) (int 3 0 0 1) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 15)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 16)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 17)
+ins 153 line (int 0 0 0 5)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 1)
+ins 1 label (int 0 1 0 18)
+ins 166 bs_start_match3 (int 5 1 0 20) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 140 bs_get_utf16 (int 5 1 0 19) (typed-register (int 3 0 0 1) (int 0 0 0 1)) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 182 bs_match (int 5 1 0 19) (int 3 0 0 1) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 19)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 20)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 21)
+ins 153 line (int 0 0 0 6)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 8) (int 0 0 0 1)
+ins 1 label (int 0 1 0 22)
+ins 166 bs_start_match3 (int 5 1 0 24) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 142 bs_get_utf32 (int 5 1 0 23) (typed-register (int 3 0 0 1) (int 0 0 0 1)) (int 0 0 0 2) (int 0 0 0 0) (int 3 0 0 2)
+ins 182 bs_match (int 5 1 0 23) (int 3 0 0 1) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 23)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 24)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 25)
+ins 153 line (int 0 0 0 7)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 9) (int 0 0 0 1)
+ins 1 label (int 0 1 0 26)
+ins 166 bs_start_match3 (int 5 1 0 27) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 139 bs_skip_utf8 (int 5 1 0 27) (typed-register (int 3 0 0 0) (int 0 0 0 1)) (int 0 0 0 1) (int 0 0 0 0)
+ins 182 bs_match (int 5 1 0 27) (int 3 0 0 0) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 2 0 0 10) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 27)
+ins 64 move (int 2 0 0 11) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 28)
+ins 153 line (int 0 0 0 8)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 12) (int 0 0 0 1)
+ins 1 label (int 0 1 0 29)
+ins 166 bs_start_match3 (int 5 1 0 30) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 141 bs_skip_utf16 (int 5 1 0 30) (typed-register (int 3 0 0 0) (int 0 0 0 1)) (int 0 0 0 1) (int 0 0 0 0)
+ins 182 bs_match (int 5 1 0 30) (int 3 0 0 0) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 2 0 0 10) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 30)
+ins 64 move (int 2 0 0 11) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 31)
+ins 153 line (int 0 0 0 9)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 13) (int 0 0 0 1)
+ins 1 label (int 0 1 0 32)
+ins 166 bs_start_match3 (int 5 1 0 33) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 0)
+ins 143 bs_skip_utf32 (int 5 1 0 33) (typed-register (int 3 0 0 0) (int 0 0 0 1)) (int 0 0 0 1) (int 0 0 0 0)
+ins 182 bs_match (int 5 1 0 33) (int 3 0 0 0) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 2 0 0 10) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 33)
+ins 64 move (int 2 0 0 11) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 34)
+ins 153 line (int 0 0 0 10)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 14) (int 0 0 0 1)
+ins 1 label (int 0 1 0 35)
+ins 166 bs_start_match3 (int 5 1 0 37) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 140 bs_get_utf16 (int 5 1 0 36) (typed-register (int 3 0 0 1) (int 0 0 0 1)) (int 0 0 0 2) (int 0 0 0 2) (int 3 0 0 2)
+ins 182 bs_match (int 5 1 0 36) (int 3 0 0 1) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 36)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 37)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 38)
+ins 153 line (int 0 0 0 11)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 15) (int 0 0 0 1)
+ins 1 label (int 0 1 0 39)
+ins 166 bs_start_match3 (int 5 1 0 41) (int 3 0 0 0) (int 0 0 0 1) (int 3 0 0 1)
+ins 167 bs_get_position (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 142 bs_get_utf32 (int 5 1 0 40) (typed-register (int 3 0 0 1) (int 0 0 0 1)) (int 0 0 0 2) (int 0 0 0 2) (int 3 0 0 2)
+ins 182 bs_match (int 5 1 0 40) (int 3 0 0 1) (list (int 0 0 0 3) (int 2 0 0 3) (int 0 0 0 0) (int 0 0 0 8))
+ins 64 move (int 3 0 0 2) (int 3 0 0 0)
+ins 19 return
+ins 1 label (int 0 1 0 40)
+ins 168 bs_set_position (int 3 0 0 1) (int 3 0 0 0)
+ins 165 bs_get_tail (int 3 0 0 1) (int 3 0 0 0) (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 41)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 1 0 42)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 16) (int 0 0 0 0)
+ins 1 label (int 0 1 0 43)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 0)
+ins 1 label (int 0 1 0 44)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 1 0 16) (int 0 0 0 1)
+ins 1 label (int 0 1 0 45)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 1)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 28
+count 2
+import 17 18 1
+import 17 18 2
+end
+
+chunk ExpT 160
+count 13
+export 16 1 45
+export 16 0 43
+export 15 1 39
+export 14 1 35
+export 13 1 32
+export 12 1 29
+export 9 1 26
+export 8 1 22
+export 7 1 18
+export 6 1 14
+export 5 1 10
+export 4 1 6
+export 2 1 2
+end
+
+chunk Meta 45
+hex 836c0000000168027710656e61626c65645f66656174757265736c0000000177
+hex 0a6d617962655f657870726a6a
+end
+
+chunk LocT 4
+count 0
+end
+
+chunk Attr 39
+hex 836c000000016802770376736e6c000000016e100035935329c7686d4813c17d
+hex 1433effe7b6a6a
+end
+
+chunk CInf 125
+hex 836c000000036802770776657273696f6e6b000631302e302e37680277076f70
+hex 74696f6e736a68027706736f757263656b0049633a2f55736572732f6a757374
+hex 696e2f446f776e6c6f6164732f6a6265616d2f6a65726c616e672f7372632f74
+hex 6573742f7265736f75726365732f62735f6765745f7574662e65726c6a
+end
+
+chunk Dbgi 100
+hex 836803770d64656275675f696e666f5f7631771165726c5f6162737472616374
+hex 5f636f6465680277046e6f6e656c00000001680277036377646b0027633a2f55
+hex 736572732f6a757374696e2f446f776e6c6f6164732f6a6265616d2f6a65726c
+hex 616e676a
+end
+
+chunk Line 74
+version 0
+flags 0
+count 13
+record 1 11 1
+record 1 12 0
+record 1 13 0
+record 1 15 0
+record 1 16 0
+record 1 17 0
+record 1 19 0
+record 1 24 0
+record 1 29 0
+record 1 35 0
+record 1 36 0
+filename 0 src/test/resources/bs_get_utf.erl
+end
+
+chunk Type 12
+hex 00000004000000021fff0002
+end

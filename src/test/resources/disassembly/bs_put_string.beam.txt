@@ -1,0 +1,81 @@
+beam 1
+
+chunk Line 22
+version 0
+flags 0
+count 8
+record 0 7 0
+record 0 8 0
+end
+
+chunk Atom 97
+count 8
+atom 1 bs_put_string
+atom 2 test
+atom 3 erlang
+atom 4 bitstring_to_list
+atom 5 list_to_bitstring
+atom 6 ok
+atom 7 module_info
+atom 8 get_module_info
+end
+
+chunk Code 104
+header 16 0 153 8 3
+ins 1 label (int 0 0 0 1)
+ins 153 line (int 0 0 0 1)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 2) (int 0 0 0 0)
+ins 1 label (int 0 0 0 2)
+ins 12 allocate (int 0 0 0 0) (int 0 0 0 0)
+ins 64 move (literal (int 0 0 0 0)) (int 3 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 0)
+ins 153 line (int 0 0 0 2)
+ins 7 call_ext (int 0 0 0 1) (int 0 0 0 1)
+ins 43 is_eq_exact (int 5 0 0 3) (int 3 0 0 0) (literal (int 0 0 0 0))
+ins 64 move (int 2 0 0 6) (int 3 0 0 0)
+ins 18 deallocate (int 0 0 0 0)
+ins 19 return
+ins 1 label (int 0 0 0 3)
+ins 153 line (int 0 0 0 2)
+ins 72 badmatch (int 3 0 0 0)
+ins 1 label (int 0 0 0 4)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 0)
+ins 1 label (int 0 0 0 5)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 1) (int 0 0 0 2)
+ins 1 label (int 0 0 0 6)
+ins 153 line (int 0 0 0 0)
+ins 2 func_info (int 2 0 0 1) (int 2 0 0 7) (int 0 0 0 1)
+ins 1 label (int 0 0 0 7)
+ins 64 move (int 3 0 0 0) (int 3 0 0 1)
+ins 64 move (int 2 0 0 1) (int 3 0 0 0)
+ins 153 line (int 0 0 0 0)
+ins 78 call_ext_only (int 0 0 0 2) (int 0 0 0 3)
+ins 3 int_code_end
+end
+
+chunk StrT 0
+hex
+end
+
+chunk ImpT 52
+count 4
+import 3 4 1
+import 3 5 1
+import 3 8 1
+import 3 8 2
+end
+
+chunk ExpT 40
+count 3
+export 7 1 7
+export 7 0 5
+export 2 0 2
+end
+
+chunk LitT 32
+hex 0000001f789c63606060646060106ff60592022c0c4840a121210000193a024d
+end

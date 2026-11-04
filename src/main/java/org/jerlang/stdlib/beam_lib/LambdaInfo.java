@@ -40,6 +40,14 @@ public class LambdaInfo extends Tuple {
         return new FunctionSignature(module, function, arity);
     }
 
+    public Atom function() {
+        return element(2).toTuple().element(1).toAtom();
+    }
+
+    public int arity() {
+        return element(2).toTuple().element(2).toInteger().toInt();
+    }
+
     public Integer label() {
         Tuple tuple = element(2).toTuple();
         return tuple.element(3).toInteger();

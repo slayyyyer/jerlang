@@ -6,11 +6,11 @@ to run one, and what still does not work.
 
 ## Compiling
 
-JErlang has no compiler of its own, so `.beam` files are produced with `erlc`
-from an Erlang/OTP installation and loaded from the working directory or from
-another directory on the code path:
+JErlang ships a compiler, and it still loads `.beam` files produced by `erlc`
+from an Erlang/OTP installation. Either way the result is loaded from the
+working directory or from another directory on the code path:
 
-```
+```sh
 erlc -o src/test/resources src/test/erl/bridge_demo.erl
 ```
 
@@ -477,7 +477,6 @@ replace.
 
 ## Not changed
 
-- JErlang does not compile Erlang source; `.beam` files must come from `erlc`.
 - The shell still accepts only zero-argument `m:f().` expressions.
 
 ## `receive ... after` inside an inbound distribution call

@@ -29,8 +29,20 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Run the test suite
-        run: mvn -B test
+      - name: Run the test suite and API gate
+        run: mvn -B verify
+
+      - name: Smoke-test the packaged jar
+        run: |
+          mkdir -p target/jar-smoke/src target/jar-smoke/out
+          printf '%s\n' '-module(jar_smoke).' '-export([value/0]).' 'value() -> 42.' \
+            > target/jar-smoke/src/jar_smoke.erl
+          jar="$(find target -maxdepth 1 -name 'jerlang-*.jar' \
+            ! -name 'original-*' ! -name '*-javadoc.jar' \
+            ! -name '*-sources.jar' ! -name '*-tests.jar' -print -quit)"
+          test -n "$jar"
+          java -jar "$jar" compile -o target/jar-smoke/out target/jar-smoke/src/jar_smoke.erl
+          test -f target/jar-smoke/out/jar_smoke.beam
 
       - name: Upload test reports
         if: failure()
