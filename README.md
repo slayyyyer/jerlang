@@ -4,7 +4,12 @@ An Erlang runtime for the [Java Virtual Machine](https://en.wikipedia.org/wiki/J
 
 [![Tests](https://github.com/slayyyyer/jerlang/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/slayyyyer/jerlang/actions/workflows/tests.yml)
 
-> **Fork notice:** this project began as a fork of [jerlang/jerlang](https://github.com/jerlang/jerlang) and is continued in this repository.
+> **Fork notice:** this project began as a fork of [jerlang/jerlang](https://github.com/jerlang/jerlang) and is now continued independently in this repository.
+
+> **Proof of concept.** JErlang is an experimental runtime, not production
+> software. It exists to test whether a JVM service can get BEAM's failure model
+> without leaving the JVM, and whether that model is easier for a human to audit
+> than equivalent Java actor code.
 
 Published to Maven Central as `io.github.slayyyyer:jerlang:2.0.0`; the 3.0.0
 release in this branch keeps the coordinates and makes the normal dependency a
@@ -13,15 +18,15 @@ documentation site is at <https://slayyyyer.github.io/jerlang/>.
 
 JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loads the BEAM files that `erlc` produces. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.
 
-## Intended goals
+## The thesis
 
-**Run Erlang where the Java code is.** The primary target is a single JVM service that hosts an Erlang control plane next to Java code: supervision trees, message-driven workers and a Java API, in one process, with calls in both directions. The same node joins an Erlang/OTP cluster over the distribution protocol, so Erlang and Java can be deployed independently.
+**A JVM service can get BEAM's failure model without leaving the JVM.** The primary target is a single JVM service that hosts an Erlang control plane next to Java code: supervision trees, message-driven workers and a Java API, in one process, with calls in both directions. The same node joins an Erlang/OTP cluster over the distribution protocol, so Erlang and Java can be deployed independently.
+
+**That model should be easier to audit than the Java equivalent.** A reviewer should be able to see what is supervised, what crashes and what restart policy applies without reconstructing an executor, a callback graph and a retry table. This is the claim the examples are meant to make checkable; it is not an argument about syntax preference.
 
 **Use OTP's own library as the compatibility bar.** The measure of correctness is not "how many opcodes exist" but "does `gen_server` from an OTP installation start and behave". Running OTP's `gen_server`, `supervisor`, `application`, `proc_lib` and `logger` unmodified is the bar for the standard library work.
 
 **Stay honest about the boundary.** JErlang is an interpreter, not a port of BEAM's C internals. There are no NIFs, no hot code upgrade, no OTP release handling and no bytecode compiler today. Those are decisions with reasons in [docs/roadmap.md](docs/roadmap.md), not forgotten features.
-
-The north-star metric is the share of a checked-in module corpus that loads and runs correctly against OTP 29. Opcode counts are a means, not the goal.
 
 ## Status
 
@@ -73,7 +78,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 
 **Tests**
 
-- A 645-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
+- A 651-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
 
 ### What does not work yet
 

@@ -1,9 +1,12 @@
 # Releasing JErlang
 
+> **Evidence, not a product release promise.** This page records how the
+> prototype artifact is built, signed and made reproducible. A 3.0.0 artifact
+> would be a research snapshot, not a long-term support commitment.
+
 This is the release guide for JErlang 3.0.0: what a version number means, what
-is supported, how to build and verify an artifact, and what the release
-checklist is. It is written to be usable by someone who has never cut a release
-here.
+was tested, how to build and verify an artifact, and what the release checklist
+is. It is written to be usable by someone who has never cut a release here.
 
 ## What the artifacts are
 
@@ -47,12 +50,15 @@ source compatibility fails the build, and the only way past it is a major
 version bump, which is what `breakBuildBasedOnSemanticVersioning` enforces. The
 gate is a build check, not a review habit.
 
-## Support policy
+## Compatibility policy
 
-* The 3.x line is supported. The most recent minor release gets fixes; the one
-  before it gets security fixes for twelve months after its successor ships.
-* Supported platforms for 3.0: Linux and Windows on Temurin 21 and newer. CI
-  runs the suite on Linux; the maintainers run it on Windows.
+These are the boundaries of the prototype, not an SLA or a support contract.
+
+* The 3.x line is the current research line. Fixes are made when they support
+  the demonstrated embedding and failure-model claims; there is no guaranteed
+  support window.
+* Tested platforms for 3.0: Linux and Windows on Temurin 21 and newer. CI runs
+  the suite on Linux; the maintainers run it on Windows.
 * Supported OTP for interoperability and the standard library: OTP 29. The
   conformance rate is recorded against 29.1.2, and the `otp` job installs OTP 29.
 * Anything on the roadmap's non-goals list — NIF-based applications, hot code

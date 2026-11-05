@@ -1,5 +1,11 @@
 # Examples
 
+!!! note "Build plugin (in progress)"
+    A build plugin that runs `.erl` sources directly, without a separate
+    compilation step, is in progress. These examples keep the current explicit
+    compile flow so they remain runnable today; the plugin path will be added
+    when it lands.
+
 Nine programs: the two directions of the Java interop, four services built on
 the published artifact, a test harness, and the Maven and Gradle embedding
 quickstarts.

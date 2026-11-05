@@ -1,8 +1,13 @@
-# Operating a node
+# Operating the prototype node
 
-Milestone 0.9 covers running and debugging a node like a service: logging,
-metrics, error reports, graceful shutdown and distribution hardening. This page
-documents what a deployment can rely on, and where the limits are.
+> **Evidence, not a production runbook.** This page records what the prototype
+> exposes and which operational claims have been tested. It is not a support
+> contract, an SLA or a deployment guide for production traffic.
+
+Milestone 0.9 added logging, metrics, error reports, graceful shutdown and
+distribution hardening. The evidence below shows that a node can be observed
+and stopped cleanly; it does not show that the runtime is ready to operate a
+production service.
 
 ## Metrics
 
@@ -216,6 +221,20 @@ between hosts you control.
 * Hidden nodes connect and are visible to `erlang:nodes(connected)`, not to
   `erlang:nodes()`.
 * There is one VM per JVM process: two nodes in one JVM are not supported.
+
+## What this evidence shows
+
+- A running node reports process, mailbox, run-queue and scheduler numbers, and
+  the text format is stable enough to scrape in a test.
+- A node can be closed while work is queued without leaving processes or uptime
+  behind, and new calls fail instead of racing shutdown.
+- A lost OTP peer is noticed, links and monitors receive `noconnection`, and a
+  reconnect restores the connection without pretending the old processes still
+  exist.
+
+What it does not show: crash-dump completeness, OTP release handling, TLS
+protection for distribution or production-grade backpressure. Those remain
+outside the prototype's boundary.
 
 ## The 0.9 exit test
 

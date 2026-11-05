@@ -1,180 +1,217 @@
-@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 /* ------------------------------------------------------------------
-   JErlang docs: plum paper, bubblegum ink, terminal-window code blocks.
-   Palette
-     plum     #160b24  page (dark)       paper  #fff5fb  page (light)
-     grape    #2a1440  panels / text     gum    #ff6fb5  accent
-     orchid   #b78cff  secondary         ice    #5ee7ff  glitch offset only
+   JErlang docs: a working notebook, not a product brochure.
+   The page is graph paper; rust marks claims that need evidence, teal
+   marks the machinery. Code blocks are printed listings, not windows.
    ------------------------------------------------------------------ */
 
 :root {
-  --md-text-font: "Instrument Sans", system-ui, sans-serif;
-  --md-code-font: "Martian Mono", ui-monospace, monospace;
-  --jl-gum: #ff6fb5;
-  --jl-orchid: #b78cff;
-  --jl-ice: #5ee7ff;
+  --md-text-font: "Space Grotesk", system-ui, sans-serif;
+  --md-code-font: "IBM Plex Mono", ui-monospace, monospace;
+  --jl-rust: #b84f2c;
+  --jl-rust-soft: rgba(184, 79, 44, 0.16);
+  --jl-teal: #1e6866;
+  --jl-teal-soft: rgba(30, 104, 102, 0.14);
+  --jl-grid: rgba(30, 104, 102, 0.07);
 }
-
-/* ---------- colour schemes ---------- */
 
 [data-md-color-scheme="slate"] {
-  --md-default-bg-color: #160b24;
-  --md-default-fg-color: #f3e3ff;
-  --md-default-fg-color--light: #cdb4e6;
-  --md-default-fg-color--lighter: #8d74a8;
-  --md-default-fg-color--lightest: rgba(255, 111, 181, 0.18);
-  --md-primary-fg-color: #2a1440;
-  --md-accent-fg-color: #ff6fb5;
-  --md-typeset-color: #f3e3ff;
-  --md-typeset-a-color: #ff8cc6;
-  --md-footer-bg-color: #0e0618;
-  --md-footer-bg-color--dark: #0a0412;
+  --jl-rust: #e58159;
+  --jl-rust-soft: rgba(229, 129, 89, 0.18);
+  --jl-teal: #72c4bd;
+  --jl-teal-soft: rgba(114, 196, 189, 0.12);
+  --jl-grid: rgba(114, 196, 189, 0.055);
+  --md-default-bg-color: #0d1418;
+  --md-default-fg-color: #e6e1d6;
+  --md-default-fg-color--light: #aeb9b7;
+  --md-default-fg-color--lighter: #70807e;
+  --md-default-fg-color--lightest: rgba(114, 196, 189, 0.16);
+  --md-primary-fg-color: #101c20;
+  --md-primary-bg-color: #e6e1d6;
+  --md-accent-fg-color: #e58159;
+  --md-typeset-color: #e6e1d6;
+  --md-typeset-a-color: #8bd0c7;
+  --md-footer-bg-color: #081013;
+  --md-footer-bg-color--dark: #050b0d;
 }
 
 [data-md-color-scheme="default"] {
-  --md-default-bg-color: #fff5fb;
-  --md-default-fg-color: #2a1440;
-  --md-default-fg-color--light: #5a3d78;
-  --md-default-fg-color--lighter: #9a82b3;
-  --md-default-fg-color--lightest: rgba(214, 36, 110, 0.14);
-  --md-primary-fg-color: #2a1440;
-  --md-accent-fg-color: #d6246e;
-  --md-typeset-color: #2a1440;
-  --md-typeset-a-color: #c01c62;
-  --md-footer-bg-color: #2a1440;
-  --md-footer-bg-color--dark: #1d0d33;
+  --md-default-bg-color: #f4efe3;
+  --md-default-fg-color: #1b2426;
+  --md-default-fg-color--light: #4f605f;
+  --md-default-fg-color--lighter: #84918e;
+  --md-default-fg-color--lightest: rgba(30, 104, 102, 0.16);
+  --md-primary-fg-color: #1f3438;
+  --md-primary-bg-color: #f4efe3;
+  --md-accent-fg-color: #a84426;
+  --md-typeset-color: #1b2426;
+  --md-typeset-a-color: #1e6866;
+  --md-footer-bg-color: #1f3438;
+  --md-footer-bg-color--dark: #142428;
 }
 
-/* Code is always a dark terminal, in both schemes */
+/* Code stays a dark printed listing in both schemes. */
 [data-md-color-scheme="slate"],
 [data-md-color-scheme="default"] {
-  --md-code-bg-color: #0e0618;
-  --md-code-fg-color: #ffe3f3;
-  --md-code-hl-color: rgba(255, 111, 181, 0.18);
-  --md-code-hl-number-color: #ffb86b;
-  --md-code-hl-special-color: #ff6fb5;
-  --md-code-hl-function-color: #b78cff;
-  --md-code-hl-constant-color: #5ee7ff;
-  --md-code-hl-keyword-color: #ff6fb5;
-  --md-code-hl-string-color: #9be8b0;
-  --md-code-hl-name-color: #ffe3f3;
-  --md-code-hl-operator-color: #cdb4e6;
-  --md-code-hl-punctuation-color: #cdb4e6;
-  --md-code-hl-comment-color: #8d74a8;
-  --md-code-hl-generic-color: #cdb4e6;
-  --md-code-hl-variable-color: #cdb4e6;
+  --md-code-bg-color: #111b1f;
+  --md-code-fg-color: #e8e1d5;
+  --md-code-hl-color: rgba(229, 129, 89, 0.18);
+  --md-code-hl-number-color: #e9a76f;
+  --md-code-hl-special-color: #e58159;
+  --md-code-hl-function-color: #8bd0c7;
+  --md-code-hl-constant-color: #d9c77a;
+  --md-code-hl-keyword-color: #e58159;
+  --md-code-hl-string-color: #a9d18e;
+  --md-code-hl-name-color: #e8e1d5;
+  --md-code-hl-operator-color: #aeb9b7;
+  --md-code-hl-punctuation-color: #aeb9b7;
+  --md-code-hl-comment-color: #71827f;
+  --md-code-hl-generic-color: #aeb9b7;
+  --md-code-hl-variable-color: #aeb9b7;
+}
+
+html,
+body {
+  background-color: var(--md-default-bg-color);
+}
+
+body {
+  background-image:
+    linear-gradient(var(--jl-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--jl-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
 ::selection {
-  background: var(--jl-gum);
-  color: #160b24;
+  background: var(--jl-rust);
+  color: #f4efe3;
 }
 
-/* ---------- header, footer ---------- */
+/* ---------- header and footer ---------- */
 
 .md-header,
 .md-tabs {
-  background: linear-gradient(90deg, #2a1440 0%, #5b1f6e 55%, #b0287a 100%);
+  background: var(--md-primary-fg-color);
 }
 
 .md-header {
-  box-shadow: 0 2px 0 rgba(255, 111, 181, 0.55);
+  border-top: 4px solid var(--jl-rust);
+  box-shadow: none;
 }
 
 .md-header__title {
-  font-family: "Bricolage Grotesque", var(--md-text-font);
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-family: var(--md-code-font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.md-header__button.md-logo {
+  border-right: 1px solid var(--md-default-fg-color--lightest);
+  padding-right: 0.7rem;
+}
+
+.md-tabs__link {
+  font-family: var(--md-code-font);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .md-footer-meta {
-  border-top: 2px solid rgba(255, 111, 181, 0.55);
+  border-top: 1px solid var(--jl-teal);
 }
 
 /* ---------- reading column ---------- */
 
 .md-typeset {
-  font-size: 0.82rem;
-  line-height: 1.7;
+  font-size: 0.84rem;
+  line-height: 1.72;
 }
 
 .md-content__inner {
-  max-width: 46rem;
+  max-width: 49rem;
 }
 
 .md-typeset h1,
 .md-typeset h2,
 .md-typeset h3,
 .md-typeset h4 {
-  font-family: "Bricolage Grotesque", var(--md-text-font);
+  font-family: var(--md-code-font);
   color: var(--md-default-fg-color);
 }
 
-/* The one loud thing: a offset sticker shadow on the page title.
-   Kept to one side, translucent and thin so the letterforms stay crisp. */
 .md-typeset h1 {
-  font-size: clamp(1.9rem, 4.2vw, 2.6rem);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.12;
-  margin: 0 0 0.8em;
+  font-size: clamp(1.7rem, 4vw, 2.35rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.18;
+  margin: 0 0 1em;
+  padding: 0.15em 0 0.15em 0.65rem;
+  border-left: 6px solid var(--jl-rust);
   color: var(--md-default-fg-color);
-  text-shadow: 2px 2px 0 rgba(255, 111, 181, 0.55);
 }
 
 .md-typeset h2 {
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  margin-top: 2.2em;
-  padding-bottom: 0.3em;
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-top: 2.6em;
+  padding-top: 0.75em;
+  border-top: 2px solid var(--jl-teal);
 }
 
 .md-typeset h3 {
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-top: 1.8em;
 }
 
 .md-typeset a {
   text-decoration: underline;
-  text-decoration-color: rgba(255, 111, 181, 0.45);
+  text-decoration-color: var(--jl-rust);
+  text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
 }
 
 .md-typeset a:hover {
-  text-decoration-color: currentColor;
+  text-decoration-thickness: 2px;
 }
 
-/* ---------- code ---------- */
+/* ---------- code listings ---------- */
 
 .md-typeset code {
-  border-radius: 6px;
-  padding: 0.1em 0.4em;
-  font-size: 0.82em;
+  border-radius: 0;
+  padding: 0.08em 0.3em;
+  font-size: 0.8em;
 }
 
-/* Fenced blocks look like small terminal windows with a hard offset shadow */
 .md-typeset .highlight {
   position: relative;
-  margin: 1.4em 0;
-  border: 1px solid rgba(255, 111, 181, 0.45);
-  border-radius: 10px;
+  margin: 1.35em 0;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-left: 4px solid var(--jl-rust);
+  border-radius: 0;
   overflow: hidden;
   background: var(--md-code-bg-color);
-  box-shadow: 6px 6px 0 rgba(183, 140, 255, 0.35);
+  box-shadow: none;
 }
 
 .md-typeset .highlight::before {
-  content: "";
+  content: "listing";
   display: block;
-  height: 26px;
-  background:
-    radial-gradient(circle at 16px 13px, #ff6fb5 4px, transparent 4.5px),
-    radial-gradient(circle at 32px 13px, #b78cff 4px, transparent 4.5px),
-    radial-gradient(circle at 48px 13px, #5ee7ff 4px, transparent 4.5px),
-    #2a1440;
-  border-bottom: 1px solid rgba(255, 111, 181, 0.3);
+  padding: 0.3rem 0.8rem;
+  background: #1f3438;
+  color: #aeb9b7;
+  font-family: var(--md-code-font);
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(114, 196, 189, 0.25);
 }
 
 .md-typeset .highlight pre {
@@ -183,39 +220,44 @@
 
 .md-typeset .highlight pre > code {
   border-radius: 0;
-  padding: 1em 1.2em;
-  background-image: repeating-linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.025) 0 1px,
-    transparent 1px 3px
-  );
+  padding: 1em 1.1em;
+  background-image: none;
 }
 
 .md-typeset .highlight .md-code__nav {
-  top: 0.15rem;
+  top: 0.2rem;
 }
 
 /* ---------- navigation ---------- */
 
 .md-nav__title {
-  font-family: "Bricolage Grotesque", var(--md-text-font);
-  font-weight: 700;
+  font-family: var(--md-code-font);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.md-nav__item .md-nav__link {
+  font-size: 0.66rem;
 }
 
 .md-nav__item .md-nav__link--active,
 .md-nav__link--active {
-  color: var(--md-accent-fg-color);
-  font-weight: 700;
+  color: var(--jl-rust);
+  font-weight: 600;
 }
 
 .md-nav--primary .md-nav__item--section > .md-nav__link {
-  font-family: "Bricolage Grotesque", var(--md-text-font);
-  font-weight: 700;
+  font-family: var(--md-code-font);
+  font-size: 0.6rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
   color: var(--md-default-fg-color);
 }
 
 .md-nav--secondary .md-nav__link--active {
-  box-shadow: -2px 0 0 var(--md-accent-fg-color);
+  border-left: 2px solid var(--jl-rust);
+  box-shadow: none;
   padding-left: 0.5rem;
   margin-left: -0.5rem;
 }
@@ -224,56 +266,68 @@
 
 .md-typeset table:not([class]) {
   border: 1px solid var(--md-default-fg-color--lightest);
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   box-shadow: none;
+  font-size: 0.72rem;
 }
 
 .md-typeset table:not([class]) th {
-  background: #2a1440;
-  color: #ffe3f3;
-  font-weight: 700;
+  background: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+  font-family: var(--md-code-font);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .md-typeset .admonition,
 .md-typeset details {
-  border-radius: 10px;
-  border-width: 1px;
-  box-shadow: 4px 4px 0 rgba(255, 111, 181, 0.25);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-left: 5px solid var(--jl-teal);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.md-typeset .admonition.warning,
+.md-typeset details.warning {
+  border-left-color: var(--jl-rust);
+  background: var(--jl-rust-soft);
+}
+
+.md-typeset .admonition-title,
+.md-typeset summary {
+  font-family: var(--md-code-font);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .md-typeset ul li::marker {
-  color: var(--md-accent-fg-color);
+  color: var(--jl-rust);
 }
 
 .md-typeset strong {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* ---------- search ---------- */
 
 .md-search__form {
-  border-radius: 999px;
+  border-radius: 0;
+  border: 1px solid var(--md-default-fg-color--lightest);
 }
 
 .md-search-result__link:hover {
-  background-color: rgba(255, 111, 181, 0.12);
+  background-color: var(--jl-teal-soft);
 }
 
-/* ---------- small screens ---------- */
+/* ---------- wide screens ---------- */
 
-@media screen and (max-width: 44.9375em) {
-  .md-typeset .highlight {
-    box-shadow: 3px 3px 0 rgba(183, 140, 255, 0.35);
+@media screen and (min-width: 76.25em) {
+  .md-content__inner {
+    margin-left: 0.8rem;
+    margin-right: auto;
   }
-  .md-typeset h1 {
-    text-shadow: 1px 1px 0 rgba(255, 111, 181, 0.55);
-  }
-}
-
-/* ---------- accessibility ---------- */
-
-:focus-visible {
-  outline: 2px solid var(--jl-ice);
-  outline-offset: 2px;
 }

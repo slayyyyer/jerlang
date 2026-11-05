@@ -5,6 +5,12 @@ workflow is the same either way: compile to a `.beam`, then load it. The
 `compile` command needs no Erlang installation; beams produced by `erlc` still
 load unchanged.
 
+!!! note "Build plugin (in progress)"
+    A build plugin that runs `.erl` sources directly, without a separate
+    compilation step, is in progress. This page and the checked-in examples keep
+    the current explicit `jerlang compile` flow; the plugin will be documented
+    here when it is ready.
+
 Two things to know before starting:
 
 - **Java 21 or newer** is required, for building and for running.

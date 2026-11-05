@@ -1,7 +1,13 @@
 # Benchmarks
 
+> **Evidence, not a performance promise.** These measurements test whether the
+> prototype's behaviour is plausible and where it loses. They are not a
+> throughput guarantee, a capacity plan or a comparison of language ergonomics.
+
 The roadmap asks for a number recorded at every milestone, so that the
-performance discussion at 1.0 is about measurements instead of guesses.
+performance discussion is about measurements instead of guesses. The important
+rows are not only the fast ones: the tables below name the operations where BEAM
+is substantially ahead.
 
 This is the first baseline, recorded at the end of 0.5. It is a starting point
 to detect regressions against, not a claim of speed.
@@ -123,7 +129,7 @@ which leaves two orders of magnitude of headroom over the measured 0.1 ms while
 still catching a reintroduced poll. It was checked against the old behaviour
 (75 ms median, failed).
 
-## What the numbers say
+## What the evidence says
 
 * Interpreted operations cost hundreds of nanoseconds. A call is about 520 ns, a
   guard about 320 ns, binary construction about 680 ns. The built-in
@@ -136,7 +142,7 @@ still catching a reintroduced poll. It was checked against the old behaviour
   too slow for a per-item inner loop, which is what the roadmap's embedding
   target assumes.
 
-## Against BEAM, at 1.0
+## Against BEAM (1.0 measurement)
 
 `BeamBenchTest` closes the gap the 0.5 baseline left: it compiles
 `src/test/erl/bench/beam_bench.erl` with `erlc`, runs `main/1` on a real OTP 29
