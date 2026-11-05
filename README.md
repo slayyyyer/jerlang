@@ -6,7 +6,9 @@ An Erlang runtime for the [Java Virtual Machine](https://en.wikipedia.org/wiki/J
 
 > **Fork notice:** this project began as a fork of [jerlang/jerlang](https://github.com/jerlang/jerlang) and is continued in this repository.
 
-Published to Maven Central as `io.github.slayyyyer:jerlang:2.0.0`. The
+Published to Maven Central as `io.github.slayyyyer:jerlang:2.0.0`; the 3.0.0
+release in this branch keeps the coordinates and makes the normal dependency a
+thin library jar, with the runnable jar under the `all` classifier. The
 documentation site is at <https://slayyyyer.github.io/jerlang/>.
 
 JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loads the BEAM files that `erlc` produces. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.
@@ -137,7 +139,7 @@ The type mapping is specified row by row in [docs/java-interop.md](docs/java-int
 JErlang can compile Erlang source itself; beams produced by `erlc` still load too. Load the resulting `.beam` from the working directory or from a directory that `-pa`, `-pz` or `ERL_LIBS` puts on the code path:
 
 ```sh
-java -jar target/jerlang-<version>.jar compile -o build hello.erl
+java -jar target/jerlang-<version>-all.jar compile -o build hello.erl
 ```
 
 `compile -I`, `-pa`, `-D`, `-W` and `+debug_info` cover headers, library roots, macros, parse transforms and warnings. The command never invokes `erlc`; see [Getting started](docs/getting-started.md) for the full option list.
@@ -151,7 +153,7 @@ JErlang builds with Maven. CI runs it on JDK 25; the compiler targets Java 21, s
 ```sh
 mvn test
 mvn package
-java -jar target/jerlang-<version>.jar
+java -jar target/jerlang-<version>-all.jar
 ```
 
 The live interoperability tests are opt-in because they need a peer node. Start an OTP 29 node with the cookie from [docs/distribution.md](docs/distribution.md), then:

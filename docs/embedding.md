@@ -182,26 +182,31 @@ longer call `CodePaths.reset()` or `ModuleRegistry.reset()`.
 
 ## E4 — Packaging and dependency contract
 
-**Goal:** make the artifact a consumer can reason about.
+**Goal:** make the artifact a consumer can reason about. **Status: complete.**
 
-The current shaded jar is convenient: `java -jar jerlang-2.0.0.jar` works. It
-also declares its dependencies in the POM, so a Maven or Gradle consumer can
-receive both the bundled classes and the transitive libraries. E4 decides the
-3.0 shape and records the decision:
+The 2.0 jar was convenient: `java -jar jerlang-2.0.0.jar` worked. It also
+declared its dependencies in the POM, so a Maven or Gradle consumer could
+receive both the bundled classes and the transitive libraries. 3.0 splits the
+two roles:
 
-* keep a thin library artifact as the normal dependency;
-* publish a runnable/uber artifact under a classifier for the shell and
-  one-file workflows;
-* ensure the documented examples resolve only the thin artifact;
-* keep the executable jar available for users who want it, without making every
-  embedder pay for a duplicate class path.
+* `jerlang-3.0.0.jar` is the thin library and the normal Maven/Gradle
+  dependency. It declares `jzlib`, `jnr-posix`, `jline` and `commons-math3`
+  once, as ordinary transitive dependencies.
+* `jerlang-3.0.0-all.jar` is the runnable artifact attached under the `all`
+  classifier. It is the only artifact with a `Main-Class`; `java -jar` still
+  starts the shell from it.
+* The Maven and Gradle examples resolve the thin artifact. `mvn verify` runs
+  japicmp against the thin jar, not the bundled one.
+* The release guide records the packaging break and carries the 2.0-to-3.0
+  migration note.
 
 This is a packaging break, so it is one of the reasons the release is 3.0.0
-rather than 2.1.0. The API gate and the migration guide must name the change.
+rather than 2.1.0.
 
 **Exit test:** a clean consumer builds the Maven and Gradle examples against the
-new coordinates, `java -jar` still starts the shell from the runnable artifact,
-and a dependency-tree check shows no duplicate JErlang classes.
+new coordinates, the CI smoke test runs `java -jar` on `jerlang-<version>-all.jar`
+and checks that the thin jar contains no bundled dependency classes, and a
+dependency-tree check shows one JErlang artifact and no duplicate classes.
 
 ## E5 — Documentation and release gate
 

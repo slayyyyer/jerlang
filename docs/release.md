@@ -1,21 +1,31 @@
 # Releasing JErlang
 
-This is the release guide for JErlang 2.0.0: what a version number means, what
+This is the release guide for JErlang 3.0.0: what a version number means, what
 is supported, how to build and verify an artifact, and what the release
 checklist is. It is written to be usable by someone who has never cut a release
 here.
 
-## What the artifact is
+## What the artifacts are
 
-`target/dist/jerlang-<version>.jar` is a shaded jar: the runtime, its
-dependencies (`jzlib`, `jnr-posix`, `jline`, `commons-math3`) and a `Main-Class`
-of `org.jerlang.erts.Emulator`. Running it with no arguments starts the shell,
-so the artifact is usable on its own:
+`target/dist/jerlang-<version>.jar` is the thin library artifact. It contains
+the runtime and this project's classes, and declares `jzlib`, `jnr-posix`,
+`jline` and `commons-math3` as normal Maven dependencies. Maven and Gradle
+resolve this artifact; it is the one to embed.
+
+`target/dist/jerlang-<version>-all.jar` is the runnable artifact, attached under
+the `all` classifier. It bundles those dependencies and has a `Main-Class` of
+`org.jerlang.erts.Emulator`. Running it with no arguments starts the shell, so
+it is the artifact for a one-file workflow or for running without a dependency
+manager:
 
 ```
-java -jar jerlang-2.0.0.jar
-java -cp jerlang-2.0.0.jar:path/to/beams -Djerlang.otp.dir=/path/to/otp App
+java -jar jerlang-3.0.0-all.jar
+java -cp jerlang-3.0.0-all.jar:path/to/beams -Djerlang.otp.dir=/path/to/otp App
 ```
+
+Running `java -jar` on the thin jar does not work: it has no `Main-Class`, and
+the dependencies are supplied by the consumer's dependency manager rather than
+being copied into it.
 
 Requirements: Java 21 or newer. Erlang/OTP is only needed to run OTP's own
 modules (the standard library, the `otp` test suite) or to talk to an OTP node;
@@ -25,10 +35,10 @@ a JVM-only deployment that uses the built-in modules does not need it.
 
 [Semantic versioning](https://semver.org): `MAJOR.MINOR.PATCH`.
 
-* **PATCH** (2.0.x) — bug fixes only. No public API change, no behavioural
+* **PATCH** (3.0.x) — bug fixes only. No public API change, no behavioural
   change to a documented function.
-* **MINOR** (2.x.0) — new functionality, no removal and no incompatible change.
-* **MAJOR** (3.0.0) — anything that breaks the API or changes the meaning of an
+* **MINOR** (3.x.0) — new functionality, no removal and no incompatible change.
+* **MAJOR** (4.0.0) — anything that breaks the API or changes the meaning of an
   existing call.
 
 The public API is the `org.jerlang.*` surface compared by `japicmp` against the
@@ -39,9 +49,9 @@ gate is a build check, not a review habit.
 
 ## Support policy
 
-* The 2.x line is supported. The most recent minor release gets fixes; the one
+* The 3.x line is supported. The most recent minor release gets fixes; the one
   before it gets security fixes for twelve months after its successor ships.
-* Supported platforms for 2.0: Linux and Windows on Temurin 21 and newer. CI
+* Supported platforms for 3.0: Linux and Windows on Temurin 21 and newer. CI
   runs the suite on Linux; the maintainers run it on Windows.
 * Supported OTP for interoperability and the standard library: OTP 29. The
   conformance rate is recorded against 29.1.2, and the `otp` job installs OTP 29.
@@ -56,13 +66,14 @@ scripts/package.sh            # build, check reproducibility, checksum
 scripts/package.sh --sign     # the same, plus a detached GPG signature
 ```
 
-The script builds the artifact twice and fails if the two checksums differ, so
-"reproducible" is checked rather than asserted. This works because the pom pins
-`project.build.outputTimestamp` instead of embedding the wall clock.
+The script builds both artifacts twice and fails if either pair of checksums
+differs, so "reproducible" is checked rather than asserted. This works because
+the pom pins `project.build.outputTimestamp` instead of embedding the wall
+clock.
 
 Signing needs a GPG secret key and `JERLANG_SIGNING_KEY` naming it. Without a
-key the script says the artifact is unsigned and exits successfully; with
-`--sign` and no key it fails rather than produce a file that looks signed.
+key the script says the artifacts are unsigned and exits successfully; with
+`--sign` and no key it fails rather than produce files that look signed.
 When the key carries a passphrase, `JERLANG_SIGNING_PASSPHRASE_FILE` points at a
 file holding it and the script signs in loopback mode, so it never waits on a
 pinentry dialog. Maven's `central` profile reads the same secret from the
@@ -71,20 +82,22 @@ appears on a command line.
 Verification is the ordinary GPG flow:
 
 ```
-gpg --verify jerlang-2.0.0.jar.asc jerlang-2.0.0.jar
-sha256sum -c jerlang-2.0.0.jar.sha256
+gpg --verify jerlang-3.0.0.jar.asc jerlang-3.0.0.jar
+gpg --verify jerlang-3.0.0-all.jar.asc jerlang-3.0.0-all.jar
+sha256sum -c jerlang-3.0.0.jar.sha256
+sha256sum -c jerlang-3.0.0-all.jar.sha256
 ```
 
-`target/dist/BUILD-INFO` records the commit, the JDK and the checksum of the
-artifact it describes, so a downloaded jar can be traced to a commit without
-trusting the download page.
+`target/dist/BUILD-INFO` records the commit, the JDK and both checksums, so a
+downloaded jar can be traced to a commit without trusting the download page.
 
 ## Publishing to Maven Central
 
 The pom is prepared for Central — metadata, source and javadoc jars, signatures
 and the Portal plugin behind a `central` profile — and **1.0.0, 1.0.1, 1.1.0 and 2.0.0 are published**:
-`io.github.slayyyyer:jerlang:2.0.0` resolves from Maven Central. What follows is
-how 1.0.0 was done, because every version since repeats it.
+`io.github.slayyyyer:jerlang:2.0.0` resolves from Maven Central. 3.0.0 is not on
+Central yet; its artifact shape is described below. What follows is how 1.0.0
+was done, because every version since repeats it.
 
 ### One-time prerequisites
 
@@ -207,6 +220,15 @@ The bundle was uploaded as deployment
 2026-11-04. The release check was the 1,800-second target-load soak; the 24 hour
 soak remains deferred and is not part of the 2.0.0 gate.
 
+### What 3.0.0 will publish
+
+3.0.0 is a packaging break. The main artifact is the thin library jar; the
+runnable jar is attached with the `all` classifier. Both are uploaded and signed
+alongside the `-sources.jar`, `-javadoc.jar` and the pom. Maven and Gradle users
+keep the same coordinates and dependency declaration. Users who ran
+`java -jar jerlang-2.0.0.jar` must switch to `jerlang-3.0.0-all.jar`; that is
+the only artifact with a `Main-Class`.
+
 ### The commands
 
 ```
@@ -215,21 +237,19 @@ mvn -B -Pcentral -DskipTests deploy                     # upload to the Portal
 ```
 
 The first form is the one to run to check the bundle: it produces
-`jerlang-<version>.jar`, `-sources.jar`, `-javadoc.jar` and the pom. The second
-needs the key and the token, and it **uploads rather than publishes**:
-`autoPublish` is `false`, so the bundle waits in the Portal until someone has
-read the checklist below and releases it by hand.
+`jerlang-<version>.jar`, `jerlang-<version>-all.jar`, `-sources.jar`,
+`-javadoc.jar` and the pom. The second needs the key and the token, and it
+**uploads rather than publishes**: `autoPublish` is `false`, so the bundle waits
+in the Portal until someone has read the checklist below and releases it by
+hand.
 
-What gets uploaded is those four files plus a detached `.asc` signature for
-each. The main artifact is the shaded, runnable jar, which is deliberate — the
-artifact the release notes tell people to run with `java -jar` is the artifact
-in the repository — and it has a cost worth stating: the jar's dependencies are
-also declared in the pom, so a consumer of the library gets both the bundled
-classes and the transitive ones. Same versions, so it resolves and runs; a
-consumer that cares can exclude them or use the thin `original-` jar that
-`maven-shade-plugin` writes. Attaching the runnable jar under a classifier and
-publishing the thin one is the cleaner shape, and it is the change to make if
-the bundled classes ever cause trouble.
+What gets uploaded is those five files plus a detached `.asc` signature for
+each. The main artifact is the thin library jar, which is deliberate: a
+dependency manager should receive one copy of each library, declared by the pom.
+The attached `all` jar keeps the one-file workflow and carries the bundled
+classes and `Main-Class`. The 2.0.0 release did the opposite — the main artifact
+was the bundled jar and its dependencies were also declared — so 3.0.0 is a
+major version for packaging, not only for API.
 
 One more thing had to change for Central: the pom declared two plaintext
 `http://` repositories, and a pom that points at one is rejected. Both were
@@ -245,16 +265,16 @@ be measured on the commit being tagged:
    `mvn -Dtest=BeamBenchTest -Djerlang.bench=true -Djerlang.bench.gate=true \
    -Djerlang.otp.dir="$OTP" test`. The table goes into `docs/benchmarks.md`; the
    gate enforces the message throughput budget.
-2. **Soak at target load.** For 2.0.0, run the same test at the 1,800-second
+2. **Soak at target load.** For 3.0.0, run the same test at the 1,800-second
    duration CI uses nightly:
    `mvn -Dtest=SoakTest -Djerlang.soak.seconds=1800 -Djerlang.soak.workers=32 test`.
-   **The 24 hour run is not part of the 2.0.0 gate.** That is a decision, not an
+   **The 24 hour run is not part of the 3.0.0 gate.** That is a decision, not an
    oversight: a hosted CI job is killed after six hours, so the day-long run
    needs a machine that stays up for a day. Earlier releases also shipped
-   without it. What was measured on the tagged commit was the same test at
+   without it. What was measured on the 2.0.0 tagged commit was the same test at
    1,800 seconds and 32 workers: 936,074,881 messages delivered, 64 processes
    at peak, a peak heap of 2,630 MB against a 390 MB reference, and a final live
-   heap of 4 MB. The 24 hour run is deferred, not a gate for 2.0.0. The shorter
+   heap of 4 MB. The 24 hour run is deferred, not a gate for 3.0.0. The shorter
    run still leaves a residual risk, which is stated rather than dismissed: a
    leak slow enough to hide behind the run — under a megabyte a minute — would
    ship untested.
@@ -277,10 +297,12 @@ be measured on the commit being tagged:
    `mvn -Dtest='*FuzzTest' -Djerlang.fuzz.iterations=20000 test`. The checked-in
    run is 200 iterations per target on every push; the campaign is the long run.
 4. **Full suite green**, including the OTP-backed and conformance jobs.
-5. **Artifact built, reproducible and installable from a clean machine**: unpack
-   the jar on a machine with only a JDK, run one of the checked-in examples from
-   `examples/`, and compare checksums against `BUILD-INFO`.
-6. **Tag.** `git tag -s 2.0.0 -m "JErlang 2.0.0"` on the commit that passed 1–5,
+5. **Artifacts built, reproducible and installable from a clean machine**: run
+   the `all` jar on a machine with only a JDK, run one of the checked-in
+   examples against the thin artifact, check that its dependency tree contains
+   one JErlang jar and no bundled dependency classes, and compare both checksums
+   against `BUILD-INFO`.
+6. **Tag.** `git tag -s 3.0.0 -m "JErlang 3.0.0"` on the commit that passed 1–5,
    then push the tag with the release notes. Name the key with `-u` or set
    `user.signingkey`: left to itself git guesses from the committer identity,
    and when two keys share that address it guesses the wrong one. A protected
@@ -294,6 +316,27 @@ be measured on the commit being tagged:
 
 Steps 1–3 are commands in this repository, not prose: a release that can not
 re-run them is not a release.
+
+## Upgrade notes: 2.0 to 3.0
+
+* **Packaging:** the normal `io.github.slayyyyer:jerlang` artifact is now the
+  thin library jar. Maven and Gradle consumers keep the same coordinates and no
+  longer receive bundled copies of `jzlib`, `jnr-posix`, `jline` or
+  `commons-math3`; the pom declares them once, as normal transitive
+  dependencies. Remove workarounds that excluded or relocated those classes for
+  JErlang.
+* **`java -jar`:** the main jar no longer has a `Main-Class`. Use
+  `jerlang-3.0.0-all.jar` (the `all` classifier) for the shell, the `compile`
+  command or any other one-file launch. A dependency-managed application uses
+  the thin jar and its normal classpath.
+* **Lifecycle:** `NodeOptions.codePath(...)` and `NodeOptions.otpRoot(...)`
+  replace the example-only `CodePaths.reset()`/`ModuleRegistry.reset()` setup.
+  A process runs one active node at a time; a failed start rolls back cleanly,
+  `Node.close()` is idempotent, and `Module.apply` has `Duration` overloads that
+  kill a timed-out process. See [embedding.md](embedding.md).
+* **Version:** 3.0.0 is a major release because the packaging change is visible
+  to users even though the Java API remains source-compatible. The 2.0.0
+  artifacts remain available for existing builds.
 
 ## Upgrade notes: 1.1 to 2.0
 
@@ -333,7 +376,7 @@ re-run them is not a release.
   the join is bounded at ten seconds with a message naming a scheduler that
   outlives it.
 
-## Known limitations at 2.0
+## Known limitations at 3.0
 
 These are decisions, not open bugs, and they are repeated from
 [roadmap.md](roadmap.md) so a release note can not quietly drop them:

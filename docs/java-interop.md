@@ -138,9 +138,12 @@ interrupted by this timeout.
 `mvn verify` runs japicmp 0.26.5 against a baseline jar checked in under
 `src/api-baseline/`, with `accessModifier public`,
 `breakBuildOnSourceIncompatibleModifications` and
-`breakBuildBasedOnSemanticVersioning`. Because the project is still `0.x`,
-`breakBuildBasedOnSemanticVersioningForMajorVersionZero` must also be set or the
-gate does nothing. The baseline is refreshed only when the version is bumped.
+`breakBuildBasedOnSemanticVersioning`. It compares the thin main artifact, not
+the attached `all` jar, so bundled dependency classes are not treated as this
+project's API. The `breakBuildBasedOnSemanticVersioningForMajorVersionZero` flag
+remains because the baseline is a 0.x artifact; the 3.0.0 version is what makes
+the deliberate packaging break a major release. The baseline is refreshed only
+when the version is bumped.
 
 ## Stability
 

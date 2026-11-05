@@ -380,7 +380,7 @@ different. After 2.0.0 the `japicmp` gate freezes them again.
 
 Status: complete. `org.jerlang.compiler.Compiler` is the public entry point;
 `CompilerCommand` is the `compile` subcommand of the runnable jar
-(`java -jar jerlang.jar compile ...`). It accepts `-o`, `-I`, `-pa`, `-D`,
+(`java -jar jerlang-<version>-all.jar compile ...`). It accepts `-o`, `-I`, `-pa`, `-D`,
 `-W`, `-W0`, `-Werror`, `+debug_info` and `+warnings_as_errors`. `-Dname`
 expands to `true` and `-Dname=value` scans the value as Erlang tokens, so it
 agrees with `erlc`. `-W` runs the A4 linter; lint errors stop the beam, and
@@ -547,7 +547,7 @@ These are the choices that would otherwise be made differently in each session:
 * **`-spec`, `-type`, `-callback` are stored, not checked.** `dialyzer` is not
   in scope.
 * **Version.** The compiler API is public and shipped with 2.0.0. The published artifact,
-  download instructions and example builds now target 2.0.0. Future version
+  download instructions and example builds now target 3.0.0. Future version
   bumps follow `docs/release.md`; no session bumps the version on its own.
 
 ## Non-goals
@@ -580,8 +580,8 @@ exists only to make the compiler's own tests pass.
 
 * Status: merged to `master` and released as 2.0.0. This section is retained as
   a record for follow-up compiler work.
-* Build and test: `mvn -B test`. CI runs `mvn -B verify`, which adds the shaded
-  jar, the packaged-jar compile smoke test and the japicmp API gate. A single
+* Build and test: `mvn -B test`. CI runs `mvn -B verify`, which adds the packaged
+  jars, the runnable all-jar compile smoke test and the japicmp API gate. A single
   milestone's tests should be runnable with `-Dtest=...` and stay under two
   minutes.
 * If `mvn` is not on the PATH, the toolchain used here is in `../.tools`:

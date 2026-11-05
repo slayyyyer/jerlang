@@ -15,7 +15,7 @@
   <groupId>io.github.slayyyyer</groupId>
   <artifactId>jerlang</artifactId>
   <name>JErlang</name>
-  <version>2.0.0</version>
+  <version>3.0.0</version>
   <description>An Erlang runtime and interpreter on the JVM: BEAM modules, the
     external term format and OTP's standard library, embedded in a Java process
     or run as a node.</description>
@@ -91,7 +91,7 @@
     <connection>scm:git:https://github.com/slayyyyer/jerlang.git</connection>
     <developerConnection>scm:git:https://github.com/slayyyyer/jerlang.git</developerConnection>
     <url>https://github.com/slayyyyer/jerlang</url>
-    <tag>2.0.0</tag>
+    <tag>3.0.0</tag>
   </scm>
   <licenses>
     <license>
@@ -117,7 +117,12 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <finalName>${project.build.finalName}</finalName>
+              <!-- The normal artifact is the thin library jar. The runnable
+                   jar is attached under the `all` classifier, so a consumer
+                   that only wants the library does not also receive bundled
+                   copies of jzlib, jnr, jline and commons-math3. -->
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>all</shadedClassifierName>
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <keepDependenciesWithProvidedScope>true</keepDependenciesWithProvidedScope>
               <transformers>
@@ -151,20 +156,19 @@
             </file>
           </oldVersion>
           <newVersion>
-            <!-- The unshaded artifact: the shaded jar carries the bundled
-                 dependencies, whose API is not this project's to keep. -->
+            <!-- The thin main artifact. The attached all jar carries the
+                 bundled dependencies, whose API is not this project's to keep. -->
             <file>
-              <path>${project.build.directory}/original-${project.build.finalName}.jar</path>
+              <path>${project.build.directory}/${project.build.finalName}.jar</path>
             </file>
           </newVersion>
           <parameter>
             <onlyModified>true</onlyModified>
             <accessModifier>public</accessModifier>
-            <!-- Only the packages of this project are its API. The
-                 shaded jar also carries jnr, jline and helper
-                 packages, and maven-shade-plugin can leave the shaded
-                 jar under the original- name on an incremental build,
-                 so an unfiltered comparison audits a dependency API. -->
+            <!-- Only the packages of this project are its API. The thin
+                 main artifact already excludes the bundled dependencies;
+                 the filter keeps the gate honest if the packaging changes
+                 again. -->
             <includes>
               <include>org.jerlang.*</include>
             </includes>
@@ -175,7 +179,7 @@
             <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
             <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
             <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
-            <!-- 0.x: a minor bump may break the API, a patch bump may not. -->
+            <!-- The baseline is 0.x, so keep the 0.x semantic rule for that comparison. -->
             <breakBuildBasedOnSemanticVersioningForMajorVersionZero>true</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
           </parameter>
         </configuration>

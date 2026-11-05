@@ -8,7 +8,7 @@ on:
   pull_request:
     branches: [master]
   # The nightly soak. A hosted runner is killed after six hours, so this is the
-  # long run that fits; the 24 hour run is deferred and is not a 2.0.0 gate.
+  # long run that fits; the 24 hour run is deferred and is not a 3.0.0 gate.
   schedule:
     - cron: '0 3 * * *'
 
@@ -32,14 +32,25 @@ jobs:
       - name: Run the test suite and API gate
         run: mvn -B verify
 
-      - name: Smoke-test the packaged jar
+      - name: Verify the thin library artifact
+        run: |
+          thin="$(find target -maxdepth 1 -name 'jerlang-*.jar' \
+            ! -name '*-all.jar' ! -name 'original-*' \
+            ! -name '*-javadoc.jar' ! -name '*-sources.jar' \
+            ! -name '*-tests.jar' -print -quit)"
+          test -n "$thin"
+          echo "thin artifact: $thin"
+          if jar tf "$thin" | grep -Eq '^(jnr|jline|com/jcraft|org/apache/commons/math3)(/|$)'; then
+            echo "thin artifact contains bundled dependency classes" >&2
+            exit 1
+          fi
+
+      - name: Smoke-test the runnable jar
         run: |
           mkdir -p target/jar-smoke/src target/jar-smoke/out
           printf '%s\n' '-module(jar_smoke).' '-export([value/0]).' 'value() -> 42.' \
             > target/jar-smoke/src/jar_smoke.erl
-          jar="$(find target -maxdepth 1 -name 'jerlang-*.jar' \
-            ! -name 'original-*' ! -name '*-javadoc.jar' \
-            ! -name '*-sources.jar' ! -name '*-tests.jar' -print -quit)"
+          jar="$(find target -maxdepth 1 -name 'jerlang-*-all.jar' -print -quit)"
           test -n "$jar"
           java -jar "$jar" compile -o target/jar-smoke/out target/jar-smoke/src/jar_smoke.erl
           test -f target/jar-smoke/out/jar_smoke.beam
@@ -95,11 +106,21 @@ jobs:
           java-version: '21'
           cache: maven
 
+      - name: Install the library under test
+        run: mvn -B -DskipTests install
+
       - name: Compile and test without an Erlang toolchain
         env:
           ERLC: /nonexistent/erlc
           ERL: /nonexistent/erl
         run: cd examples/maven-embed && mvn -B clean verify
+
+      - name: Check the consumer dependency tree
+        run: |
+          tree="$(cd examples/maven-embed && mvn -B dependency:tree -Dincludes=io.github.slayyyyer:jerlang)"
+          printf '%s\n' "$tree"
+          count="$(printf '%s\n' "$tree" | grep -c 'io.github.slayyyyer:jerlang:jar:3.0.0' || true)"
+          test "$count" -eq 1
 
   otp:
     # The standard library boot tests run OTP's own gen_server, supervisor,
@@ -263,11 +284,28 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Install the library under test
+        run: mvn -B -DskipTests install
+
+      - name: Write the local artifact repository
+        run: |
+          cat > "$RUNNER_TEMP/jerlang-local.init.gradle" <<'EOF'
+          allprojects {
+              repositories {
+                  mavenLocal {
+                      content {
+                          includeGroup 'io.github.slayyyyer'
+                      }
+                  }
+              }
+          }
+          EOF
+
       - name: Build without an Erlang toolchain
         env:
           ERLC: /nonexistent/erlc
           ERL: /nonexistent/erl
-        run: cd examples/${{ matrix.example }} && gradle --no-daemon test
+        run: cd examples/${{ matrix.example }} && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" test
 
   gradle-examples:
     # The OTP-backed Gradle example still compiles its modules with erlc and
@@ -293,17 +331,34 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Install the library under test
+        run: mvn -B -DskipTests install
+
+      - name: Write the local artifact repository
+        run: |
+          cat > "$RUNNER_TEMP/jerlang-local.init.gradle" <<'EOF'
+          allprojects {
+              repositories {
+                  mavenLocal {
+                      content {
+                          includeGroup 'io.github.slayyyyer'
+                      }
+                  }
+              }
+          }
+          EOF
+
       - name: junit-harness
-        run: cd examples/junit-harness && gradle --no-daemon test
+        run: cd examples/junit-harness && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" test
 
       - name: http-service
-        run: cd examples/http-service && gradle --no-daemon installDist
+        run: cd examples/http-service && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" installDist
 
       - name: chat-service
-        run: cd examples/chat-service && gradle --no-daemon installDist
+        run: cd examples/chat-service && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" installDist
 
       - name: mnesia-service
-        run: cd examples/mnesia-service && gradle --no-daemon installDist
+        run: cd examples/mnesia-service && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" installDist
 
       - name: supervised-app
-        run: cd examples/supervised-app && gradle --no-daemon installDist
+        run: cd examples/supervised-app && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" installDist

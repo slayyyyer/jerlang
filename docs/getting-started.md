@@ -22,32 +22,30 @@ Two things to know before starting:
     <dependency>
       <groupId>io.github.slayyyyer</groupId>
       <artifactId>jerlang</artifactId>
-      <version>2.0.0</version>
+      <version>3.0.0</version>
     </dependency>
     ```
 
 === "Gradle"
 
     ```kotlin
-    implementation("io.github.slayyyyer:jerlang:2.0.0")
+    implementation("io.github.slayyyyer:jerlang:3.0.0")
     ```
 
 === "Runnable jar"
 
     ```sh
-    curl -sO https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/2.0.0/jerlang-2.0.0.jar
-    java -jar jerlang-2.0.0.jar
+    curl -sO https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/3.0.0/jerlang-3.0.0-all.jar
+    java -jar jerlang-3.0.0-all.jar
     ```
 
-The published jar is shaded: the runtime, its dependencies (`jzlib`,
-`jnr-posix`, `jline`, `commons-math3`) and a `Main-Class` of
-`org.jerlang.erts.Emulator` are inside it, so `java -jar` starts the Erlang
-shell with no classpath setup.
-
-Because the dependencies are also declared in the pom, a Maven or Gradle
-consumer gets the bundled classes *and* the transitive ones. Same versions, so
-it resolves and runs; a consumer that cares can exclude them, or use the thin
-`original-` jar that `maven-shade-plugin` writes into `target/`.
+The Maven and Gradle artifact is the thin library jar: the runtime and its own
+classes, with `jzlib`, `jnr-posix`, `jline` and `commons-math3` declared as
+normal dependencies. The runnable artifact is published under the `all`
+classifier. It bundles those dependencies and has a `Main-Class` of
+`org.jerlang.erts.Emulator`, so `java -jar` starts the Erlang shell with no
+classpath setup. Use the `all` jar for a one-file launch and the thin artifact
+as a dependency.
 
 ### Check what you downloaded
 
@@ -55,12 +53,12 @@ Central serves a detached signature and checksums next to every artifact, and
 checking them against Central's own copies is what makes the check meaningful:
 
 ```sh
-BASE=https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/2.0.0
-curl -sO $BASE/jerlang-2.0.0.jar
-curl -sO $BASE/jerlang-2.0.0.jar.asc
-curl -s  $BASE/jerlang-2.0.0.jar.sha256          # 85a1e37b…c7ded392
+BASE=https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/3.0.0
+curl -sO $BASE/jerlang-3.0.0-all.jar
+curl -sO $BASE/jerlang-3.0.0-all.jar.asc
+curl -s  $BASE/jerlang-3.0.0-all.jar.sha256
 
-gpg --verify jerlang-2.0.0.jar.asc jerlang-2.0.0.jar
+gpg --verify jerlang-3.0.0-all.jar.asc jerlang-3.0.0-all.jar
 # gpg: Good signature from "Justin Baker (jerlang release signing)"
 #      using RSA key 53566F66F97945DF654415F886F6991BB5D61373
 ```
@@ -77,8 +75,8 @@ greet(Name) ->
 ```
 
 ```sh
-java -jar jerlang-2.0.0.jar compile -o build hello.erl
-java -jar jerlang-2.0.0.jar -pa build
+java -jar jerlang-3.0.0-all.jar compile -o build hello.erl
+java -jar jerlang-3.0.0-all.jar -pa build
 ```
 
 `compile` takes one or more source files and creates the output directory if it
@@ -235,7 +233,7 @@ You can also start from the other side and let an OTP node call this one; see
 ```sh
 mvn test            # the unit tests need no Erlang installation
 mvn package
-java -jar target/jerlang-<version>.jar
+java -jar target/jerlang-<version>-all.jar
 ```
 
 The build targets Java 21 with `--release`, so an accidental use of a newer

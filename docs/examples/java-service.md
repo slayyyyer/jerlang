@@ -116,9 +116,10 @@ since the other example does.
   node-local and cannot be sent to another node. Release them with
   `java:release/1`; `Node.close()` drains whatever is left.
 - Nothing is reachable by reflection that the JVM's module system does not
-  export to this code. The jar shades `module-info.class`, which Maven warns
-  about at build time ("Shading will break its strong encapsulation"), so
-  reflection into the JDK's own internals is not a supported direction.
+  export to this code. The runnable `all` jar shades `module-info.class`, which
+  Maven warns about at build time ("Shading will break its strong
+  encapsulation"), so reflection into the JDK's own internals is not a supported
+  direction. The thin library jar used as a dependency is not shaded.
 
 The full table of conversions, in both directions, is in
 [Java interoperability](../java-interop.md) — and it is enforced: `mvn verify`
