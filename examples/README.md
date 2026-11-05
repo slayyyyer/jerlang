@@ -6,7 +6,7 @@
     compile flow so they remain runnable today; the plugin path will be added
     when it lands.
 
-Eleven programs: the two directions of the Java interop, a crypto-through-Java
+Twelve programs: the two directions of the Java interop, a crypto-through-Java
 example, a million-process and ring benchmark, four services built on the
 published artifact, a test harness, and the Maven and Gradle embedding
 quickstarts.
@@ -21,6 +21,7 @@ quickstarts.
 | call a Java class from Erlang | [`java-service`](java-service/README.md) |
 | hash or MAC without a NIF | [`crypto-java`](crypto-java/README.md) |
 | stress process spawning and a ring | [`concurrency`](concurrency/README.md) |
+| call between a real OTP node and JErlang | [`mixed-cluster`](mixed-cluster/README.md) |
 | serve HTTP with the routes in Erlang | [`http-service`](http-service/README.md) |
 | push events to a browser | [`chat-service`](chat-service/README.md) |
 | keep data in mnesia on an OTP node | [`mnesia-service`](mnesia-service/README.md) |
@@ -35,6 +36,7 @@ quickstarts.
 | `java-service` | Erlang calls static methods of a Java class through `java:call_static/3`. |
 | `crypto-java` | SHA-256, HMAC-SHA256 and secure random through the JDK's security APIs; no OTP `crypto` module. |
 | `concurrency` | Spawn count and a message-passing ring, with the same source measured on BEAM. |
+| `mixed-cluster` | OTP and JErlang call each other with `erpc`, with Java making the local call. |
 | `http-service` | Erlang behind an HTTP listener: Gradle pulls the artifact, Java is fixed plumbing, the routes are `.erl`. |
 | `chat-service` | The same shape with a push direction: rooms, ETS history and server-sent events through a Java sink Erlang calls. |
 | `mnesia-service` | The data lives in mnesia on an OTP node, reached over distribution with `rpc:call/5`; the JVM node is the HTTP front end. |
@@ -83,6 +85,9 @@ gradle test                # known SHA-256 and HMAC-SHA256 vectors
 cd examples/concurrency
 gradle test                # 5,000 spawns and a 128-process ring
 # gradle run                # 1,000,000 spawns and 1,000 x 10,000 ring
+
+cd examples/mixed-cluster
+gradle run                 # OTP and JErlang in both directions
 
 cd examples/supervised-app
 gradle run -PotpLib="$(erl -noshell -eval 'io:format("~s",[code:root_dir()]),halt().')/lib"

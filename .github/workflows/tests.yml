@@ -423,3 +423,6 @@ jobs:
           cd examples/supervised-app
           gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" \
             run -PotpLib="$OTP_ROOT/lib"
+
+      - name: mixed-cluster
+        run: cd examples/mixed-cluster && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" run
