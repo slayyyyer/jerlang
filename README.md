@@ -78,7 +78,7 @@ JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loa
 
 **Tests**
 
-- A 651-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
+- A 653-test suite. The unit tests need no Erlang and run on every push and pull request. Ten tests drive OTP's own modules and run in a separate CI job with an OTP 29 installation; a further 19 are opt-in external or machine tests (the live peer suite, the pass-rate run, the benchmarks against OTP, the distribution codec benchmark and the soak). The three fuzzers (BEAM loader, ETF decoder and distribution framing) run on every push at 200 iterations each.
 
 ### What does not work yet
 
@@ -192,7 +192,8 @@ mvn pitest:mutationCoverage -DtargetClasses=org.jerlang.type.Nil -DtargetTests=o
 - [Documentation site](https://slayyyyer.github.io/jerlang/): the same guides,
   built from this repository and published to GitHub Pages, including a getting
   started walkthrough and the two annotated examples
-- [docs/embedding.md](docs/embedding.md): the 3.0 plan for embedding Erlang in a JVM service
+- [docs/embedding.md](docs/embedding.md): the 3.0 plan for embedding Erlang in a JVM service, including Maven and Gradle quickstarts
+- [docs/migration-2-to-3.md](docs/migration-2-to-3.md): packaging and lifecycle changes from 2.0
 - [docs/java-interop.md](docs/java-interop.md): the value mapping, the bridge rules and the embedding API
 - [docs/roadmap.md](docs/roadmap.md): milestones and what was dropped from the original plan
 - [docs/beam-compatibility.md](docs/beam-compatibility.md): opcode and language coverage

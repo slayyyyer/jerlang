@@ -303,24 +303,29 @@ be measured on the commit being tagged:
    `mvn -Dtest='*FuzzTest' -Djerlang.fuzz.iterations=20000 test`. The checked-in
    run is 200 iterations per target on every push; the campaign is the long run.
 4. **Full suite green**, including the OTP-backed and conformance jobs.
-5. **Artifacts built, reproducible and installable from a clean machine**: run
+5. **Embedding consumer gates.** From a clean checkout, run
+   `scripts/check-embedding.sh`. It installs the thin artifact, then builds and
+   tests both the Maven and Gradle quickstarts with `ERL` and `ERLC` pointed at
+   paths that do not exist. It must finish with `embedding consumer checks
+   passed`; each consumer runs its own two tests.
+6. **Artifacts built, reproducible and installable from a clean machine**: run
    the `all` jar on a machine with only a JDK, run one of the checked-in
    examples against the thin artifact, check that its dependency tree contains
    one JErlang jar and no bundled dependency classes, and compare both checksums
    against `BUILD-INFO`.
-6. **Tag.** `git tag -s 3.0.0 -m "JErlang 3.0.0"` on the commit that passed 1–5,
+7. **Tag.** `git tag -s 3.0.0 -m "JErlang 3.0.0"` on the commit that passed 1–6,
    then push the tag with the release notes. Name the key with `-u` or set
    `user.signingkey`: left to itself git guesses from the committer identity,
    and when two keys share that address it guesses the wrong one. A protected
    key also needs the passphrase cached in `gpg-agent` or a `gpg.program`
    wrapper that signs in loopback mode, or the command waits on a pinentry
    dialog a headless run never shows.
-7. **Publish** (optional, and separate from the tag): `mvn -B -Pcentral
+8. **Publish** (optional, and separate from the tag): `mvn -B -Pcentral
    -DskipTests deploy`, then release the bundle in the Portal. A deployment that
    is not released sits there and becomes nothing, so the tag does not depend on
    this step.
 
-Steps 1–3 are commands in this repository, not prose: a release that can not
+Steps 1–5 are commands in this repository, not prose: a release that can not
 re-run them is not a release.
 
 ## Upgrade notes: 2.0 to 3.0
@@ -339,7 +344,12 @@ re-run them is not a release.
   replace the example-only `CodePaths.reset()`/`ModuleRegistry.reset()` setup.
   A process runs one active node at a time; a failed start rolls back cleanly,
   `Node.close()` is idempotent, and `Module.apply` has `Duration` overloads that
-  kill a timed-out process. See [embedding.md](embedding.md).
+  kill a timed-out process. See [embedding.md](embedding.md) and the
+  [2.0-to-3.0 migration guide](migration-2-to-3.md).
+* **Runtime boundary:** Java 21 or newer is required. OTP 29 is needed only for
+  OTP's own modules or an OTP peer; a module that uses JErlang's built-in
+  modules needs no Erlang installation. NIF-backed `crypto`, `ssl` and
+  `public_key` remain unsupported.
 * **Version:** 3.0.0 is a major release because the packaging change is visible
   to users even though the Java API remains source-compatible. The 2.0.0
   artifacts remain available for existing builds.

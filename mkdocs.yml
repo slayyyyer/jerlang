@@ -58,6 +58,8 @@ plugins:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Embedding in a JVM service: embedding.md
+  - Migrating from 2.0 to 3.0: migration-2-to-3.md
   - Examples:
       - Java calls Erlang: examples/gen-server.md
       - Erlang calls Java: examples/java-service.md

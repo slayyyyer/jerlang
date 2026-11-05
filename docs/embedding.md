@@ -18,6 +18,34 @@ an exported Erlang function from Java, and ship a single service. OTP remains
 the compatibility bar for the standard library; it is not a build prerequisite
 for a module that only uses the runtime.
 
+## Quickstarts
+
+Both checked-in examples compile `.erl` during the build with JErlang and call
+the resulting module from Java. A JDK is the only build toolchain; neither
+needs `erl` or `erlc`.
+
+| Build | Example | Command |
+| --- | --- | --- |
+| Maven | `examples/maven-embed` | `cd examples/maven-embed && mvn -B clean verify` |
+| Gradle | `examples/gradle-embed` | `cd examples/gradle-embed && gradle --no-daemon test` |
+
+For a local release candidate, install the thin artifact first with
+`mvn -B -DskipTests install`; the Gradle example then needs `mavenLocal()` or
+the same temporary init script CI uses. A published 3.0.0 resolves from Central.
+
+## When OTP is required
+
+| Work | Erlang/OTP installation |
+| --- | --- |
+| Compile and run a module that uses only the built-in modules | No |
+| Compile a module whose includes come from OTP headers | Yes, or a copy of those headers |
+| Run `gen_server`, `supervisor`, `application`, `proc_lib` or `logger` | Yes; pass `NodeOptions.otpRoot(...)` |
+| Join an OTP cluster | Yes on the OTP peer; the JErlang node uses plain TCP distribution |
+| Use NIF-backed `crypto`, `ssl` or `public_key` | Not supported; use explicit JDK APIs for application code |
+
+The packaging and lifecycle changes from 2.0 are in
+[Migrating from 2.0 to 3.0](migration-2-to-3.md).
+
 ## What 2.0 already provides
 
 * `org.jerlang.api.Node` starts and owns a node, `Bridge` maps values in both
@@ -210,20 +238,33 @@ dependency-tree check shows one JErlang artifact and no duplicate classes.
 
 ## E5 — Documentation and release gate
 
-**Goal:** make the embedding story the front door without losing the OTP story.
+**Status: documentation, consumer and behavioral gates complete.** The
+quickstarts are above and in the site navigation, the
+[migration guide](migration-2-to-3.md) covers packaging and lifecycle, and
+`scripts/check-embedding.sh` runs both consumers with `ERL` and `ERLC` pointed
+at nonexistent paths.
 
-* Add the Maven and Gradle quickstarts to the documentation site.
-* Write a 2.0-to-3.0 migration guide covering packaging and lifecycle changes.
-* State which paths require an Erlang installation and which do not.
-* Add the embedding examples to the release checklist and run them from a clean
-  checkout.
-* Keep the OTP-backed tests, conformance job, fuzzing and soak as separate
-  gates; embedding must not weaken them.
+* The Maven and Gradle quickstarts are part of the documentation site, not only
+  repository examples.
+* The migration guide describes the thin/`all` artifact split, the `Node`
+  lifecycle contract, and which paths need OTP.
+* The release checklist runs `scripts/check-embedding.sh` before the artifact
+  and tag steps.
+* The Maven and Gradle CI jobs remain separate from the OTP-backed tests,
+  conformance, fuzzing and soak gates; embedding does not weaken them.
+* The release notes state Java 21+ and the OTP boundary.
+
+**Verified:** `scripts/check-embedding.sh` built and tested both quickstarts
+with the Erlang tool paths broken (two tests in each). `mvn -B verify` passed
+653 tests with no failures, the OTP-backed suite passed 11 tests, and the
+`-all` jar compiled a fresh fixture. The 1,800-second soak and the rest of the
+release checklist remain release-time checks.
 
 **Exit test:** the 3.0.0 release checklist is executed from a clean checkout:
 the main suite, the API gate, the Maven example, the Gradle example, the OTP
 job and the packaged-jar smoke test all pass, and the release notes state the
-supported Java versions and the OTP boundary.
+supported Java versions and the OTP boundary. The consumer, OTP and packaged-jar
+halves were executed on JDK 21; the soak remains a release-time check.
 
 ## Definition of done for 3.0
 

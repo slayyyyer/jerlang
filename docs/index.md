@@ -98,8 +98,10 @@ built-in runtime does not need one.
 
 - **[Getting started](getting-started.md)** — build a module and embed a node,
   with the current explicit compile-command flow.
-- **[Embedding in a JVM service](embedding.md)** — the 3.0 embedding contract and
-  its lifecycle guarantees.
+- **[Embedding in a JVM service](embedding.md)** — the 3.0 embedding contract,
+  quickstarts and its lifecycle guarantees.
+- **[Migrating from 2.0 to 3.0](migration-2-to-3.md)** — the artifact packaging,
+  lifecycle and Erlang-boundary changes for existing embedders.
 - **[Supervision from Java](examples/supervised-app.md)** — the crash-and-restart
   demonstration.
 - **[Crypto without NIFs](examples/crypto-java.md)** — hashing and HMAC through
