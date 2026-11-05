@@ -2,6 +2,7 @@ package example;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jerlang.api.Node;
 import org.jerlang.api.NodeOptions;
@@ -9,8 +10,8 @@ import org.jerlang.type.Atom;
 import org.jerlang.type.Term;
 
 /**
- * Starts an OTP application from Java, kills its worker, and shows the supervisor
- * putting it back.
+ * Starts an OTP application from Java, keeps a Java service answering, kills its
+ * Erlang worker, and shows the supervisor putting the worker back.
  *
  * <p>What runs here is OTP's own {@code application} controller and
  * {@code supervisor} module, loaded from the Erlang installation. JErlang supplies
@@ -45,43 +46,63 @@ public final class Supervised {
             throw new IllegalStateException("not an OTP lib directory: " + otpLib);
         }
 
-        Node node = Node.start(NodeOptions.builder().schedulers(threads)
-            .codePath(Path.of(ebin).toAbsolutePath())
-            .otpRoot(otpRoot)
-            .build());
-        // Idempotent so a Ctrl-C after the explicit close below is harmless.
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        try (JavaService service = new JavaService()) {
+            System.out.println("java service listening -> " + service.request());
+
+            AtomicBoolean traffic = new AtomicBoolean(true);
+            Thread load = Thread.ofVirtual().name("java-service-load").start(() -> {
+                while (traffic.get()) {
+                    try {
+                        service.request();
+                        Thread.sleep(10);
+                    } catch (Exception stopped) {
+                        return;
+                    }
+                }
+            });
+
+            Node node = Node.start(NodeOptions.builder().schedulers(threads)
+                .codePath(Path.of(ebin).toAbsolutePath())
+                .otpRoot(otpRoot)
+                .build());
+            // Idempotent so a Ctrl-C after the explicit close below is harmless.
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try {
+                    node.close();
+                } catch (RuntimeException alreadyClosed) {
+                    // closing twice is fine
+                }
+            }, "supervised-shutdown"));
+
             try {
+                System.out.println("application:start(demo) -> " + call(node, "application", "start", Atom.of("demo")));
+                System.out.println("demo_worker:bump()      -> " + call(node, "demo_worker", "bump"));
+                System.out.println("demo_worker:bump()      -> " + call(node, "demo_worker", "bump"));
+                System.out.println("demo_worker:count()     -> " + call(node, "demo_worker", "count"));
+
+                String before = children(node);
+                System.out.println("children before crash   -> " + before);
+
+                System.out.println("demo_worker:crash()     -> " + call(node, "demo_worker", "crash"));
+                Thread.sleep(500);
+
+                String after = children(node);
+                System.out.println("children after crash    -> " + after);
+                System.out.println("worker restarted        -> " + !before.equals(after));
+                System.out.println("demo_worker:count()     -> " + call(node, "demo_worker", "count")
+                    + "   (a fresh process starts at zero)");
+
+                System.out.println("application:stop(demo)  -> " + call(node, "application", "stop", Atom.of("demo")));
+                System.out.println("whereis(demo_sup)       -> " + call(node, "erlang", "whereis", Atom.of("demo_sup")));
+            } finally {
+                traffic.set(false);
+                load.join(1000);
+                System.out.println("java service served     -> " + service.served()
+                    + " requests, including while the worker was down");
+                System.out.println("java service after stop -> " + service.request());
                 node.close();
-            } catch (RuntimeException alreadyClosed) {
-                // closing twice is fine
             }
-        }, "supervised-shutdown"));
-
-        System.out.println("application:start(demo) -> " + call(node, "application", "start", Atom.of("demo")));
-        System.out.println("demo_worker:bump()      -> " + call(node, "demo_worker", "bump"));
-        System.out.println("demo_worker:bump()      -> " + call(node, "demo_worker", "bump"));
-        System.out.println("demo_worker:count()     -> " + call(node, "demo_worker", "count"));
-
-        String before = children(node);
-        System.out.println("children before crash   -> " + before);
-
-        System.out.println("demo_worker:crash()     -> " + call(node, "demo_worker", "crash"));
-        Thread.sleep(500);
-
-        String after = children(node);
-        System.out.println("children after crash    -> " + after);
-        System.out.println("worker restarted        -> " + !before.equals(after));
-        System.out.println("demo_worker:count()     -> " + call(node, "demo_worker", "count")
-            + "   (a fresh process starts at zero)");
-
-        System.out.println("application:stop(demo)  -> " + call(node, "application", "stop", Atom.of("demo")));
-        System.out.println("whereis(demo_sup)       -> " + call(node, "erlang", "whereis", Atom.of("demo_sup")));
-
-        // Schedulers are non-daemon threads: without this the JVM stays up with
-        // nothing to do, which is the one thing an embedding application must not
-        // leave to the shutdown hook.
-        node.close();
+        }
     }
 
     /**

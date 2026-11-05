@@ -11,6 +11,7 @@ gradle run -PotpLib="$OTP_ROOT/lib"
 ```
 
 ```console
+java service listening -> HTTP/1.1 200 OK
 application:start(demo) -> ok
 demo_worker:bump()      -> 1
 demo_worker:bump()      -> 2
@@ -22,11 +23,26 @@ worker restarted        -> true
 demo_worker:count()     -> 0   (a fresh process starts at zero)
 application:stop(demo)  -> ok
 whereis(demo_sup)       -> undefined
+java service served     -> N requests, including while the worker was down
+java service after stop -> HTTP/1.1 200 OK
 ```
 
 The two `children` lines are the point: the pid changed, so the supervisor
 replaced the process, and `count()` is `0` because a restarted worker starts with
 fresh state.
+
+## The Java service keeps serving
+
+`JavaService` is a small loopback HTTP server written with `ServerSocket`; it is
+deliberately outside the Erlang supervision tree. The example sends it traffic
+from a virtual thread before, during and after `demo_worker:crash()`. The final
+count therefore answers a different question from the supervisor lines: the
+Erlang worker was down, but the Java service still answered requests. The
+restarted worker is a new process with fresh state; the Java service is not in
+that tree and is not restarted with it.
+
+This is the let-it-crash shape in one output: the failure is local to the
+worker, the supervisor replaces it, and the Java service remains available.
 
 ## What is OTP's code and what is the runtime's
 

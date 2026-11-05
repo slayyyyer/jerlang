@@ -416,3 +416,10 @@ jobs:
 
       - name: supervised-app
         run: cd examples/supervised-app && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" installDist
+
+      - name: supervised-app (Java service during restart)
+        run: |
+          OTP_ROOT="$(erl -noshell -eval 'io:format("~s", [code:root_dir()]), halt().')"
+          cd examples/supervised-app
+          gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" \
+            run -PotpLib="$OTP_ROOT/lib"

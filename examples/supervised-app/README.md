@@ -1,7 +1,8 @@
 # Supervision, started from Java
 
 OTP's `application` controller and `supervisor`, unmodified, running on the JVM.
-Java starts the application, kills a worker, and the supervisor puts it back.
+Java starts the application, keeps a Java HTTP service answering, kills a
+worker, and the supervisor puts the worker back.
 
 ```sh
 cd examples/supervised-app
@@ -9,6 +10,7 @@ gradle run -PotpLib="/c/Program Files/Erlang OTP/lib"
 ```
 
 ```
+java service listening -> HTTP/1.1 200 OK
 application:start(demo) -> ok
 demo_worker:bump()      -> 1
 demo_worker:bump()      -> 2
@@ -20,6 +22,8 @@ worker restarted        -> true
 demo_worker:count()     -> 0   (a fresh process starts at zero)
 application:stop(demo)  -> ok
 whereis(demo_sup)       -> undefined
+java service served     -> N requests, including while the worker was down
+java service after stop -> HTTP/1.1 200 OK
 ```
 
 Needs an Erlang/OTP installation, unlike `http-service`, `chat-service` and
@@ -51,7 +55,8 @@ and the four modules are compiled to.
 | `src/main/erl/demo_app.erl` | The application callback: `start/2` returns the supervisor's pid. |
 | `src/main/erl/demo_sup.erl` | A `one_for_one` supervisor with a map child spec. |
 | `src/main/erl/demo_worker.erl` | A `gen_server` holding one integer, with `bump/0`, `count/0` and `crash/0`. |
-| `src/main/java/example/Supervised.java` | Starts the application, crashes the worker, reads the tree, stops it. |
+| `src/main/java/example/Supervised.java` | Starts the Java service and application, crashes the worker, reads the tree, stops it. |
+| `src/main/java/example/JavaService.java` | A loopback HTTP service outside the supervision tree; it keeps answering during the restart. |
 
 ## What the run proves
 
@@ -64,6 +69,8 @@ and the four modules are compiled to.
   afterwards.
 - `node.close()` actually ends the JVM. Schedulers are non-daemon threads, so
   without it the process stays up with nothing to do.
+- The Java HTTP service keeps answering while the Erlang worker is down, and
+  the final request succeeds after the restart.
 
 ## One thing you will see in the output
 
