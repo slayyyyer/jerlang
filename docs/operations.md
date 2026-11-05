@@ -236,6 +236,30 @@ What it does not show: crash-dump completeness, OTP release handling, TLS
 protection for distribution or production-grade backpressure. Those remain
 outside the prototype's boundary.
 
+## JMX
+
+A running node registers a platform MBean under
+`org.jerlang:type=Node,name=<node>`. The attributes are the same snapshot as
+`Node.metrics()`:
+
+| Attribute | Meaning |
+| --- | --- |
+| `Processes` | Live processes, excluding ports |
+| `Ports` | Live ports |
+| `MailboxMessages` | Messages waiting in all mailboxes |
+| `RunQueueDepth` | Processes and ports waiting on all schedulers |
+| `Reductions` | Reductions executed by the processes alive at the reading |
+| `MessagesDelivered` | Deliveries since the node started |
+| `MessagesPerSecond` | Average delivery rate since start |
+| `SchedulerCount`, `SchedulerUtilisation` | Scheduler pool and aggregate busy fraction |
+| `UptimeMillis` | Time since the node started |
+| `Text` | The line-oriented snapshot documented below |
+
+The bean is registered by `Node.start()` and removed by `Node.close()`. It is
+not a management server: the application still chooses how JMX is exposed
+(local JConsole, RMI, or an exporter). This is one process-local prototype
+surface, not the OTP `observer` application.
+
 ## The 0.9 exit test
 
 Both halves run in CI, so nothing here depends on a peer started by hand.

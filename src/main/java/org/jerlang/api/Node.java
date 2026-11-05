@@ -4,9 +4,13 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.function.Function;
+
+import javax.management.JMException;
+import javax.management.ObjectName;
 
 import org.jerlang.CodePaths;
 import org.jerlang.Module;
@@ -53,6 +57,7 @@ public final class Node implements AutoCloseable {
 
     private final NodeOptions options;
     private volatile boolean closed;
+    private ObjectName metricsName;
 
     private Node(NodeOptions options) {
         this.options = options;
@@ -89,6 +94,7 @@ public final class Node implements AutoCloseable {
             if (options.reflection()) {
                 node.registerJavaModule();
             }
+            node.registerMetricsMBean();
             active = node;
             return node;
         } catch (RuntimeException | Error failure) {
@@ -199,6 +205,37 @@ public final class Node implements AutoCloseable {
     }
 
     /**
+     * Register this node's counters under a stable JMX object name. The name
+     * includes the node's own name, so a client can query a named node without
+     * knowing its PID or startup order.
+     */
+    private void registerMetricsMBean() {
+        try {
+            ObjectName name = new ObjectName("org.jerlang:type=Node,name="
+                + ObjectName.quote(name().toString()));
+            ManagementFactory.getPlatformMBeanServer()
+                .registerMBean(new NodeMetrics(this), name);
+            metricsName = name;
+        } catch (JMException failure) {
+            throw new IllegalStateException("can not register node metrics", failure);
+        }
+    }
+
+    private void unregisterMetricsMBean() {
+        if (metricsName == null) {
+            return;
+        }
+        try {
+            ManagementFactory.getPlatformMBeanServer().unregisterMBean(metricsName);
+        } catch (JMException ignored) {
+            // A registry that already removed the bean must not turn close
+            // into a failure; the node is going away either way.
+        } finally {
+            metricsName = null;
+        }
+    }
+
+    /**
      * Call an exported Erlang function.
      */
     public Term apply(String module, String function, Term... arguments) {
@@ -278,6 +315,7 @@ public final class Node implements AutoCloseable {
             active = null;
             VirtualMachine virtualMachine = VirtualMachine.instance();
             try {
+                unregisterMetricsMBean();
                 virtualMachine.shutdown();
             } finally {
                 ModuleRegistry.reset();
