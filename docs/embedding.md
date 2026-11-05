@@ -1,10 +1,10 @@
 # Embedding JErlang in a JVM service
 
 JErlang 2.0 can compile Erlang source to BEAM and embed a node in a Java
-process. Those two pieces have not yet been presented as one build-and-run
-workflow: the examples that compile `.erl` still use `erlc`, the Maven path is
-not demonstrated, and an application that follows the documentation has to know
-which files must be reset before it can start a node.
+process. Those two pieces were not presented as one build-and-run workflow: the
+existing examples compiled with `erlc`, the Maven path was not demonstrated, and
+an application that follows the documentation had to know which files must be
+reset before it can start a node.
 
 3.0 is the embedding release. It makes a JVM service the first-class deployment
 shape: the service owns the process, its build compiles the Erlang modules with
@@ -34,7 +34,7 @@ for a module that only uses the runtime.
 
 | Gap | Why it matters |
 | --- | --- |
-| Consumer examples compile with `erlc`. | The build still requires an Erlang installation even when the application does not need OTP. |
+| Consumer builds were tied to `erlc`. | The build still requires an Erlang installation even when the application does not need OTP. |
 | No Maven example. | Maven users have no checked-in build that compiles Erlang with the runtime they already depend on. |
 | `Node` lifecycle is implicit. | Code paths, module registry resets, startup failures and close order are learned from examples rather than from one documented contract. |
 | Packaging is ambiguous. | The shaded jar also declares its dependencies, so consumers can get both bundled and transitive copies. Changing that is a compatibility decision, not a cosmetic one. |
@@ -125,6 +125,11 @@ change.
 
 ## E2 — Gradle consumer parity
 
+**Status: complete.** The checked-in `examples/gradle-embed` is the parity
+quickstart. `junit-harness`, `http-service`, `chat-service` and the JVM side of
+`mnesia-service` compile their modules with JErlang; `supervised-app` remains the
+explicit `erlc`/OTP example.
+
 **Goal:** make the Maven and Gradle stories equivalent for the smallest
 non-OTP service.
 
@@ -139,7 +144,10 @@ non-OTP service.
 
 **Exit test:** a clean checkout runs `gradle test` and the non-OTP example builds
 with no `erl`/`erlc` available. CI has a job for that path, separate from the
-existing `gradle-examples` job that installs OTP.
+existing `gradle-examples` job that installs OTP. Local verification on JDK 21
+ran `gradle test` in `gradle-embed` and `junit-harness`, and `gradle installDist`
+in `http-service`, `chat-service` and `mnesia-service`, with both tool paths set
+to nonexistent files.
 
 ## E3 — Embedding lifecycle contract
 

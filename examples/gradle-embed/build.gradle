@@ -1,0 +1,69 @@
+plugins {
+    id 'application'
+}
+
+// The published artifact, exactly as a consumer would depend on it.
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'io.github.slayyyyer:jerlang:2.0.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+application {
+    mainClass = 'example.EmbedDemo'
+}
+
+def ebin = layout.buildDirectory.dir('ebin')
+def erlangOut = layout.buildDirectory.dir('erlang')
+def java21 = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(21)
+}
+
+// Compile the Erlang sources with JErlang's compiler, not erlc. The compiler
+// class comes from the same artifact the runtime does, so this build needs only
+// a JDK. The compiler writes to build/erlang; build/ebin is replaced only after
+// the whole compile succeeds, so a failed source can not leave a beam behind.
+tasks.register('compileErlang', JavaExec) {
+    description = 'Compiles the Erlang sources with JErlang.'
+    group = 'build'
+    def sources = fileTree('src/main/erl') { include '**/*.erl' }
+    inputs.files sources
+    outputs.dir ebin
+    classpath = configurations.compileClasspath
+    javaLauncher.set(java21)
+    mainClass = 'org.jerlang.compiler.CompilerCommand'
+    args = ['-o', erlangOut.get().asFile.absolutePath] + sources.files.collect { it.absolutePath }
+    doFirst {
+        delete ebin.get().asFile
+        delete erlangOut.get().asFile
+    }
+    doLast {
+        project.copy {
+            from erlangOut.get().asFile
+            into ebin.get().asFile
+        }
+    }
+}
+
+tasks.named('classes') {
+    dependsOn 'compileErlang'
+}
+
+tasks.named('run') {
+    systemProperty 'jerlang.example.ebin', ebin.get().asFile.absolutePath
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    systemProperty 'jerlang.example.ebin', ebin.get().asFile.absolutePath
+}

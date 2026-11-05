@@ -241,11 +241,39 @@ jobs:
       - name: Run the soak
         run: mvn -B -Dtest=SoakTest -Djerlang.soak.seconds=1800 -Djerlang.soak.workers=32 test
 
+  gradle-embed:
+    # E2: the Gradle consumer path. The matrix compiles every non-OTP example
+    # with no Erlang toolchain on the runner. The broken paths make a fallback
+    # to erlc/erl fail instead of succeeding if the runner has Erlang installed.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [gradle-embed, junit-harness, http-service, chat-service, mnesia-service]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build without an Erlang toolchain
+        env:
+          ERLC: /nonexistent/erlc
+          ERL: /nonexistent/erl
+        run: cd examples/${{ matrix.example }} && gradle --no-daemon test
+
   gradle-examples:
-    # The Gradle examples are consumer builds: they resolve the published
-    # artifact and compile their own Erlang, so a change to the runtime or to
-    # their sources can not hide behind a stale local build. mnesia-service is
-    # built here but not run: running it needs a live OTP node.
+    # The OTP-backed Gradle example still compiles its modules with erlc and
+    # needs OTP at run time. The non-OTP examples are covered without OTP in the
+    # gradle-embed job; mnesia-service is built here but not run because running
+    # it needs a live OTP node.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

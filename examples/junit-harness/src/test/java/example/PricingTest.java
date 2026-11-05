@@ -37,7 +37,7 @@ class PricingTest {
         CodePaths.reset();
         ModuleRegistry.reset();
 
-        File ebin = new File("src/test/ebin");
+        File ebin = new File(System.getProperty("jerlang.example.ebin", "build/ebin"));
         assertTrue(ebin.isDirectory(),
             "missing " + ebin.getAbsolutePath() + " — run gradle compileErlang");
         CodePaths.addPatha(CodePaths.normalizePath(ebin.getAbsolutePath()));

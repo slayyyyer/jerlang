@@ -18,41 +18,46 @@ java {
     }
 }
 
-// The tests call the .beam files in src/test/ebin, and those are committed. That
-// is deliberate: a checkout with no Erlang installation at all can still run
-// `gradle test`. This task refreshes them when erlc is available, and skips
-// itself when it is not.
-//
-// The directory is outside src/test/resources on purpose. Gradle refuses to let
-// the resource task read a directory another task writes (an implicit
-// dependency it rejects at configuration time), and the beams are loaded from
-// disk by the runtime anyway, never from the classpath.
-def ebin = file('src/test/ebin')
+// The tests call modules compiled by JErlang. A checkout with no Erlang
+// installation can still run `gradle test`; there are no committed beams to
+// fall back on. The compiler writes to build/erlang and the task replaces
+// build/ebin only after a successful compile, so a failed source can not leave
+// an older module looking current.
+def ebin = layout.buildDirectory.dir('ebin')
+def erlangOut = layout.buildDirectory.dir('erlang')
+def java21 = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(21)
+}
 
-tasks.register('compileErlang', Exec) {
-    description = 'Recompiles the Erlang modules the tests call.'
+tasks.register('compileErlang', JavaExec) {
+    description = 'Compiles the Erlang modules the tests call with JErlang.'
     group = 'build'
     def sources = fileTree('src/main/erl') { include '**/*.erl' }
-    def erlc = System.getenv('ERLC') ?: 'erlc'
     inputs.files sources
     outputs.dir ebin
-    onlyIf {
-        try {
-            new ProcessBuilder(erlc, '-v').redirectErrorStream(true).start().waitFor() == 0
-        } catch (Exception missing) {
-            logger.lifecycle('erlc not found, using the committed .beam files')
-            false
-        }
-    }
+    classpath = configurations.compileClasspath
+    javaLauncher.set(java21)
+    mainClass = 'org.jerlang.compiler.CompilerCommand'
+    args = ['-o', erlangOut.get().asFile.absolutePath] + sources.files.collect { it.absolutePath }
     doFirst {
-        ebin.mkdirs()
-        commandLine([erlc, '-o', ebin.absolutePath] + sources.files.collect { it.absolutePath })
+        delete ebin.get().asFile
+        delete erlangOut.get().asFile
+    }
+    doLast {
+        project.copy {
+            from erlangOut.get().asFile
+            into ebin.get().asFile
+        }
     }
 }
 
-tasks.named('test') {
+tasks.named('classes') {
     dependsOn 'compileErlang'
+}
+
+tasks.named('test') {
     useJUnitPlatform()
+    systemProperty 'jerlang.example.ebin', ebin.get().asFile.absolutePath
     testLogging {
         events 'passed', 'failed'
         showStandardStreams = false

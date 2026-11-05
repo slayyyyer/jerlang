@@ -61,9 +61,9 @@ listener stops accepting before `node.close()` drains on shutdown.
 
 ## Running it
 
-Requires a JDK 21, `erlc` on the PATH (or `ERLC=/path/to/erlc`), and Gradle 8.5 or
-newer — tested with 9.8.2. No Gradle wrapper is committed, so use an installed
-Gradle.
+Requires a JDK 21 and Gradle 8.5 or newer — tested with 9.8.2. No Gradle wrapper
+is committed, so use an installed Gradle. JErlang compiles the service's `.erl`
+files, so no `erl` or `erlc` is needed.
 
 ```sh
 cd examples/http-service
@@ -77,9 +77,9 @@ gradle installDist
 ```
 
 The `run` task passes `jerlang.example.ebin`; the installed script falls back to
-`build/ebin` relative to the working directory. `erlc` runs once, in
-`compileErlang`, which `classes` depends on — nothing compiles Erlang at run
-time, and the service needs no Erlang installation to run.
+`build/ebin` relative to the working directory. `compileErlang` runs JErlang's
+compiler once, and `classes` depends on it — nothing compiles Erlang at run time,
+and the service needs no Erlang installation to build or run.
 
 The HTTP thread pool and the scheduler count are the same number on purpose. One
 HTTP thread is inside one Erlang call at a time, so more HTTP threads than

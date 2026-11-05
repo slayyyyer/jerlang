@@ -23,19 +23,33 @@ application {
 }
 
 def ebin = layout.buildDirectory.dir('ebin')
+def erlangOut = layout.buildDirectory.dir('erlang')
 
-// Only compilation needs erlc; the .beam files are loaded at run time.
-tasks.register('compileErlang', Exec) {
-    description = 'Compiles the Erlang sources of the service.'
+// JErlang compiles the service from the published artifact; only a JDK is
+// needed. The .beam files are loaded from build/ebin at run time.
+def java21 = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(21)
+}
+
+tasks.register('compileErlang', JavaExec) {
+    description = 'Compiles the Erlang sources of the service with JErlang.'
     group = 'build'
     def sources = fileTree('src/main/erl') { include '**/*.erl' }
-    def erlc = System.getenv('ERLC') ?: 'erlc'
     inputs.files sources
     outputs.dir ebin
+    classpath = configurations.compileClasspath
+    javaLauncher.set(java21)
+    mainClass = 'org.jerlang.compiler.CompilerCommand'
+    args = ['-o', erlangOut.get().asFile.absolutePath] + sources.files.collect { it.absolutePath }
     doFirst {
-        ebin.get().asFile.mkdirs()
-        commandLine([erlc, '-o', ebin.get().asFile.absolutePath]
-            + sources.files.collect { it.absolutePath })
+        delete ebin.get().asFile
+        delete erlangOut.get().asFile
+    }
+    doLast {
+        project.copy {
+            from erlangOut.get().asFile
+            into ebin.get().asFile
+        }
     }
 }
 

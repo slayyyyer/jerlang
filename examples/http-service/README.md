@@ -22,8 +22,8 @@ a route means adding a `handle/3` clause; nothing in Java changes.
 
 ## Running it
 
-Needs a JDK 21, `erlc` on the PATH (or `ERLC=/path/to/erlc`), and Gradle 8.5 or
-newer — tested with 9.8.2. No wrapper is committed.
+Needs a JDK 21 and Gradle 8.5 or newer — tested with 9.8.2. No wrapper is
+committed. JErlang compiles the Erlang sources, so no `erl` or `erlc` is needed.
 
 ```sh
 cd examples/http-service
@@ -31,10 +31,10 @@ gradle run                 # http://127.0.0.1:8080/
 gradle run -Pport=9000     # another port
 ```
 
-`erlc` is only needed to compile: `compileErlang` writes `build/ebin`, and the
-runtime loads the `.beam` files from there. It runs on a plain JDK — the service
-state is a registered process with a `receive` loop, not an OTP `gen_server`, so
-no Erlang installation is needed at run time.
+`compileErlang` runs JErlang's compiler and writes `build/ebin`; the runtime
+loads the `.beam` files from there. The service state is a registered process
+with a `receive` loop, not an OTP `gen_server`, so the build and the run both
+need only a JDK.
 
 To run it as a standalone install:
 
@@ -58,7 +58,7 @@ curl -s localhost:8080/metrics                   # runtime counters
 
 | File | What it is |
 | --- | --- |
-| `build.gradle` | The whole Java integration: one dependency, one `erlc` task. |
+| `build.gradle` | The whole Java integration: one dependency, one JErlang compile task. |
 | `src/main/java/example/Server.java` | Listener, request → Erlang call, reply → response. Fixed. |
 | `src/main/erl/api.erl` | Routing, status codes, JSON. This is the service. |
 | `src/main/erl/store.erl` | The state: a list of key/value pairs in one registered process. |

@@ -406,6 +406,6 @@ beside its Java sources, compile them with JErlang, and call the resulting
 modules in the same process without installing Erlang.
 
 **Status: in progress.** The embedding milestones, exit tests and the first
-implementation are in [embedding.md](embedding.md). The Maven consumer
-quickstart is complete; the Gradle path, lifecycle, packaging and release gates
-follow it.
+implementation are in [embedding.md](embedding.md). The Maven and Gradle
+consumer quickstarts are complete; the lifecycle, packaging and release gates
+follow them.

@@ -25,7 +25,8 @@ whereis(demo_sup)       -> undefined
 Needs an Erlang/OTP installation, unlike `http-service`, `chat-service` and
 `junit-harness`: the supervision tree is OTP's code, so `kernel` and `stdlib` have
 to be on the code path. The JVM supplies the processes, messages and timers; it
-does not ship a second copy of the behaviours.
+does not ship a second copy of the behaviours. This is also the one Gradle
+example whose build still uses `erlc` for its own modules.
 
 ## Where the OTP root comes from
 

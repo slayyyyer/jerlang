@@ -10,8 +10,8 @@ is still fixed plumbing that you never edit to add a feature.
 
 ## Running it
 
-Needs a JDK 21, `erlc` on the PATH (or `ERLC=/path/to/erlc`), and Gradle 8.5 or
-newer (tested with 9.8.2).
+Needs a JDK 21 and Gradle 8.5 or newer (tested with 9.8.2). JErlang compiles
+the Erlang sources, so no `erl` or `erlc` is needed.
 
 ```sh
 cd examples/chat-service
@@ -57,7 +57,7 @@ curl -s localhost:8080/metrics            # runtime counters
 
 | File | What it is |
 | --- | --- |
-| `build.gradle` | One dependency, one `erlc` task, as in `http-service`. |
+| `build.gradle` | One dependency, one JErlang compile task, as in `http-service`. |
 | `src/main/java/example/ChatServer.java` | Listener, the Java sink Erlang calls, the SSE writer. Fixed. |
 | `src/main/erl/chat.erl` | Routing, SSE frames, JSON. This is the service. |
 | `src/main/erl/rooms.erl` | Room name to process, and the owner of the history table. |
@@ -79,4 +79,4 @@ streams, not of cores. That is the opposite of the key-value example.
 process can die without taking the messages with it. Sequence numbers come from
 the room process because `ets:update_counter/3` is not implemented in 1.0.0.
 
-Run time needs no Erlang installation; only `erlc` at build time.
+The build and run need no Erlang installation; JErlang compiles the modules.

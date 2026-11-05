@@ -46,6 +46,8 @@ for (Path directory : otpEbins(otpLib)) {          // kernel-*/ebin, stdlib-*/eb
 CodePaths.addPatha(CodePaths.normalizePath(Path.of(ebin).toAbsolutePath().toString()));
 ```
 
+This is also the only Gradle example whose own modules are still compiled with
+`erlc`; the others use JErlang and need no Erlang installation for their build.
 The `lib` directory is an argument (`-PotpLib=`), not something the code guesses:
 a machine can have more than one installation, and picking the wrong one is a
 confusing failure.

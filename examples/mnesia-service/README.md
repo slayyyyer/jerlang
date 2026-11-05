@@ -16,8 +16,9 @@ a name from `-sname`, which is what this example does.
 
 ## Running it
 
-Needs a JDK 21, `erlc`/`erl` on the PATH (or `ERLC=/path/to/erlc`), and Gradle
-8.5 or newer (tested with 9.8.2).
+The JVM build needs a JDK 21 and Gradle 8.5 or newer (tested with 9.8.2); it
+compiles `people.erl` with JErlang. The separate OTP node still needs `erlc` and
+`erl` on the PATH (or `ERLC`).
 
 Terminal one, the node that owns the table:
 
@@ -58,7 +59,7 @@ node has to be started with the same cookie.
 
 | File | What it is |
 | --- | --- |
-| `build.gradle` | One dependency, one `erlc` task, as in the other examples. |
+| `build.gradle` | One dependency, one JErlang compile task; the OTP node is built separately. |
 | `src/main/java/example/MnesiaServer.java` | Names the node, listens, calls `people:handle/4`. Fixed. |
 | `src/main/erl/people.erl` | The routes, the `rpc:call` wrapper and the JSON. This is the service. |
 | `otp/mnesia_node.erl` | The OTP node. Not used by the JVM at all; it owns the table. |
@@ -81,5 +82,6 @@ configuration; the JVM side does not change.
 **The cookie is a secret.** It is on the command line of both nodes, which is
 visible in the process list. Fine for a local example; not for anything else.
 
-Run time needs Erlang only for the *OTP node*. The JVM services need `erlc` at
-build time and nothing Erlang-shaped to run.
+Run time needs Erlang only for the *OTP node*. The JVM service needs no Erlang
+installation at build or run time; the OTP node's module is compiled with
+`erlc`.

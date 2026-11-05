@@ -48,19 +48,16 @@ Two things are easy to get wrong, and both are in the test:
 | `aProcessKeepsItsState` | `spawn`, send and receive work from a JUnit run: the counter lives in a process, not a field. |
 | `aClauseThatDoesNotMatchSurfacesAsAnException` | A failed clause is a `RuntimeException` in the test, so a broken module fails the build. |
 
-## Why the `.beam` files are committed
+## Why the beams are built by the test build
 
-`src/test/ebin` holds `pricing.beam` and `worker.beam`. That is deliberate: the
-promise of this example is that a checkout with **no Erlang installed** can still
-run the tests, and that only holds if the compiled output is in the repository.
+`src/test/ebin` used to contain committed beams; it does not now. `gradle test`
+runs `compileErlang`, which compiles `src/main/erl` with JErlang and writes
+`build/ebin`; the suite reads that path. There is no `erlc` step and no fallback
+to a checked-in artifact, so a clean checkout with only a JDK builds and tests
+the modules.
 
-`gradle compileErlang` recompiles them from `src/main/erl` when `erlc` is on the
-PATH, and skips itself when it is not:
-
-```
-> Task :compileErlang
-erlc not found, using the committed .beam files
-```
+The task deletes `build/ebin` before compiling, so a source error fails the test
+build instead of leaving an older module in place.
 
 ## What this example does not show
 

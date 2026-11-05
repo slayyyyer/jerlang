@@ -8,7 +8,9 @@ JVM node acting as an HTTP front end and a distribution client.
 That split is not a stylistic choice. mnesia does not run inside this runtime
 today (the [compatibility page](../beam-compatibility.md) and the probes below
 explain why), but a jerlang node is a first-class distribution peer, and
-`rpc:call/5` works. So the durable state stays where it already ran well.
+`rpc:call/5` works. So the durable state stays where it already ran well. The
+JVM build compiles `people.erl` with JErlang; only the separate OTP node uses
+`erlc` and `erl`.
 
 ## The shape
 

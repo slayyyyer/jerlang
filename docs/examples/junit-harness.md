@@ -45,24 +45,15 @@ module registry are process-wide state, so a suite where two test classes each
 add a directory has to clear the path first or the second class is testing the
 first class's modules.
 
-## Why the `.beam` files are in the repository
+## How the `.beam` files are built
 
-`src/test/ebin/pricing.beam` and `worker.beam` are committed on purpose. The
-claim of this example is that the tests run without an Erlang installation, and
-that is only true if the compiled modules ship with the checkout.
+There are no committed beams now. `gradle test` runs `compileErlang`, which
+compiles `src/main/erl` with JErlang and writes `build/ebin`; the suite reads
+that path. A checkout with only a JDK can build and run the tests, and a source
+error fails the build instead of falling back to an older artifact.
 
-`gradle compileErlang` refreshes them when `erlc` is available and skips when it
-is not, which is the behaviour a consumer wants in both cases: CI with OTP gets
-a fresh compile, a teammate's laptop without OTP still gets a green build.
-
-```
-$ gradle test
-> Task :compileErlang
-erlc: not found, using the committed .beam files
-```
-
-This is the same pattern the runtime's own repository uses for
-`src/test/resources/bridge_demo.beam`.
+The task deletes `build/ebin` before compiling, so a failed compile cannot leave
+a stale beam for a test to pass against.
 
 ## What a test can prove, and what it can not
 
