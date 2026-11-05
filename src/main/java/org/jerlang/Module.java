@@ -140,7 +140,7 @@ public class Module {
         }
         Process process = VirtualMachine.self();
         if (process == null) {
-            if (native_functions.contains(signature)) {
+            if (native_functions.contains(signature) && timeoutMillis == 0L) {
                 // A built-in implementation adopted by a BEAM module has no
                 // instruction stream to start, so call it directly.
                 return exported_functions.get(signature).apply(params);
@@ -151,7 +151,15 @@ public class Module {
             // spawned process as its "self": a later call would otherwise
             // run in the finished process instead of spawning a new one.
             ProcessOrPort previous = ProcessRegistry.self();
-            process = VirtualMachine.instance().spawn(signature.module(), signature.function(), params.toList());
+            if (native_functions.contains(signature)) {
+                // A native function with a deadline still needs a process to
+                // own, so the timeout can terminate it like any other call.
+                process = VirtualMachine.instance().spawnNative(
+                    exported_functions.get(signature), params.toList());
+            } else {
+                process = VirtualMachine.instance().spawn(signature.module(), signature.function(),
+                    params.toList());
+            }
             ProcessRegistry.self(process);
             try {
                 // The scheduler thread finishes the process and counts the

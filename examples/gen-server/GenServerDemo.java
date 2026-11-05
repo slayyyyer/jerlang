@@ -1,13 +1,8 @@
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
-import org.jerlang.CodePaths;
-import org.jerlang.ModuleRegistry;
 import org.jerlang.api.Bridge;
 import org.jerlang.api.Node;
+import org.jerlang.api.NodeOptions;
 import org.jerlang.type.Term;
 import org.jerlang.type.Tuple;
 
@@ -23,19 +18,15 @@ import org.jerlang.type.Tuple;
  */
 public final class GenServerDemo {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         String otp = System.getProperty("jerlang.otp.dir");
         if (otp == null) {
             System.err.println("run with -Djerlang.otp.dir=/path/to/erlang");
             System.exit(2);
         }
-        CodePaths.reset();
-        ModuleRegistry.reset();
-        CodePaths.addPatha(CodePaths.normalizePath("."));
-        CodePaths.addPatha(ebin(otp, "stdlib"));
-        CodePaths.addPatha(ebin(otp, "kernel"));
 
-        try (Node node = Node.start()) {
+        try (Node node = Node.start(NodeOptions.builder()
+            .otpRoot(Path.of(otp)).build())) {
             Tuple started = node.apply("counter", "start").toTuple();
             Term server = started.element(2);
 
@@ -46,22 +37,6 @@ public final class GenServerDemo {
 
             node.apply("counter", "stop", server);
         }
-    }
-
-    /**
-     * The ebin directory of an application in an OTP installation.
-     */
-    private static String ebin(String root, String application) throws IOException {
-        Path lib = Paths.get(root, "lib");
-        try (DirectoryStream<Path> directories = Files.newDirectoryStream(lib, application + "-*")) {
-            for (Path directory : directories) {
-                Path ebin = directory.resolve("ebin");
-                if (Files.isDirectory(ebin)) {
-                    return CodePaths.normalizePath(ebin.toString());
-                }
-            }
-        }
-        throw new IOException("no " + application + " in " + lib);
     }
 
 }

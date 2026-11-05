@@ -297,6 +297,19 @@ public class VirtualMachine {
     }
 
     /**
+     * Run a native function in a process of its own. This is how a timed call
+     * to a Java callback can be terminated without an instruction stream.
+     */
+    public Process spawnNative(Fun fun, List args) {
+        PID pid = new PID(node, nextPID.incrementAndGet(), 0, nodeCreation);
+        Process process = new Process(pid, fun, args);
+        ProcessRegistry.register(process);
+        Tracing.applyToNewProcess(process);
+        schedule(process);
+        return process;
+    }
+
+    /**
      * Create a process without putting it on a run queue. A remote spawn
      * uses this to send its SPAWN_REPLY, with the link and monitor already
      * in place, before the new process can run and terminate.

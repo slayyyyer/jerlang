@@ -1,14 +1,8 @@
 package example;
 
-import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
-import org.jerlang.CodePaths;
-import org.jerlang.ModuleRegistry;
 import org.jerlang.api.Node;
 import org.jerlang.api.NodeOptions;
 import org.jerlang.type.Atom;
@@ -22,12 +16,14 @@ import org.jerlang.type.Term;
  * {@code supervisor} module, loaded from the Erlang installation. JErlang supplies
  * the processes, messages and timers they need; it does not ship a second copy of
  * the behaviours.
- *
  * <p>Needs an Erlang/OTP installation for the code path:
  *
  * <pre>
  * gradle run -PotpLib="C:/Program Files/Erlang OTP/lib"
  * </pre>
+ *
+ * <p>The option names the OTP root; this example takes its {@code lib}
+ * directory on the command line and derives the root from it.
  */
 public final class Supervised {
 
@@ -37,17 +33,22 @@ public final class Supervised {
 
     public static void main(String[] args) throws Exception {
         String ebin = System.getProperty(EBIN, "build/ebin");
-        String otpLib = System.getProperty(OTP_LIB, "");
+        Path otpLib = Path.of(System.getProperty(OTP_LIB, ""));
         int threads = Integer.getInteger(THREADS, Math.max(2, Runtime.getRuntime().availableProcessors()));
 
-        CodePaths.reset();
-        ModuleRegistry.reset();
-        for (Path directory : otpEbins(otpLib)) {
-            CodePaths.addPatha(CodePaths.normalizePath(directory.toString()));
+        if (!Files.isDirectory(otpLib)) {
+            throw new IllegalStateException(
+                "pass -DotpLib=<otp>/lib, or gradle run -PotpLib=<otp>/lib");
         }
-        CodePaths.addPatha(CodePaths.normalizePath(Path.of(ebin).toAbsolutePath().toString()));
+        Path otpRoot = otpLib.getParent();
+        if (otpRoot == null) {
+            throw new IllegalStateException("not an OTP lib directory: " + otpLib);
+        }
 
-        Node node = Node.start(NodeOptions.builder().schedulers(threads).build());
+        Node node = Node.start(NodeOptions.builder().schedulers(threads)
+            .codePath(Path.of(ebin).toAbsolutePath())
+            .otpRoot(otpRoot)
+            .build());
         // Idempotent so a Ctrl-C after the explicit close below is harmless.
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
@@ -81,34 +82,6 @@ public final class Supervised {
         // nothing to do, which is the one thing an embedding application must not
         // leave to the shutdown hook.
         node.close();
-    }
-
-    /** kernel and stdlib are what the application controller and supervisor need. */
-    private static List<Path> otpEbins(String otpLib) throws IOException {
-        if (otpLib == null || otpLib.isEmpty()) {
-            throw new IllegalStateException(
-                "pass -DotpLib=<otp>/lib, or gradle run -PotpLib=<otp>/lib");
-        }
-        Path lib = Path.of(otpLib);
-        if (!Files.isDirectory(lib)) {
-            throw new IllegalStateException("not a directory: " + lib);
-        }
-        List<Path> ebins = new ArrayList<>();
-        try (DirectoryStream<Path> apps = Files.newDirectoryStream(lib)) {
-            for (Path app : apps) {
-                String name = app.getFileName().toString();
-                if (name.startsWith("kernel-") || name.startsWith("stdlib-")) {
-                    Path ebin = app.resolve("ebin");
-                    if (Files.isDirectory(ebin)) {
-                        ebins.add(ebin);
-                    }
-                }
-            }
-        }
-        if (ebins.size() < 2) {
-            throw new IllegalStateException("kernel and stdlib not found under " + lib);
-        }
-        return ebins;
     }
 
     /**

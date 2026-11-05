@@ -49,19 +49,15 @@ registry all belong to OTP.
 ## The Java side
 
 ```java
-public static void main(String[] args) throws IOException {
+public static void main(String[] args) {
     String otp = System.getProperty("jerlang.otp.dir");
     if (otp == null) {
         System.err.println("run with -Djerlang.otp.dir=/path/to/erlang");
         System.exit(2);
     }
-    CodePaths.reset();
-    ModuleRegistry.reset();
-    CodePaths.addPatha(CodePaths.normalizePath("."));
-    CodePaths.addPatha(ebin(otp, "stdlib"));
-    CodePaths.addPatha(ebin(otp, "kernel"));
 
-    try (Node node = Node.start()) {
+    try (Node node = Node.start(NodeOptions.builder()
+            .otpRoot(Path.of(otp)).build())) {
         Tuple started = node.apply("counter", "start").toTuple();
         Term server = started.element(2);
 
@@ -75,32 +71,17 @@ public static void main(String[] args) throws IOException {
 }
 ```
 
-The `ebin/2` helper walks the installation for the application directory, since
-OTP's lib directories carry a version suffix:
-
-```java
-private static String ebin(String root, String application) throws IOException {
-    Path lib = Paths.get(root, "lib");
-    try (DirectoryStream<Path> directories = Files.newDirectoryStream(lib, application + "-*")) {
-        for (Path directory : directories) {
-            Path ebin = directory.resolve("ebin");
-            if (Files.isDirectory(ebin)) {
-                return CodePaths.normalizePath(ebin.toString());
-            }
-        }
-    }
-    throw new IOException("no " + application + " in " + lib);
-}
-```
+`NodeOptions.otpRoot` takes `code:root_dir()` and locates the versioned
+`kernel-*/ebin` and `stdlib-*/ebin` directories under `<root>/lib`. It does not
+need an `ebin/2` helper, and the working directory remains the default code path
+entry for `counter.beam`.
 
 ## What each part is doing
 
 | Line | Why it is there |
 | --- | --- |
-| `CodePaths.reset()` / `ModuleRegistry.reset()` | Both are process-wide state. A second node in the same JVM would otherwise inherit the first one's path and loaded modules. |
-| `addPatha(".")` | The module loader searches the working directory, and the `.beam` files are compiled there. |
-| `ebin(otp, "stdlib")`, `ebin(otp, "kernel")` | `counter` is a real `gen_server`, so `gen_server`, `proc_lib` and the rest of `stdlib` must be loadable — and `kernel` under them. |
-| `try (Node node = Node.start())` | `Node` is `AutoCloseable`; closing it stops the schedulers and drains the Java object handle table. |
+| `NodeOptions.otpRoot(Path.of(otp))` | `counter` is a real `gen_server`, so `gen_server`, `proc_lib` and the rest of `stdlib` must be loadable, and `kernel` under them. The node adds both. |
+| `try (Node node = Node.start(...))` | `Node` is `AutoCloseable`; closing it stops the schedulers, drains the Java object handle table and clears the code path and module registry. |
 | `apply("counter", "start")` | Returns the `{ok, Pid}` tuple from `gen_server:start/4`. |
 | `started.element(2)` | The second element of that tuple is the server's pid. |
 | `apply("counter", "increment", server)` | A cast: it returns `ok` immediately and the increment happens in the Erlang process. |

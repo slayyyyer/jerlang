@@ -96,9 +96,8 @@ runs `org.jerlang.compiler.CompilerCommand` during `generate-resources` to write
 
 The Java program:
 
-* resets the process-wide code path and module registry once;
-* adds `target/ebin` with `CodePaths.addPatha`;
-* starts a `Node` with try-with-resources;
+* starts a `Node` with `target/ebin` supplied through `NodeOptions.codePath`;
+* relies on `Node.start` to reset the process-wide path and module registry;
 * calls an exported function and converts the result with `Bridge.toJava`;
 * exits without leaving schedulers or handles behind.
 
@@ -151,29 +150,35 @@ to nonexistent files.
 
 ## E3 — Embedding lifecycle contract
 
+**Status: complete.** The API is in `NodeOptions` and `Node`; the examples now
+use it instead of copying the old reset recipe.
+
 **Goal:** make `Node` safe to use as a library in a long-lived Java service.
 
-The contract to define:
+The contract is:
 
-* how code paths and the OTP root are supplied at startup;
-* what happens when startup fails, including which threads and registries were
-  already created;
-* whether two nodes can be started sequentially in one JVM, and what state is
-  reset between them;
-* how `close()` orders scheduler shutdown, module unregistration and handle
-  drainage, and that it is idempotent;
-* how a Java callback reports an error to Erlang and how a timeout or
-  cancellation is observed by the caller.
+* `NodeOptions.codePath(Path)` and `NodeOptions.otpRoot(Path)` supply startup
+  paths. The OTP root is `code:root_dir()`; the node finds the versioned
+  `kernel` and `stdlib` ebins below it.
+* One node may be open in a JVM. `Node.start` rejects a second one and resets
+  the process-wide code path and module registry before applying its options,
+  so sequential nodes do not inherit state.
+* A failed start shuts down whatever VM work was created, resets the handle cap,
+  code path and module registry, and leaves no active node.
+* `close()` is idempotent. It stops applications and processes before clearing
+  the modules they use, drains the handle table, resets the code path and module
+  registry, and clears the active node.
+* `registerFunction` maps a callback `RuntimeException` to
+  `error({java_exception, ClassName, Message})`. `apply` has a `Duration`
+  overload that throws `Module.ApplyTimeoutException` after killing the process
+  that ran the call.
 
-The design should remove the need for every consumer to copy
-`CodePaths.reset()`/`ModuleRegistry.reset()` from an example. If that requires a
-breaking signature, 3.0 is the release where it belongs; the old entry points
-get deprecation notes and a migration example.
-
-**Exit test:** tests start and close a node repeatedly, inject a startup
-failure, register a callback that throws, and call a module after a close. A
-small Java service test keeps a node alive across several requests and asserts
-that close is deterministic.
+**Exit test:** `NodeTest` starts and closes a node repeatedly, rejects a second
+open node, injects an invalid OTP-root startup failure, verifies a failed start
+can be followed by a successful one, registers callbacks that throw and time out,
+asserts a closed node rejects calls, and keeps a node alive across several
+requests. The Maven, Gradle and service examples use `NodeOptions` paths and no
+longer call `CodePaths.reset()` or `ModuleRegistry.reset()`.
 
 ## E4 — Packaging and dependency contract
 

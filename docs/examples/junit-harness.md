@@ -20,12 +20,10 @@ PricingTest > aClauseThatDoesNotMatchSurfacesAsAnException() PASSED
 BUILD SUCCESSFUL in 8s
 ```
 
-## The three lines that matter
+## The setup that matters
 
 ```java
-CodePaths.reset();
-CodePaths.addPatha(CodePaths.normalizePath(ebin.getAbsolutePath()));
-node = Node.start();
+node = Node.start(NodeOptions.builder().codePath(ebin.toPath()).build());
 ```
 
 Everything else is ordinary JUnit. A call is a call:
@@ -38,12 +36,13 @@ assertEquals(1190, ((Number) Bridge.toJava(
 `Node` is `AutoCloseable`, so it wants `@BeforeAll`/`@AfterAll` or
 try-with-resources — never one per test. Starting a node starts the schedulers;
 the cost is small but it is not free, and a suite that starts one per test will
-spend its time in setup.
+spend its time in setup. Only one node may be open in a JVM.
 
-The `reset()` pair is the other trap. The module loader, the atom table and the
-module registry are process-wide state, so a suite where two test classes each
-add a directory has to clear the path first or the second class is testing the
-first class's modules.
+Passing the code path through `NodeOptions` is the other half. `Node.start`
+resets the module loader, the atom table and the module registry, then applies
+that path, so two test classes cannot inherit each other's directories or loaded
+modules. The test does not call `CodePaths.reset()` or
+`ModuleRegistry.reset()` itself.
 
 ## How the `.beam` files are built
 

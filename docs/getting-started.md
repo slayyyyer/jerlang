@@ -146,9 +146,9 @@ At run time, `-pa` prepends a directory to the code path; `-pz` appends, and
 `-include_lib` library root, not a run-time code path. The module loader also looks in the working
 directory, so a `.beam` next to where the JVM was started needs no flag.
 
-Note the module search path is process-wide state. Embedded applications that
-start more than one node, or that want a clean slate, call `CodePaths.reset()`
-and `ModuleRegistry.reset()` first — this is what the examples do.
+The module search path is process-wide state. `Node.start` resets it and the
+module registry, then adds the directories in `NodeOptions`; an embedding does
+not call `CodePaths.reset()` itself. Close one node before starting the next.
 
 ## Embed the runtime in Java
 
@@ -213,21 +213,18 @@ A `gen_server` is not reimplemented here. Compile the callback module, put
 OTP's `stdlib` and `kernel` on the code path, and call it:
 
 ```java
-CodePaths.reset();
-ModuleRegistry.reset();
-CodePaths.addPatha(CodePaths.normalizePath("."));
-CodePaths.addPatha(ebin(otpRoot, "stdlib"));
-CodePaths.addPatha(ebin(otpRoot, "kernel"));
-
-try (Node node = Node.start()) {
+try (Node node = Node.start(NodeOptions.builder()
+        .otpRoot(Path.of(otpRoot)).build())) {
     Term server = node.apply("counter", "start").toTuple().element(2);
     node.apply("counter", "increment", server);
     System.out.println(Bridge.toJava(node.apply("counter", "value", server)));
 }
 ```
 
-where `otpRoot` is `code:root_dir()` from the installation. The complete
-program is the [Java calls Erlang](examples/gen-server.md) example.
+where `otpRoot` is `code:root_dir()` from the installation. `otpRoot` adds the
+`kernel` and `stdlib` ebins for you, and the working directory remains the
+default code path entry. The complete program is the
+[Java calls Erlang](examples/gen-server.md) example.
 
 You can also start from the other side and let an OTP node call this one; see
 [Distribution](distribution.md) for the cookie, the node name and the

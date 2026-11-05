@@ -30,10 +30,12 @@ quickstarts.
 | `junit-harness` | Erlang modules under test in a JUnit 5 suite, no Erlang installation needed to run it. |
 | `supervised-app` | OTP's `application` and `supervisor` running on the JVM: a worker is killed and restarted, with the pid changing. |
 
-All nine use `org.jerlang.api.Node`, which owns the runtime: it starts the
-schedulers, applies the options and, on `close()`, drains the object handle
-table. `mnesia-service` also names its node with `-sname`, because a distribution
-peer needs an identity.
+All nine use `org.jerlang.api.Node`, which owns the runtime: it resets the
+process-wide code path and module registry, applies the options and starts the
+schedulers; on `close()`, it drains the object handle table and clears that
+state again. Code paths and an OTP root are supplied through `NodeOptions`, not
+by calling `CodePaths.reset()` in each program. `mnesia-service` also names its
+node with `-sname`, because a distribution peer needs an identity.
 
 ## Running them
 

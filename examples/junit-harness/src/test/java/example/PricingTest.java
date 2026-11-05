@@ -2,10 +2,9 @@ package example;
 
 import java.io.File;
 
-import org.jerlang.CodePaths;
-import org.jerlang.ModuleRegistry;
 import org.jerlang.api.Bridge;
 import org.jerlang.api.Node;
+import org.jerlang.api.NodeOptions;
 import org.jerlang.type.Integer;
 import org.jerlang.type.Term;
 import org.junit.jupiter.api.AfterAll;
@@ -19,14 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Erlang modules under test, called from an ordinary JUnit 5 run.
  *
- * <p>Two rules make this work and both are easy to get wrong:
- *
- * <ul>
- *   <li>the node is started once for the class, not per test: creating one per
- *       test starts and stops the schedulers every time;
- *   <li>the code path is reset first, because the module loader and the atom
- *       table are process-wide state and a test run shares a JVM.
- * </ul>
+ * <p>The node is started once for the class and owns the code path through
+ * {@link NodeOptions}. Creating one per test would start and stop the
+ * schedulers every time, and starting a second one while the first is open is
+ * an error.
  */
 class PricingTest {
 
@@ -34,15 +29,11 @@ class PricingTest {
 
     @BeforeAll
     static void startNode() {
-        CodePaths.reset();
-        ModuleRegistry.reset();
-
         File ebin = new File(System.getProperty("jerlang.example.ebin", "build/ebin"));
         assertTrue(ebin.isDirectory(),
             "missing " + ebin.getAbsolutePath() + " — run gradle compileErlang");
-        CodePaths.addPatha(CodePaths.normalizePath(ebin.getAbsolutePath()));
 
-        node = Node.start();
+        node = Node.start(NodeOptions.builder().codePath(ebin.toPath()).build());
     }
 
     @AfterAll

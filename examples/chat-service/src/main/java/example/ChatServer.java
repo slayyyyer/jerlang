@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -17,8 +18,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
-import org.jerlang.CodePaths;
-import org.jerlang.ModuleRegistry;
 import org.jerlang.api.Bridge;
 import org.jerlang.api.Node;
 import org.jerlang.api.NodeOptions;
@@ -66,11 +65,8 @@ public final class ChatServer {
         int schedulers = Integer.getInteger(SCHEDULERS,
             Math.max(2, Runtime.getRuntime().availableProcessors()));
 
-        CodePaths.reset();
-        ModuleRegistry.reset();
-        CodePaths.addPatha(CodePaths.normalizePath(ebin));
-
-        Node node = Node.start(NodeOptions.builder().schedulers(schedulers).build());
+        Node node = Node.start(NodeOptions.builder().schedulers(schedulers)
+            .codePath(Path.of(ebin)).build());
         registerSink(node);
         node.apply("chat", "init");
 

@@ -101,7 +101,10 @@ for reflection has no `java:new/2` and cannot reach arbitrary JVM classes.
 `org.jerlang.api.Node` implements `AutoCloseable` and owns the node:
 
 ```java
-Node node = Node.start(NodeOptions.builder().reflection(true).build());
+Node node = Node.start(NodeOptions.builder()
+    .codePath(Path.of("target/ebin"))
+    .reflection(true)
+    .build());
 node.registerFunction("my_mod", "echo", 1, args -> args[0]);
 Term reply = node.apply("gen_server", "call", pid, request, Integer.of(5000));
 Term out = node.apply(anErlangFun, Integer.of(41));
@@ -111,6 +114,24 @@ node.close();
 `apply` takes both a module name and an Erlang fun. `registerFunction` makes a
 Java lambda callable from Erlang through the normal module registry. `Bridge`
 stays as it is: a static convenience over a default node.
+
+`Node.start` resets the process-wide code path and module registry before it
+applies `NodeOptions`, and `close` resets them again. Only one node may be open
+in a JVM; close it before starting another. A failed start performs the same
+cleanup and leaves no active node.
+
+A Java callback that throws a `RuntimeException` reports an Erlang error with
+reason `{java_exception, ClassName, Message}`, and the original exception is
+available as the Java cause. To bound a call made from a Java thread, pass a
+`Duration`:
+
+```java
+Term result = node.apply("worker", "run", Duration.ofSeconds(5), request);
+```
+
+A call that exceeds the deadline throws `Module.ApplyTimeoutException` after its
+process is killed. A callback already running inside an Erlang process is not
+interrupted by this timeout.
 
 ## Compatibility gate
 

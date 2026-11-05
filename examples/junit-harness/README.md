@@ -25,7 +25,7 @@ BUILD SUCCESSFUL in 8s
 compiled modules and calls them like any other function under test:
 
 ```java
-node = Node.start();
+node = Node.start(NodeOptions.builder().codePath(ebin).build());
 assertEquals(1000, Bridge.toJava(node.apply("pricing", "quote",
     Integer.of(250), Integer.of(4))));
 ```
@@ -33,10 +33,11 @@ assertEquals(1000, Bridge.toJava(node.apply("pricing", "quote",
 Two things are easy to get wrong, and both are in the test:
 
 - **One node per class, not per test.** Creating a node starts the schedulers;
-  doing that around every test would dominate the run.
-- **Reset the code path first.** The module loader, the atom table and the
-  registry are process-wide, so a suite that adds directories in several classes
-  needs `CodePaths.reset()` and `ModuleRegistry.reset()`.
+  doing that around every test would dominate the run, and only one node may be
+  open in a JVM.
+- **Put the code path in `NodeOptions`.** `Node.start` resets the process-wide
+  module loader and registry, then applies that path; the test does not call
+  `CodePaths.reset()` or `ModuleRegistry.reset()` itself.
 
 ## The tests
 

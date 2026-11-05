@@ -25,7 +25,8 @@ through `Emulator.parse` before `Node.start()`:
 
 ```java
 Emulator.parse(new String[] {"-sname", nodeName, "-setcookie", cookie});
-Node node = Node.start(NodeOptions.builder().schedulers(threads).build());
+Node node = Node.start(NodeOptions.builder().schedulers(threads)
+    .codePath(Path.of("build/ebin")).build());
 ```
 
 That is the only way to name an embedded node: `NodeOptions` has no name, and

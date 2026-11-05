@@ -3,10 +3,9 @@ package example;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
-import org.jerlang.CodePaths;
-import org.jerlang.ModuleRegistry;
 import org.jerlang.api.Bridge;
 import org.jerlang.api.Node;
+import org.jerlang.api.NodeOptions;
 import org.jerlang.type.Integer;
 
 /**
@@ -23,12 +22,9 @@ public final class EmbedDemo {
 
     public static void main(String[] args) {
         String ebin = System.getProperty("jerlang.example.ebin", "target/ebin");
-        CodePaths.reset();
-        ModuleRegistry.reset();
-        CodePaths.addPatha(CodePaths.normalizePath(
-            Path.of(ebin).toAbsolutePath().toString()));
 
-        try (Node node = Node.start()) {
+        try (Node node = Node.start(NodeOptions.builder()
+            .codePath(Path.of(ebin).toAbsolutePath()).build())) {
             byte[] bytes = (byte[]) Bridge.toJava(node.apply("greeter", "greet",
                 Bridge.toTerm("Java".getBytes(StandardCharsets.UTF_8))));
             System.out.println(new String(bytes, StandardCharsets.UTF_8));

@@ -6,13 +6,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.concurrent.Executors;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
-import org.jerlang.CodePaths;
-import org.jerlang.ModuleRegistry;
 import org.jerlang.api.Bridge;
 import org.jerlang.api.Node;
 import org.jerlang.api.NodeOptions;
@@ -56,14 +55,11 @@ public final class MnesiaServer {
         String nodeName = System.getProperty(NODE_NAME, "mnesia_http");
         String cookie = System.getProperty(COOKIE, "examplecookie");
 
-        CodePaths.reset();
-        ModuleRegistry.reset();
-        CodePaths.addPatha(CodePaths.normalizePath(ebin));
-
         // -sname and -setcookie are the same flags erl takes. Without a name the
         // node is nonode@nohost and can not take part in distribution.
         Emulator.parse(new String[] {"-sname", nodeName, "-setcookie", cookie});
-        Node node = Node.start(NodeOptions.builder().schedulers(threads).build());
+        Node node = Node.start(NodeOptions.builder().schedulers(threads)
+            .codePath(Path.of(ebin)).build());
         Atom peer = Atom.of(peerName(node));
 
         HttpServer http = HttpServer.create(new InetSocketAddress(port), 128);

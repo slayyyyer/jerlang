@@ -6,13 +6,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.concurrent.Executors;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
-import org.jerlang.CodePaths;
-import org.jerlang.ModuleRegistry;
 import org.jerlang.api.Bridge;
 import org.jerlang.api.Node;
 import org.jerlang.api.NodeOptions;
@@ -45,11 +44,8 @@ public final class Server {
         int port = Integer.getInteger(PORT, 8080);
         int threads = Integer.getInteger(THREADS, Math.max(2, Runtime.getRuntime().availableProcessors()));
 
-        CodePaths.reset();
-        ModuleRegistry.reset();
-        CodePaths.addPatha(CodePaths.normalizePath(ebin));
-
-        Node node = Node.start(NodeOptions.builder().schedulers(threads).build());
+        Node node = Node.start(NodeOptions.builder().schedulers(threads)
+            .codePath(Path.of(ebin)).build());
         node.apply("api", "init");
 
         HttpServer http = HttpServer.create(new InetSocketAddress(port), 128);

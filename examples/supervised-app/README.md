@@ -38,9 +38,10 @@ OTP_ROOT="$(erl -noshell -eval 'io:format("~s", [code:root_dir()]), halt().')"
 gradle run -PotpLib="$OTP_ROOT/lib"
 ```
 
-`Supervised.java` adds `kernel-*/ebin` and `stdlib-*/ebin` from that directory,
-then the application's own `build/ebin`, which is where `demo.app` and the four
-modules are compiled to.
+`Supervised.java` passes `Path.of(otpLib).getParent()` as `NodeOptions.otpRoot`;
+the node adds `kernel-*/ebin` and `stdlib-*/ebin` from that root. It also passes
+the application's own `build/ebin` as the code path, which is where `demo.app`
+and the four modules are compiled to.
 
 ## Files
 

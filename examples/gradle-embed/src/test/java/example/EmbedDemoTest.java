@@ -5,10 +5,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.jerlang.CodePaths;
-import org.jerlang.ModuleRegistry;
 import org.jerlang.api.Bridge;
 import org.jerlang.api.Node;
+import org.jerlang.api.NodeOptions;
 import org.jerlang.type.Integer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -38,10 +37,7 @@ class EmbedDemoTest {
                 .compareTo(Files.getLastModifiedTime(source)) >= 0,
             "stale " + beam + "; recompile greeter.erl with JErlang");
 
-        CodePaths.reset();
-        ModuleRegistry.reset();
-        CodePaths.addPatha(CodePaths.normalizePath(ebin.toString()));
-        node = Node.start();
+        node = Node.start(NodeOptions.builder().codePath(ebin).build());
     }
 
     @AfterAll

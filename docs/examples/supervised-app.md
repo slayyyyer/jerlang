@@ -40,11 +40,15 @@ That is why this example, unlike
 [`junit-harness`](junit-harness.md), needs an Erlang installation at run time:
 
 ```java
-for (Path directory : otpEbins(otpLib)) {          // kernel-*/ebin, stdlib-*/ebin
-    CodePaths.addPatha(CodePaths.normalizePath(directory.toString()));
-}
-CodePaths.addPatha(CodePaths.normalizePath(Path.of(ebin).toAbsolutePath().toString()));
+Node node = Node.start(NodeOptions.builder()
+    .codePath(Path.of(ebin).toAbsolutePath())
+    .otpRoot(Path.of(otpLib).getParent())   // otpLib is <root>/lib
+    .build());
 ```
+
+`NodeOptions.otpRoot` expects `code:root_dir()`, not the `lib` directory, so this
+example takes the `lib` path on the command line and moves up one. It finds the
+versioned `kernel` and `stdlib` ebins itself.
 
 This is also the only Gradle example whose own modules are still compiled with
 `erlc`; the others use JErlang and need no Erlang installation for their build.

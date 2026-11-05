@@ -51,6 +51,11 @@ public class Process extends ProcessOrPort {
 
     private final LinkedBlockingQueue<Term> mailbox;
     private final ProcessDictionary dictionary;
+
+    // A native function started by a timed call. It runs directly when this
+    // process is scheduled, instead of through an instruction stream.
+    private volatile Fun nativeCall;
+    private volatile List nativeParams;
     private Term[] registers = null;
     private Float[] fregisters = new Float[MAX_FREG];
 
@@ -232,6 +237,12 @@ public class Process extends ProcessOrPort {
         super(pid);
         dictionary = new ProcessDictionary();
         mailbox = new LinkedBlockingQueue<>();
+    }
+
+    public Process(PID pid, Fun call, List params) {
+        this(pid);
+        this.nativeCall = call;
+        this.nativeParams = params;
     }
 
     public Process(PID pid, Fun fun) {
@@ -1062,6 +1073,27 @@ public class Process extends ProcessOrPort {
 
     @Override
     public void execute() {
+        Fun call = nativeCall;
+        if (call != null) {
+            List params = nativeParams;
+            nativeCall = null;
+            nativeParams = null;
+            // A signal can arrive between the scheduler's pending-exit check
+            // and this call. Never start work for a process that is already
+            // being killed.
+            if (hasPendingExit()) {
+                setState(ProcessState.EXITING);
+                return;
+            }
+            try {
+                setX(0, call.apply(params));
+            } catch (Throwable failure) {
+                setFailure(failure);
+            } finally {
+                setState(ProcessState.EXITING);
+            }
+            return;
+        }
         switch (state()) {
         case WAITING:
             if (hasMessage()) {

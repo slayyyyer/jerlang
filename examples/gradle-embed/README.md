@@ -55,20 +55,17 @@ cannot pass on a committed artifact.
 ## The Java side
 
 ```java
-CodePaths.reset();
-ModuleRegistry.reset();
-CodePaths.addPatha(CodePaths.normalizePath(ebin));
-
-try (Node node = Node.start()) {
+try (Node node = Node.start(NodeOptions.builder()
+        .codePath(Path.of(ebin)).build())) {
     byte[] bytes = (byte[]) Bridge.toJava(node.apply("greeter", "greet",
         Bridge.toTerm("Java".getBytes(StandardCharsets.UTF_8))));
     System.out.println(new String(bytes, StandardCharsets.UTF_8));
 }
 ```
 
-The resets are needed because the module loader and registry are process-wide in
-2.0. E3 in the [embedding plan](../../docs/embedding.md) is the milestone that
-turns this lifecycle into a documented API rather than a copied recipe.
+`Node` owns the code path. Starting a node resets the process-wide path and
+module registry, then applies the directories in `NodeOptions`; there is no
+reset recipe to copy from the example.
 
 ## Files
 
