@@ -74,18 +74,21 @@ and the four modules are compiled to.
 
 ## One thing you will see in the output
 
-Killing the worker prints a crash report, and that report itself fails:
+Killing the worker prints a crash report, and then a second failure while that
+report is handled:
 
 ```
 Error in process <0.4.0> with exit value:
-{"Not implemented: {put_map_assoc,...}",[{gen_server,error_info,7,...}, ...]}
+{{badmatch,#{domain => [otp], report_cb => {Fun,gen_server:format_log/2}, ...}},
+ [{gen_server,handle_msg,3,...}, ...]}
 ```
 
-`gen_server` builds its report with a map update the runtime does not implement
-yet (`put_map_assoc`). The restart still happens — the supervisor does not need
-the report — so this is noise on the way to the correct result, not a broken
-example. It is left visible rather than filtered out, because a report that can
-not be built is something an operator should know about.
+The `put_map_assoc` failure that used to appear here is fixed; `gen_server` now
+builds the report. The remaining `badmatch` is in the path that handles the
+report, not in the supervisor: the worker is still replaced, the new pid is
+visible, and the restarted worker starts at zero. It is left visible rather than
+filtered out because a crash report that cannot be handled cleanly is something
+an operator should know about.
 
 ## Limits
 

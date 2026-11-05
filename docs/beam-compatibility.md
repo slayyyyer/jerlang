@@ -504,12 +504,15 @@ The supervisor row starts a `GenServer` under a `one_for_one` supervisor, adds
 server; `{2, 0}` is the pre-crash state and the reset state after restart. That
 is the failure model the project exists to test, running from Elixir source.
 
-The measurement found one instruction gap. OTP's compiler stores a map in a Y
-register when the map survives a later call, and both `put_map_assoc` and
-`put_map_exact` only wrote X destinations. An Elixir `Supervisor` start failed
-with `Not implemented: {put_map_assoc, ...}` until both handlers accepted Y.
-They now do, and `put_map_y.beam`, compiled by OTP 29.1.2, is the regression
-fixture. This was a runtime gap, not an Elixir or Gleam language gap.
+The measurement found one instruction gap on the path to a working supervisor.
+OTP's compiler stores a map in a Y register when the map survives a later call,
+and both `put_map_assoc` and `put_map_exact` only wrote X destinations. An
+Elixir `Supervisor` start failed with `Not implemented: {put_map_assoc, ...}`
+until both handlers accepted Y. They now do, and `put_map_y.beam`, compiled by
+OTP 29.1.2, is the regression fixture. This was a runtime gap, not an Elixir or
+Gleam language gap. A separate crash-report path in the Java supervision
+example still exits with a `badmatch` on its logger metadata; that example
+records the remaining gap.
 
 This is an investigation, not a checked-in example and not a CI gate: CI does
 not install Elixir or Gleam, and the probe used local toolchains. The useful

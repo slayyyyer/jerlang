@@ -102,18 +102,20 @@ anyway — the example uses a crash so the behaviour is unambiguous.
 
 ## One thing that fails on the way, and is left visible
 
-Killing the worker produces a crash report, and building that report fails:
+Killing the worker prints the crash report, then a second failure while the
+report is handled:
 
 ```
 Error in process <0.4.0> with exit value:
-{"Not implemented: {put_map_assoc,...}", [{gen_server,error_info,7,...}, ...]}
+{{badmatch,#{domain => [otp], report_cb => {Fun,gen_server:format_log/2}, ...}},
+ [{gen_server,handle_msg,3,...}, ...]}
 ```
 
-`gen_server` assembles the report with a map update the runtime does not
-implement yet. The restart still happens, so the example reaches the right answer,
-but the report is lost. It is left in the output rather than filtered out: a
-runtime that can not build a crash report is something to know about before
-running it in production, and this page would be lying if it showed a clean log.
+The `put_map_assoc` failure that used to appear here is fixed: `gen_server`
+builds the report. The remaining `badmatch` is in the report-handling path, not
+in the supervisor. The worker is still replaced, and the restarted worker starts
+at zero. It is left in the output because a crash report that cannot be handled
+cleanly is something to know about before running it in production.
 
 ## Shutting down
 

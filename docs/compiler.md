@@ -554,7 +554,8 @@ These are the choices that would otherwise be made differently in each session:
 
 Unchanged from 1.x: no NIFs, no hot code upgrade, no OTP release handling, no
 `global`, no TLS distribution. Added for 2.0: no byte-identical output, no type
-checker, no Elixir support, no BEAM-to-JVM JIT, and no compiler feature that
+checker, no Elixir source compilation (Elixir-compiled BEAM modules can run on
+the runtime), no BEAM-to-JVM JIT, and no compiler feature that
 exists only to make the compiler's own tests pass.
 
 ## Risks
