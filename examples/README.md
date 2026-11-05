@@ -1,13 +1,14 @@
 # Examples
 
-Seven programs: the two directions of the Java interop, four services built on the
-published artifact, and a test harness.
+Eight programs: the two directions of the Java interop, four services built on
+the published artifact, a test harness, and a Maven embedding quickstart.
 
 ## Which one do I want?
 
 | I want to… | Start from |
 | --- | --- |
 | call Erlang from Java, in-process | [`gen-server`](gen-server/README.md) |
+| build a Maven service with no Erlang toolchain | [`maven-embed`](maven-embed/README.md) |
 | call a Java class from Erlang | [`java-service`](java-service/README.md) |
 | serve HTTP with the routes in Erlang | [`http-service`](http-service/README.md) |
 | push events to a browser | [`chat-service`](chat-service/README.md) |
@@ -18,6 +19,7 @@ published artifact, and a test harness.
 | Directory | What it shows |
 | --- | --- |
 | `gen-server` | Java embeds the runtime, starts an Erlang `gen_server` and calls it. |
+| `maven-embed` | Maven compiles `.erl` with JErlang and Java calls it; no `erlc`. |
 | `java-service` | Erlang calls static methods of a Java class through `java:call_static/3`. |
 | `http-service` | Erlang behind an HTTP listener: Gradle pulls the artifact, Java is fixed plumbing, the routes are `.erl`. |
 | `chat-service` | The same shape with a push direction: rooms, ETS history and server-sent events through a Java sink Erlang calls. |
@@ -25,7 +27,7 @@ published artifact, and a test harness.
 | `junit-harness` | Erlang modules under test in a JUnit 5 suite, no Erlang installation needed to run it. |
 | `supervised-app` | OTP's `application` and `supervisor` running on the JVM: a worker is killed and restarted, with the pid changing. |
 
-All seven use `org.jerlang.api.Node`, which owns the runtime: it starts the
+All eight use `org.jerlang.api.Node`, which owns the runtime: it starts the
 schedulers, applies the options and, on `close()`, drains the object handle
 table. `mnesia-service` also names its node with `-sname`, because a distribution
 peer needs an identity.
@@ -41,9 +43,12 @@ bash examples/run.sh
 OTP's own `gen_server`, so it needs a real Erlang installation, not just the
 runtime. The second one only needs a JDK, but `run.sh` compiles both.
 
-The rest are their own Gradle builds and are not covered by `run.sh`:
+The rest are their own builds and are not covered by `run.sh`:
 
 ```sh
+cd examples/maven-embed
+mvn verify                  # compiles greeter.erl with JErlang, then tests it
+
 cd examples/http-service
 gradle run                 # http://127.0.0.1:8080/
 
@@ -68,10 +73,12 @@ erl -sname mnesia_node -setcookie examplecookie -noshell -pa otp -eval 'mnesia_n
 gradle run                 # http://127.0.0.1:8080/, in another terminal
 ```
 
-`erlc` compiles the `.erl` files in every Gradle example. Erlang at **run** time
-is needed by `http-service`, `chat-service` and `mnesia-service` (for the OTP
-node) and by `supervised-app` (for OTP's own `application` and `supervisor`);
-`junit-harness` needs none at all. See their READMEs and docs pages:
+`erlc` compiles the `.erl` files in the Gradle examples; `maven-embed` compiles
+its module with JErlang instead. Erlang at **run** time is needed by
+`http-service`, `chat-service` and `mnesia-service` (for the OTP node) and by
+`supervised-app` (for OTP's own `application` and `supervisor`); `junit-harness`
+and `maven-embed` need none at all. See their READMEs and docs pages:
+[maven-embed](maven-embed/README.md),
 [http-service](http-service/README.md),
 [chat-service](chat-service/README.md),
 [mnesia-service](mnesia-service/README.md),

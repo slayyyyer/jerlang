@@ -405,7 +405,7 @@ a build and runtime dependency: a Java service can keep its `.erl` sources
 beside its Java sources, compile them with JErlang, and call the resulting
 modules in the same process without installing Erlang.
 
-**Status: planning.** The embedding milestones, exit tests and the first
-implementation are in [embedding.md](embedding.md). The first milestone is the
-Maven consumer quickstart; the Gradle path, lifecycle, packaging and release
-gates follow it.
+**Status: in progress.** The embedding milestones, exit tests and the first
+implementation are in [embedding.md](embedding.md). The Maven consumer
+quickstart is complete; the Gradle path, lifecycle, packaging and release gates
+follow it.

@@ -79,6 +79,28 @@ jobs:
       - name: Run the examples
         run: bash examples/run.sh
 
+  maven-embed:
+    # E1: a consumer build compiles .erl with JErlang and runs it on a JDK
+    # alone. The broken tool paths make a fallback to erlc/erl fail instead of
+    # succeeding if the runner happens to have Erlang installed.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compile and test without an Erlang toolchain
+        env:
+          ERLC: /nonexistent/erlc
+          ERL: /nonexistent/erl
+        run: cd examples/maven-embed && mvn -B clean verify
+
   otp:
     # The standard library boot tests run OTP's own gen_server, supervisor,
     # application, proc_lib and logger modules, so they need an Erlang

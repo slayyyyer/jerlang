@@ -73,7 +73,8 @@ E4 settles what consumers actually resolve, and E5 closes the release.
 
 ## E1 — Maven consumer quickstart
 
-**Status: in progress.** This is the first implementation milestone.
+**Status: complete.** The checked-in example is `examples/maven-embed`, and the
+`maven-embed` CI job runs it without an Erlang toolchain.
 
 **Goal:** prove the shortest useful embedding path with Maven and no Erlang
 installation.
@@ -114,7 +115,8 @@ mvn -B verify
 
 The command compiles the Erlang source with JErlang, runs the test, and fails if
 the module is missing. CI runs the same command in a dedicated job that does not
-install Erlang/OTP.
+install Erlang/OTP and sets `ERLC`/`ERL` to nonexistent paths. The demo command
+`mvn -q compile exec:java` prints `hello, Java` and `6 * 7 = 42`.
 
 **Non-goals for E1:** a Maven plugin, incremental compilation, OTP behaviour
 modules, distribution, and a Gradle version of the example. Those are E2-E4
