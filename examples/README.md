@@ -6,9 +6,9 @@
     compile flow so they remain runnable today; the plugin path will be added
     when it lands.
 
-Nine programs: the two directions of the Java interop, four services built on
-the published artifact, a test harness, and the Maven and Gradle embedding
-quickstarts.
+Ten programs: the two directions of the Java interop, a crypto-through-Java
+example, four services built on the published artifact, a test harness, and the
+Maven and Gradle embedding quickstarts.
 
 ## Which one do I want?
 
@@ -18,6 +18,7 @@ quickstarts.
 | build a Maven service with no Erlang toolchain | [`maven-embed`](maven-embed/README.md) |
 | build a Gradle service with no Erlang toolchain | [`gradle-embed`](gradle-embed/README.md) |
 | call a Java class from Erlang | [`java-service`](java-service/README.md) |
+| hash or MAC without a NIF | [`crypto-java`](crypto-java/README.md) |
 | serve HTTP with the routes in Erlang | [`http-service`](http-service/README.md) |
 | push events to a browser | [`chat-service`](chat-service/README.md) |
 | keep data in mnesia on an OTP node | [`mnesia-service`](mnesia-service/README.md) |
@@ -30,6 +31,7 @@ quickstarts.
 | `maven-embed` | Maven compiles `.erl` with JErlang and Java calls it; no `erlc`. |
 | `gradle-embed` | The same workflow with Gradle and JErlang; no `erlc`. |
 | `java-service` | Erlang calls static methods of a Java class through `java:call_static/3`. |
+| `crypto-java` | SHA-256, HMAC-SHA256 and secure random through the JDK's security APIs; no OTP `crypto` module. |
 | `http-service` | Erlang behind an HTTP listener: Gradle pulls the artifact, Java is fixed plumbing, the routes are `.erl`. |
 | `chat-service` | The same shape with a push direction: rooms, ETS history and server-sent events through a Java sink Erlang calls. |
 | `mnesia-service` | The data lives in mnesia on an OTP node, reached over distribution with `rpc:call/5`; the JVM node is the HTTP front end. |
@@ -71,6 +73,9 @@ gradle run                 # http://127.0.0.1:8080/, 64 streams
 
 cd examples/junit-harness
 gradle test                # compiles the .erl with JErlang, then the suite
+
+cd examples/crypto-java
+gradle test                # known SHA-256 and HMAC-SHA256 vectors
 
 cd examples/supervised-app
 gradle run -PotpLib="$(erl -noshell -eval 'io:format("~s",[code:root_dir()]),halt().')/lib"

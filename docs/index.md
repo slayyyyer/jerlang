@@ -57,7 +57,7 @@ feature list:
 - **No NIFs.** OTP's own `crypto`, `ssl` and much of `public_key` are NIF-backed
   and do not run as shipped. Some operations can be implemented explicitly
   through Java's security APIs; that is application code, not OTP crypto
-  compatibility.
+  compatibility. See [Crypto without NIFs](examples/crypto-java.md).
 - **No hot code upgrade and no OTP release handling.**
 - **No `global` name registration or TLS distribution.** Distribution is plain
   TCP with the cookie handshake.
@@ -102,6 +102,8 @@ built-in runtime does not need one.
   its lifecycle guarantees.
 - **[Supervision from Java](examples/supervised-app.md)** — the crash-and-restart
   demonstration.
+- **[Crypto without NIFs](examples/crypto-java.md)** — hashing and HMAC through
+  Java's security APIs, and the OTP compatibility that remains missing.
 - **[Java interoperability](java-interop.md)** — the value mapping and the
   embedding API.
 - **[Distribution](distribution.md)** — the protocol and the OTP boundary.

@@ -271,7 +271,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        example: [gradle-embed, junit-harness, http-service, chat-service, mnesia-service]
+        example: [gradle-embed, junit-harness, http-service, chat-service, mnesia-service, crypto-java]
     steps:
       - uses: actions/checkout@v5
 

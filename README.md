@@ -26,7 +26,7 @@ JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loa
 
 **Use OTP's own library as the compatibility bar.** The measure of correctness is not "how many opcodes exist" but "does `gen_server` from an OTP installation start and behave". Running OTP's `gen_server`, `supervisor`, `application`, `proc_lib` and `logger` unmodified is the bar for the standard library work.
 
-**Stay honest about the boundary.** JErlang is an interpreter, not a port of BEAM's C internals. There are no NIFs, no hot code upgrade, no OTP release handling and no bytecode compiler today. Those are decisions with reasons in [docs/roadmap.md](docs/roadmap.md), not forgotten features.
+**Stay honest about the boundary.** JErlang is an interpreter, not a port of BEAM's C internals. There are no NIFs, no hot code upgrade, no OTP release handling and no JVM bytecode compiler today. Crypto-style operations can call the JDK's security APIs explicitly; that is an application-level replacement, not OTP `crypto` compatibility. Those are decisions with reasons in [docs/roadmap.md](docs/roadmap.md), not forgotten features.
 
 ## Status
 
