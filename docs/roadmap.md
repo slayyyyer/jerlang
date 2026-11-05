@@ -375,9 +375,10 @@ credible story; if it does not, the gaps are known and finite.
   release notes.
 * **Distributed semantics.** `global`, `rex` and split-brain behaviour are hard
   and are deliberately out of scope until there is a user for them.
-* **Elixir.** Binaries and records block it today, and its standard library is
-  larger than Erlang's. Treat it as a separate compatibility track with its own
-  corpus after 0.6, not as a side effect of Erlang support.
+* **Elixir and Gleam.** Both compile to BEAM this runtime loads and runs,
+  including `Enum.map`, `list.map`, an Elixir `GenServer` and a supervised
+  crash/restart. Treat either as a separate compatibility track with its own
+  corpus, not as a side effect of Erlang support.
 * **The 1.0 waiver.** 1.0.0 shipped without the day-long run, so a leak slower
   than roughly a megabyte a minute would have gone unseen. It is recorded as
   deferred work, not a 2.0.0 gate, and the 1.x line carries the same gap and

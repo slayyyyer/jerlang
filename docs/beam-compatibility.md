@@ -469,11 +469,54 @@ fail, field extraction jumps to its fail label, and construction raises
 `error:"native records are not supported by this runtime"`. Modules that do not
 use native records are unaffected.
 
-For Elixir, binary construction, record updates and binary matching now work,
-and anonymous functions and `try`/`rescue` already did. The remaining barrier
-is the standard library: Elixir's `Kernel`, `Enum` and the OTP behaviours are
-themselves compiled modules that JErlang's kernel and stdlib only partially
-replace.
+## Elixir and Gleam, measured
+
+The earlier text on this page called Elixir's standard library "the remaining
+barrier". That was a prediction. The measurement below replaces it with what
+the runtime actually did on 2026-11-04, using Elixir 1.20.5 (built for OTP 29),
+Gleam 1.19.2, `gleam_stdlib` 1.0.5 and Erlang/OTP 29.1.2.
+
+`ConformanceReport` over the compilers' own standard libraries:
+
+| Corpus | Modules | Loaded | Every instruction handled |
+|--------|---------|--------|---------------------------|
+| Elixir `lib/elixir/ebin` | 271 | 271 | 271 |
+| Gleam `gleam_stdlib` | 20 | 20 | 20 |
+
+Loading is not running, so a small module was compiled by each compiler and
+called through `Node.apply/3`. The Elixir `GenServer` and supervisor calls also
+had OTP's `stdlib` ebin on the code path:
+
+| Call | Elixir 1.20.5 | Gleam 1.19.2 |
+|------|---------------|--------------|
+| integer arithmetic | `5` | `5` |
+| binary/string concatenation | `<<"hello world">>` | `<<"hello world">>` |
+| tuple construction | `{1,2}` | `{1,2}` |
+| recursive list sum | `6` | `6` |
+| `spawn`/`send`/`receive` | `3` | not tested |
+| standard-library map | `Enum.map` -> `[2,4,6]` | `list.map` -> `[2,4,6]` |
+| `GenServer` start/call/stop | `{true, 5}` | not tested |
+| supervised crash and restart | `{2, 0}` | not tested |
+
+The Elixir `GenServer` row starts a registered server, calls it, and stops it.
+The supervisor row starts a `GenServer` under a `one_for_one` supervisor, adds
+2 to its state, kills it with `Process.exit/2`, waits, and reads the restarted
+server; `{2, 0}` is the pre-crash state and the reset state after restart. That
+is the failure model the project exists to test, running from Elixir source.
+
+The measurement found one instruction gap. OTP's compiler stores a map in a Y
+register when the map survives a later call, and both `put_map_assoc` and
+`put_map_exact` only wrote X destinations. An Elixir `Supervisor` start failed
+with `Not implemented: {put_map_assoc, ...}` until both handlers accepted Y.
+They now do, and `put_map_y.beam`, compiled by OTP 29.1.2, is the regression
+fixture. This was a runtime gap, not an Elixir or Gleam language gap.
+
+This is an investigation, not a checked-in example and not a CI gate: CI does
+not install Elixir or Gleam, and the probe used local toolchains. The useful
+next step is a Mix application or a Gleam OTP actor, because single processes,
+supervision and both standard libraries now run. A compatibility example should
+wait until those toolchain versions are pinned and the remaining OTP surface
+(applications, releases, `Logger` backends) has its own checks.
 
 ## Not changed
 
