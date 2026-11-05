@@ -6,7 +6,7 @@ so the build file here is what a consumer's build file looks like:
 
 ```gradle
 dependencies {
-    implementation 'io.github.slayyyyer:jerlang:1.1.0'
+    implementation 'io.github.slayyyyer:jerlang:2.0.0'
 }
 ```
 

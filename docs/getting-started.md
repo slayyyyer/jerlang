@@ -22,21 +22,21 @@ Two things to know before starting:
     <dependency>
       <groupId>io.github.slayyyyer</groupId>
       <artifactId>jerlang</artifactId>
-      <version>1.1.0</version>
+      <version>2.0.0</version>
     </dependency>
     ```
 
 === "Gradle"
 
     ```kotlin
-    implementation("io.github.slayyyyer:jerlang:1.1.0")
+    implementation("io.github.slayyyyer:jerlang:2.0.0")
     ```
 
 === "Runnable jar"
 
     ```sh
-    curl -sO https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/1.1.0/jerlang-1.1.0.jar
-    java -jar jerlang-1.1.0.jar
+    curl -sO https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/2.0.0/jerlang-2.0.0.jar
+    java -jar jerlang-2.0.0.jar
     ```
 
 The published jar is shaded: the runtime, its dependencies (`jzlib`,
@@ -55,12 +55,12 @@ Central serves a detached signature and checksums next to every artifact, and
 checking them against Central's own copies is what makes the check meaningful:
 
 ```sh
-BASE=https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/1.1.0
-curl -sO $BASE/jerlang-1.1.0.jar
-curl -sO $BASE/jerlang-1.1.0.jar.asc
-curl -s  $BASE/jerlang-1.1.0.jar.sha256          # a11df9f9…72439874
+BASE=https://repo1.maven.org/maven2/io/github/slayyyyer/jerlang/2.0.0
+curl -sO $BASE/jerlang-2.0.0.jar
+curl -sO $BASE/jerlang-2.0.0.jar.asc
+curl -s  $BASE/jerlang-2.0.0.jar.sha256          # 85a1e37b…c7ded392
 
-gpg --verify jerlang-1.1.0.jar.asc jerlang-1.1.0.jar
+gpg --verify jerlang-2.0.0.jar.asc jerlang-2.0.0.jar
 # gpg: Good signature from "Justin Baker (jerlang release signing)"
 #      using RSA key 53566F66F97945DF654415F886F6991BB5D61373
 ```
@@ -77,8 +77,8 @@ greet(Name) ->
 ```
 
 ```sh
-java -jar jerlang-1.1.0.jar compile -o build hello.erl
-java -jar jerlang-1.1.0.jar -pa build
+java -jar jerlang-2.0.0.jar compile -o build hello.erl
+java -jar jerlang-2.0.0.jar -pa build
 ```
 
 `compile` takes one or more source files and creates the output directory if it

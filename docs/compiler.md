@@ -8,7 +8,7 @@ to build its own modules.
 This document is the plan for that work. It is written to be executed by
 agents, so it records the decisions that would otherwise be re-litigated in
 every session, and it defines done as an executable check rather than a
-judgement. It describes work on the `v2.0.0-alpha` branch.
+judgement. It records the completed compiler track that shipped in 2.0.0.
 
 ## Two things called a compiler
 
@@ -140,7 +140,7 @@ tests green.
 | A1.8 | `Code`: header, instruction stream, and the operand tags and widths the decoder currently discards | `beam_lib:md5/1` identity for the whole corpus with `Code` re-encoded |
 | A1.9 | Corpus and CI gate | A job that asserts md5 identity over the checked-in fixtures and loads the re-emitted files on OTP 29. `BeamAssemblerTest` is the digest gate; `OtpLoadTest` runs every fixture through `code:load_binary/3` and skips itself when no Erlang is installed |
 
-Status: A1 is done. The four A1 tests re-emit all 104 fixtures with the same `beam_lib:md5/1`, re-encode every operand in the corpus, and write the atoms, the tables, `FunT`, `Line` and `Code` back byte for byte. `LitT`, `Attr`, `CInf` and `Abst` are carried unchanged; the reasons are under "What A1 found". The OTP 29 load check is described below. A2 is next.
+Status: A1 is done. The four A1 tests re-emit all 104 fixtures with the same `beam_lib:md5/1`, re-encode every operand in the corpus, and write the atoms, the tables, `FunT`, `Line` and `Code` back byte for byte. `LitT`, `Attr`, `CInf` and `Abst` are carried unchanged; the reasons are under "What A1 found". The OTP 29 load check is described below. A2 followed.
 
 A1.1 and A1.8 were the two that carried risk, and both landed as expected. A1.1 because `Meta` is part of the digest, so a writer that drops the chunks the loader ignores produces a different module identity; A1.8 because `AbstractReader.decodeArg` returned a `Term` and not the bytes it read, so the original tag and width of an operand did not survive decoding. A1.2 answered that question: the decoder has to keep the encoding. Two operand kinds lose more than the width, which no canonical encoder can recover: a literal operand decodes to the literal itself, so its index into the literal table is gone, and a typed register decodes to the register, so its type is gone.
 
@@ -546,10 +546,9 @@ These are the choices that would otherwise be made differently in each session:
   a named error by design.
 * **`-spec`, `-type`, `-callback` are stored, not checked.** `dialyzer` is not
   in scope.
-* **Version.** The compiler API is public, so `pom.xml` is at 2.0.0. The
-  published artifact, download instructions and example builds stay on 1.1.0
-  until 2.0.0 is released. The `japicmp` baseline is refreshed at release, per
-  `docs/release.md`. No session bumps the version on its own.
+* **Version.** The compiler API is public and shipped with 2.0.0. The published artifact,
+  download instructions and example builds now target 2.0.0. Future version
+  bumps follow `docs/release.md`; no session bumps the version on its own.
 
 ## Non-goals
 
@@ -579,7 +578,8 @@ exists only to make the compiler's own tests pass.
 
 ## Working on this branch
 
-* Branch: `v2.0.0-alpha`. Nothing here ships until 2.0.0.
+* Status: merged to `master` and released as 2.0.0. This section is retained as
+  a record for follow-up compiler work.
 * Build and test: `mvn -B test`. CI runs `mvn -B verify`, which adds the shaded
   jar, the packaged-jar compile smoke test and the japicmp API gate. A single
   milestone's tests should be runnable with `-Dtest=...` and stay under two

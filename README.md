@@ -6,9 +6,8 @@ An Erlang runtime for the [Java Virtual Machine](https://en.wikipedia.org/wiki/J
 
 > **Fork notice:** this project began as a fork of [jerlang/jerlang](https://github.com/jerlang/jerlang) and is continued in this repository.
 
-Published to Maven Central as `io.github.slayyyyer:jerlang:1.1.0`. The source
-tree is at 2.0.0; that release is not published yet. The documentation site is
-at <https://slayyyyer.github.io/jerlang/>.
+Published to Maven Central as `io.github.slayyyyer:jerlang:2.0.0`. The
+documentation site is at <https://slayyyyer.github.io/jerlang/>.
 
 JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loads the BEAM files that `erlc` produces. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.
 
@@ -99,6 +98,7 @@ The north-star metric is the share of a checked-in module corpus that loads and 
 | 0.8     | Interop and embedding   | Java↔Erlang examples in CI and a frozen API                  | Done    |
 | 0.9     | Cluster and operations  | Metrics, reconnection and graceful shutdown under load       | Done    |
 | 1.0     | Release                 | Benchmarks against OTP 29, fuzzing, artifact (soak waived)    | Released |
+| 2.0     | Source compiler         | JErlang-built BEAM passes the compiler/OTP tests              | Released |
 
 The full plan, including what was dropped from the original roadmap and why, is in [docs/roadmap.md](docs/roadmap.md).
 

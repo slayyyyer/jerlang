@@ -8,21 +8,20 @@ monitors and distribution are implemented in Java, and Java code is one
 reflective call away — not a separate node, a port or an external term format
 round trip.
 
-The published artifact is `io.github.slayyyyer:jerlang:1.1.0` on Maven Central.
-The source tree is at 2.0.0; that release is not published yet.
+The published artifact is `io.github.slayyyyer:jerlang:2.0.0` on Maven Central.
 
 ```xml
 <dependency>
   <groupId>io.github.slayyyyer</groupId>
   <artifactId>jerlang</artifactId>
-  <version>1.1.0</version>
+  <version>2.0.0</version>
 </dependency>
 ```
 
 The jar is also runnable on its own, which starts the Erlang shell:
 
 ```sh
-java -jar jerlang-1.1.0.jar
+java -jar jerlang-2.0.0.jar
 ```
 
 Requires Java 21 or newer. An Erlang/OTP 29 installation is needed only to run

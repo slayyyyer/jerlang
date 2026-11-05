@@ -1,8 +1,9 @@
 # Releasing JErlang
 
-This is the document 1.0 ships with: what a version number means, what is
-supported, how to build and verify an artifact, and what the release checklist
-is. It is written to be usable by someone who has never cut a release here.
+This is the release guide for JErlang 2.0.0: what a version number means, what
+is supported, how to build and verify an artifact, and what the release
+checklist is. It is written to be usable by someone who has never cut a release
+here.
 
 ## What the artifact is
 
@@ -12,8 +13,8 @@ of `org.jerlang.erts.Emulator`. Running it with no arguments starts the shell,
 so the artifact is usable on its own:
 
 ```
-java -jar jerlang-1.1.0.jar
-java -cp jerlang-1.1.0.jar:path/to/beams -Djerlang.otp.dir=/path/to/otp App
+java -jar jerlang-2.0.0.jar
+java -cp jerlang-2.0.0.jar:path/to/beams -Djerlang.otp.dir=/path/to/otp App
 ```
 
 Requirements: Java 21 or newer. Erlang/OTP is only needed to run OTP's own
@@ -24,10 +25,10 @@ a JVM-only deployment that uses the built-in modules does not need it.
 
 [Semantic versioning](https://semver.org): `MAJOR.MINOR.PATCH`.
 
-* **PATCH** (1.0.x) — bug fixes only. No public API change, no behavioural
+* **PATCH** (2.0.x) — bug fixes only. No public API change, no behavioural
   change to a documented function.
-* **MINOR** (1.x.0) — new functionality, no removal and no incompatible change.
-* **MAJOR** (2.0.0) — anything that breaks the API or changes the meaning of an
+* **MINOR** (2.x.0) — new functionality, no removal and no incompatible change.
+* **MAJOR** (3.0.0) — anything that breaks the API or changes the meaning of an
   existing call.
 
 The public API is the `org.jerlang.*` surface compared by `japicmp` against the
@@ -38,9 +39,9 @@ gate is a build check, not a review habit.
 
 ## Support policy
 
-* The 1.x line is supported. The most recent minor release gets fixes; the one
+* The 2.x line is supported. The most recent minor release gets fixes; the one
   before it gets security fixes for twelve months after its successor ships.
-* Supported platforms for 1.0: Linux and Windows on Temurin 21 and newer. CI
+* Supported platforms for 2.0: Linux and Windows on Temurin 21 and newer. CI
   runs the suite on Linux; the maintainers run it on Windows.
 * Supported OTP for interoperability and the standard library: OTP 29. The
   conformance rate is recorded against 29.1.2, and the `otp` job installs OTP 29.
@@ -70,8 +71,8 @@ appears on a command line.
 Verification is the ordinary GPG flow:
 
 ```
-gpg --verify jerlang-1.1.0.jar.asc jerlang-1.1.0.jar
-sha256sum -c jerlang-1.1.0.jar.sha256
+gpg --verify jerlang-2.0.0.jar.asc jerlang-2.0.0.jar
+sha256sum -c jerlang-2.0.0.jar.sha256
 ```
 
 `target/dist/BUILD-INFO` records the commit, the JDK and the checksum of the
@@ -81,8 +82,8 @@ trusting the download page.
 ## Publishing to Maven Central
 
 The pom is prepared for Central — metadata, source and javadoc jars, signatures
-and the Portal plugin behind a `central` profile — and **1.0.0, 1.0.1 and 1.1.0 are published**:
-`io.github.slayyyyer:jerlang:1.1.0` resolves from Maven Central. What follows is
+and the Portal plugin behind a `central` profile — and **1.0.0, 1.0.1, 1.1.0 and 2.0.0 are published**:
+`io.github.slayyyyer:jerlang:2.0.0` resolves from Maven Central. What follows is
 how 1.0.0 was done, because every version since repeats it.
 
 ### One-time prerequisites
@@ -192,6 +193,20 @@ The bundle was uploaded through the plugin and released in the Portal on
 validated the component (`1 out of 1 Components Validated`). The release check
 was the 1,800-second target-load soak; the 24 hour soak remains deferred.
 
+### What 2.0.0 published
+
+2.0.0 is the compiler release. The jar, `-sources.jar`, `-javadoc.jar` and the
+pom are on Central with detached signatures. Central's `.sha256` file and the
+downloaded jar both hash to
+`85a1e37b7e3726e363046a572ae4bcc7cf2e375b07ae60ef330568b1c7ded392`, matching the
+reproducible local build; `gpg --verify` reports a good signature from
+`53566F66…`. The signed tag is `2.0.0`, on commit `de20a56`.
+
+The bundle was uploaded as deployment
+`dff2f083-18e2-486e-95d3-4f526d68760c` and released in the Portal on
+2026-11-04. The release check was the 1,800-second target-load soak; the 24 hour
+soak remains deferred and is not part of the 2.0.0 gate.
+
 ### The commands
 
 ```
@@ -230,19 +245,19 @@ be measured on the commit being tagged:
    `mvn -Dtest=BeamBenchTest -Djerlang.bench=true -Djerlang.bench.gate=true \
    -Djerlang.otp.dir="$OTP" test`. The table goes into `docs/benchmarks.md`; the
    gate enforces the message throughput budget.
-2. **Soak at target load.** For 1.1.0, run the same test at the 1,800-second
+2. **Soak at target load.** For 2.0.0, run the same test at the 1,800-second
    duration CI uses nightly:
    `mvn -Dtest=SoakTest -Djerlang.soak.seconds=1800 -Djerlang.soak.workers=32 test`.
-   **The 24 hour run is not part of the 1.1.0 gate.** That is a decision, not an
+   **The 24 hour run is not part of the 2.0.0 gate.** That is a decision, not an
    oversight: a hosted CI job is killed after six hours, so the day-long run
-   needs a machine that stays up for a day. 1.0.0 also shipped without it. What
-   was measured on the tagged commit was the same test at 330 seconds and 32
-   workers: 233 million messages delivered, the reported heap holding at 196 MB
-   for the whole load, the registry draining back to its baseline process count,
-   and a final live heap of 4 MB. The 24 hour run is deferred, not a gate for
-   1.1.0. The shorter run still leaves a residual risk, which is stated rather
-   than dismissed: a leak slow enough to hide behind the run — under a megabyte
-   a minute — would ship untested.
+   needs a machine that stays up for a day. Earlier releases also shipped
+   without it. What was measured on the tagged commit was the same test at
+   1,800 seconds and 32 workers: 936,074,881 messages delivered, 64 processes
+   at peak, a peak heap of 2,630 MB against a 390 MB reference, and a final live
+   heap of 4 MB. The 24 hour run is deferred, not a gate for 2.0.0. The shorter
+   run still leaves a residual risk, which is stated rather than dismissed: a
+   leak slow enough to hide behind the run — under a megabyte a minute — would
+   ship untested.
 
    The soak fails on a process leak, on descriptor growth where the platform
    reports descriptors, and on heap growth past 256 MB, checked once after the
@@ -265,7 +280,7 @@ be measured on the commit being tagged:
 5. **Artifact built, reproducible and installable from a clean machine**: unpack
    the jar on a machine with only a JDK, run one of the checked-in examples from
    `examples/`, and compare checksums against `BUILD-INFO`.
-6. **Tag.** `git tag -s 1.0.0 -m "JErlang 1.0.0"` on the commit that passed 1–5,
+6. **Tag.** `git tag -s 2.0.0 -m "JErlang 2.0.0"` on the commit that passed 1–5,
    then push the tag with the release notes. Name the key with `-u` or set
    `user.signingkey`: left to itself git guesses from the committer identity,
    and when two keys share that address it guesses the wrong one. A protected
@@ -279,6 +294,16 @@ be measured on the commit being tagged:
 
 Steps 1–3 are commands in this repository, not prose: a release that can not
 re-run them is not a release.
+
+## Upgrade notes: 1.1 to 2.0
+
+* The compiler is now public API: `org.jerlang.compiler` and the runnable jar's
+  `compile` subcommand. Existing embedding entry points in `org.jerlang.api`
+  remain; `mvn verify` enforces the public API gate.
+* 2.0.0 targets OTP 29 BEAM files on both sides: it loads OTP 29 output and
+  emits BEAM that OTP 29 can load.
+* No NIF, hot-upgrade, or OTP release-handling support was added; the 1.x
+  limitations remain and are listed below.
 
 ## Upgrade notes: 0.9 to 1.0
 
@@ -308,7 +333,7 @@ re-run them is not a release.
   the join is bounded at ten seconds with a message naming a scheduler that
   outlives it.
 
-## Known limitations at 1.0
+## Known limitations at 2.0
 
 These are decisions, not open bugs, and they are repeated from
 [roadmap.md](roadmap.md) so a release note can not quietly drop them:
@@ -317,5 +342,8 @@ These are decisions, not open bugs, and they are repeated from
 * No hot code upgrade and no OTP release handling.
 * No `global` name registration, no TLS distribution, no atom cache, and no
   `rex` compatibility layer.
+* `gen_statem` and the wider standard library are not covered.
+* Native-record values (OTP 29's `-record #name{...}` data type) are not
+  implemented; ordinary tuple records are.
 * The interpreter is not compiled; performance is reported against BEAM in
   [benchmarks.md](benchmarks.md) rather than claimed.

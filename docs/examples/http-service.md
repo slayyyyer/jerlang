@@ -17,7 +17,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.github.slayyyyer:jerlang:1.1.0'
+    implementation 'io.github.slayyyyer:jerlang:2.0.0'
 }
 ```
 
