@@ -1,8 +1,8 @@
 # Releasing JErlang
 
 > **Evidence, not a product release promise.** This page records how the
-> prototype artifact is built, signed and made reproducible. A 3.0.0 artifact
-> would be a research snapshot, not a long-term support commitment.
+> prototype artifact is built, signed and made reproducible. The 3.0.0 artifact
+> is a research snapshot, not a long-term support commitment.
 
 This is the release guide for JErlang 3.0.0: what a version number means, what
 was tested, how to build and verify an artifact, and what the release checklist
@@ -100,10 +100,10 @@ downloaded jar can be traced to a commit without trusting the download page.
 ## Publishing to Maven Central
 
 The pom is prepared for Central — metadata, source and javadoc jars, signatures
-and the Portal plugin behind a `central` profile — and **1.0.0, 1.0.1, 1.1.0 and 2.0.0 are published**:
-`io.github.slayyyyer:jerlang:2.0.0` resolves from Maven Central. 3.0.0 is not on
-Central yet; its artifact shape is described below. What follows is how 1.0.0
-was done, because every version since repeats it.
+and the Portal plugin behind a `central` profile — and **1.0.0, 1.0.1, 1.1.0, 2.0.0 and 3.0.0 are published**:
+`io.github.slayyyyer:jerlang:3.0.0` resolves from Maven Central. The 3.0.0
+artifact shape is described below. The earlier sections record how 1.0.0 was
+done, because every version since repeats it.
 
 ### One-time prerequisites
 
@@ -226,7 +226,7 @@ The bundle was uploaded as deployment
 2026-11-04. The release check was the 1,800-second target-load soak; the 24 hour
 soak remains deferred and is not part of the 2.0.0 gate.
 
-### What 3.0.0 will publish
+### What 3.0.0 publishes
 
 3.0.0 is a packaging break. The main artifact is the thin library jar; the
 runnable jar is attached with the `all` classifier. Both are uploaded and signed
@@ -234,6 +234,14 @@ alongside the `-sources.jar`, `-javadoc.jar` and the pom. Maven and Gradle users
 keep the same coordinates and dependency declaration. Users who ran
 `java -jar jerlang-2.0.0.jar` must switch to `jerlang-3.0.0-all.jar`; that is
 the only artifact with a `Main-Class`.
+
+The bundle was uploaded as deployment
+`7fcae535-dfe2-4e06-9580-3199f76931ca` and released on 2026-11-05. The thin jar
+Central serves is the reproducible artifact with sha256
+`b030be40599f5d352e97e51e751cfac11cd6f276eb7b32c36005aafaf2a4e973`; the
+runnable `all` jar is
+`940ece5a7bab0b83faea7c251dfd368fec2529817f698c419c9f3613cd8869e5`. The same
+hashes are recorded in `target/dist/BUILD-INFO` by `scripts/package.sh`.
 
 ### The commands
 
@@ -324,10 +332,10 @@ be measured on the commit being tagged:
    key also needs the passphrase cached in `gpg-agent` or a `gpg.program`
    wrapper that signs in loopback mode, or the command waits on a pinentry
    dialog a headless run never shows.
-8. **Publish** (optional, and separate from the tag): `mvn -B -Pcentral
-   -DskipTests deploy`, then release the bundle in the Portal. A deployment that
-   is not released sits there and becomes nothing, so the tag does not depend on
-   this step.
+8. **Publish** (separate from the tag; required for a public release): `mvn
+   -B -Pcentral -DskipTests deploy`, then release the bundle in the Portal. A
+   deployment that is not released sits there and becomes nothing, so the tag
+   does not depend on this step.
 
 Steps 1–5 are commands in this repository, not prose: a release that can not
 re-run them is not a release.

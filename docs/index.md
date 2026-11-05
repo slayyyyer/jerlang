@@ -12,6 +12,33 @@ and a Java method is one reflective call away.
     one claim, and its limits are part of the result. Do not treat this site as
     a support contract or an adoption guide.
 
+## Use it
+
+JErlang 3.0.0 is the current release, published as
+`io.github.slayyyyer:jerlang:3.0.0`. The primary usage path is a Maven or Gradle
+dependency in a JVM service; both checked-in quickstarts compile `.erl` with
+JErlang and need only a JDK.
+
+=== "Maven"
+
+    ```xml
+    <dependency>
+      <groupId>io.github.slayyyyer</groupId>
+      <artifactId>jerlang</artifactId>
+      <version>3.0.0</version>
+    </dependency>
+    ```
+
+=== "Gradle"
+
+    ```kotlin
+    implementation("io.github.slayyyyer:jerlang:3.0.0")
+    ```
+
+Start with [Embedding in a JVM service](embedding.md). The normal artifact is
+the thin library jar; the `all` classifier is for the shell or a one-file
+experiment.
+
 ## The thesis
 
 A JVM service can get BEAM's failure model — isolated processes, links,
@@ -70,21 +97,10 @@ feature list:
 The [BEAM compatibility page](beam-compatibility.md) keeps the per-opcode notes,
 and [the roadmap](roadmap.md) records why these boundaries were chosen.
 
-## Status and artifacts
+## Artifacts
 
-The repository currently targets `3.0.0`; Maven Central still serves the last
-published release, `2.0.0`.
-
-```xml
-<dependency>
-  <groupId>io.github.slayyyyer</groupId>
-  <artifactId>jerlang</artifactId>
-  <version>3.0.0</version>
-</dependency>
-```
-
-The main jar is the thin library. The runnable jar, for the shell or a one-file
-experiment, is attached under the `all` classifier:
+The normal Maven and Gradle artifact is the thin library jar. The runnable jar,
+for the shell or a one-file experiment, is attached under the `all` classifier:
 
 ```sh
 java -jar jerlang-3.0.0-all.jar
@@ -96,10 +112,10 @@ built-in runtime does not need one.
 
 ## Read the evidence
 
-- **[Getting started](getting-started.md)** — build a module and embed a node,
-  with the current explicit compile-command flow.
-- **[Embedding in a JVM service](embedding.md)** — the 3.0 embedding contract,
-  quickstarts and its lifecycle guarantees.
+- **[Embedding in a JVM service](embedding.md)** — the primary 3.0 path:
+  Maven and Gradle quickstarts, the lifecycle contract and the OTP boundary.
+- **[Getting started](getting-started.md)** — compile a module with the command
+  line, then embed a node in Java.
 - **[Migrating from 2.0 to 3.0](migration-2-to-3.md)** — the artifact packaging,
   lifecycle and Erlang-boundary changes for existing embedders.
 - **[Supervision from Java](examples/supervised-app.md)** — the crash-and-restart

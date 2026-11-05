@@ -1,22 +1,16 @@
 # Embedding JErlang in a JVM service
 
-JErlang 2.0 can compile Erlang source to BEAM and embed a node in a Java
-process. Those two pieces were not presented as one build-and-run workflow: the
-existing examples compiled with `erlc`, the Maven path was not demonstrated, and
-an application that follows the documentation had to know which files must be
-reset before it can start a node.
+JErlang 3.0 is the embedding release and a Maven or Gradle service is the
+primary usage path. The service owns the process, its build compiles the Erlang
+modules with JErlang, and no Erlang installation is needed unless the
+application chooses to run OTP's own modules or join an OTP cluster. It does not
+replace OTP, and it does not add language features to the compiler.
 
-3.0 is the embedding release. It makes a JVM service the first-class deployment
-shape: the service owns the process, its build compiles the Erlang modules with
-JErlang, and no Erlang installation is needed unless the application chooses to
-run OTP's own modules or join an OTP cluster. It is not a plan to replace OTP,
-and it does not add language features to the compiler.
-
-The target is concrete: a Java team can add one dependency, put `.erl` files
-beside its Java sources, run Maven or Gradle on a machine with only a JDK, call
-an exported Erlang function from Java, and ship a single service. OTP remains
-the compatibility bar for the standard library; it is not a build prerequisite
-for a module that only uses the runtime.
+The path is concrete: add one dependency, put `.erl` files beside the Java
+sources, run Maven or Gradle on a machine with only a JDK, call an exported
+Erlang function from Java, and ship a single service. OTP remains the
+compatibility bar for the standard library; it is not a build prerequisite for
+a module that only uses the runtime.
 
 ## Quickstarts
 
@@ -238,11 +232,10 @@ dependency-tree check shows one JErlang artifact and no duplicate classes.
 
 ## E5 — Documentation and release gate
 
-**Status: documentation, consumer and behavioral gates complete.** The
-quickstarts are above and in the site navigation, the
-[migration guide](migration-2-to-3.md) covers packaging and lifecycle, and
-`scripts/check-embedding.sh` runs both consumers with `ERL` and `ERLC` pointed
-at nonexistent paths.
+**Status: complete for 3.0.0.** The quickstarts are above and are the primary
+site path, the [migration guide](migration-2-to-3.md) covers packaging and
+lifecycle, and `scripts/check-embedding.sh` runs both consumers with `ERL` and
+`ERLC` pointed at nonexistent paths.
 
 * The Maven and Gradle quickstarts are part of the documentation site, not only
   repository examples.
@@ -258,14 +251,15 @@ at nonexistent paths.
 with the Erlang tool paths broken (two tests in each). `mvn -B verify` passed
 653 tests with no failures, the OTP-backed suite passed 11 tests, the
 1,800-second soak passed without a process or heap leak, and the `-all` jar
-compiled a fresh fixture. The tag and publish steps remain release-time
-actions.
+compiled a fresh fixture. The signed tag and Central publication are recorded
+in [Releasing JErlang](release.md).
 
 **Exit test:** the 3.0.0 release checklist is executed from a clean checkout:
 the main suite, the API gate, the Maven example, the Gradle example, the OTP
 job and the packaged-jar smoke test all pass, and the release notes state the
 supported Java versions and the OTP boundary. The consumer, OTP and packaged-jar
-halves were executed on JDK 21; the soak remains a release-time check.
+halves were executed on JDK 21; the 1,800-second soak was executed before the
+tag, and the 24-hour soak remains deferred.
 
 ## Definition of done for 3.0
 

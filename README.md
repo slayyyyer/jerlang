@@ -11,10 +11,27 @@ An Erlang runtime for the [Java Virtual Machine](https://en.wikipedia.org/wiki/J
 > without leaving the JVM, and whether that model is easier for a human to audit
 > than equivalent Java actor code.
 
-Published to Maven Central as `io.github.slayyyyer:jerlang:2.0.0`; the 3.0.0
-release in this branch keeps the coordinates and makes the normal dependency a
-thin library jar, with the runnable jar under the `all` classifier. The
-documentation site is at <https://slayyyyer.github.io/jerlang/>.
+JErlang 3.0.0 is the current release: `io.github.slayyyyer:jerlang:3.0.0` is
+available from Maven Central. The primary usage path is a Maven or Gradle
+dependency in a JVM service; the normal artifact is the thin library jar. The
+`all` classifier is for `java -jar` and one-file experiments. The documentation
+site is at <https://slayyyyer.github.io/jerlang/>.
+
+```xml
+<dependency>
+  <groupId>io.github.slayyyyer</groupId>
+  <artifactId>jerlang</artifactId>
+  <version>3.0.0</version>
+</dependency>
+```
+
+```kotlin
+implementation("io.github.slayyyyer:jerlang:3.0.0")
+```
+
+Start with [Embedding in a JVM service](docs/embedding.md) for the checked-in
+Maven and Gradle quickstarts. Both compile `.erl` with JErlang and need only a
+JDK; OTP is a run-time choice for OTP modules and clusters.
 
 JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loads the BEAM files that `erlc` produces. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.
 
