@@ -280,7 +280,11 @@ be measured on the commit being tagged:
    without it. What was measured on the 2.0.0 tagged commit was the same test at
    1,800 seconds and 32 workers: 936,074,881 messages delivered, 64 processes
    at peak, a peak heap of 2,630 MB against a 390 MB reference, and a final live
-   heap of 4 MB. The 24 hour run is deferred, not a gate for 3.0.0. The shorter
+   heap of 4 MB. The 3.0.0 candidate run on 2026-11-05 recorded 993 samples,
+   946,325,766 messages delivered, 64 processes at peak, a peak heap of
+   2,630 MB against a 551 MB reference, and a final live heap of 4 MB;
+   descriptor growth was not observable on Windows 11. `SoakTest` passed in
+   1,801 seconds. The 24 hour run is deferred, not a gate for 3.0.0. The shorter
    run still leaves a residual risk, which is stated rather than dismissed: a
    leak slow enough to hide behind the run — under a megabyte a minute — would
    ship untested.

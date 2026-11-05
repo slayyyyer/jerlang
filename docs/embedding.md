@@ -256,9 +256,10 @@ at nonexistent paths.
 
 **Verified:** `scripts/check-embedding.sh` built and tested both quickstarts
 with the Erlang tool paths broken (two tests in each). `mvn -B verify` passed
-653 tests with no failures, the OTP-backed suite passed 11 tests, and the
-`-all` jar compiled a fresh fixture. The 1,800-second soak and the rest of the
-release checklist remain release-time checks.
+653 tests with no failures, the OTP-backed suite passed 11 tests, the
+1,800-second soak passed without a process or heap leak, and the `-all` jar
+compiled a fresh fixture. The tag and publish steps remain release-time
+actions.
 
 **Exit test:** the 3.0.0 release checklist is executed from a clean checkout:
 the main suite, the API gate, the Maven example, the Gradle example, the OTP

@@ -170,7 +170,9 @@ target, and this result names the gap.
   too slow for a per-item inner loop, which is what the roadmap's embedding
   target assumes.
 
-## Against BEAM (1.0 measurement)
+## Against BEAM
+
+### 1.0.0 measurement
 
 `BeamBenchTest` closes the gap the 0.5 baseline left: it compiles
 `src/test/erl/bench/beam_bench.erl` with `erlc`, runs `main/1` on a real OTP 29
@@ -202,6 +204,27 @@ machine as the 0.5 baseline:
 | ETS insert + lookup | 4,118.5 | 819.0 | 5.0x |
 | Startup, process wall clock | 242.1 ms | 167.1 ms | 1.4x |
 
+### 3.0.0 release-candidate measurement
+
+The same harness, same source and same machine were run again on 2026-11-05
+with JDK 21.0.12.1, 16 processors, Windows 11 and OTP 29.1.2. The message
+throughput gate was enabled and passed:
+
+| Workload | JErlang ns/op | BEAM ns/op | Ratio |
+|---|---:|---:|---:|
+| Function call | 256.8 | 6.7 | 38.33x |
+| Guard dispatch | 219.2 | 7.2 | 30.44x |
+| List head (`get_hd`) | 224.6 | 6.7 | 33.52x |
+| Binary construct | 216.5 | 6.7 | 32.31x |
+| Record update | 213.0 | 7.7 | 27.67x |
+| Float binary segment | 201.0 | 7.2 | 27.92x |
+| Big integer | 185.1 | 6.1 | 30.34x |
+| Closures and higher order | 18,696.2 | 76.8 | 243.44x |
+| `lists:reverse/1`, 100 elements | 27,024.4 | 681.0 | 39.68x |
+| Message round trip (spawn, 2 messages) | 572.4 | 2,508.5 | **0.23x** |
+| ETS insert + lookup | 7,846.6 | 1,024.0 | 7.66x |
+| Startup, process wall clock | 485.0 ms | 205.8 ms | 2.36x |
+
 Read the ratio, not the absolute numbers: a laptop under load moves both
 columns. Two rows deserve a note.
 
@@ -218,19 +241,22 @@ columns. Two rows deserve a note.
 
 ### Budgets
 
-The 1.0 roadmap asks for budgets set from this baseline. Only the message
+The roadmap asks for budgets set from the 1.0 baseline. Only the message
 throughput budget is enforced in CI, because it is the one the roadmap names and
 the one this runtime is comfortably inside:
 
-* **Message throughput: no more than 5x BEAM.** Measured 0.20x.
+* **Message throughput: no more than 5x BEAM.** Measured 0.20x in 1.0 and 0.23x
+  in the 3.0.0 candidate.
   `BeamBenchTest` fails the build when `-Djerlang.bench.gate=true` and the ratio
   exceeds `-Djerlang.bench.max.ratio` (default 5).
 * Interpreted single operations are recorded, not gated: CI runners vary by more
   than the gap between two consecutive runs on one machine, so a gate there
   would be a flaky test rather than a budget. The recorded targets are 35x for
-  single operations, 40x for built-ins and 5x for ETS, all of which the table
-  meets today; closures at 213x are an acknowledged miss with the row named in
-  the table so it can not be quietly forgotten.
+  single operations, 40x for built-ins and 5x for ETS. The 1.0 table met them;
+  the 3.0.0 candidate is mixed: function call at 38.3x is above 35x,
+  `lists:reverse/1` at 39.7x is just under 40x, ETS at 7.66x is above 5x, and
+  closures at 243x remain the known miss. The rows are kept visible rather than
+  quietly dropped.
 
 An interpreter optimisation was not attempted for 1.0. The table says where the
 work is — closures, then ETS — and doing it from this data is the first task
