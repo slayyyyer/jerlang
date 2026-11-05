@@ -129,6 +129,34 @@ which leaves two orders of magnitude of headroom over the measured 0.1 ms while
 still catching a reintroduced poll. It was checked against the old behaviour
 (75 ms median, failed).
 
+## Process scale and a ring (2026-11-05)
+
+The 1.0 tables above measure small operations. The
+[concurrency example](examples/concurrency.md) asks a different question: can the
+runtime carry many live processes and a message token through a ring? The same
+`.erl` module is compiled by JErlang and by `erlc`.
+
+Environment: Windows 11, 12th Gen Intel Core i5-12500H, 16 GiB, Temurin OpenJDK
+21.0.12.1, Erlang/OTP 29.1.2 (ERTS 17.1.1), no isolation; JErlang at `-Xmx4g`.
+Each command was run once, so these are order-of-magnitude results.
+
+| Workload | JErlang | BEAM |
+|---|---:|---:|
+| Spawn and join 5,000 processes | 20,872.7 ms | 7 ms |
+| Spawn and join 100,000 processes | did not finish within 5 min | 393 ms |
+| Spawn and join 1,000,000 processes | did not finish within 5 min | 59,000 ms |
+| Ring, 1,000 processes × 1,000 messages | 348.0 ms | 2 ms |
+| Ring, 1,000 processes × 10,000 messages | not run to completion | 7 ms |
+
+This is the clearest loss in the table. Process creation is already about 2,980x
+BEAM's cost at 5,000 processes, and the prototype does not reach the
+million-process case. The 5,000-process run passes as a correctness test; the
+larger runs are reported as limits, not extrapolated. The BEAM million-process
+number is also superlinear on Windows (300,000 took 4.6 s; 600,000 took 22.5 s),
+so it is evidence that BEAM completes the workload, not a clean scaling curve.
+JErlang's current process representation and scheduler are the next performance
+target, and this result names the gap.
+
 ## What the evidence says
 
 * Interpreted operations cost hundreds of nanoseconds. A call is about 520 ns, a

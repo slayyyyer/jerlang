@@ -62,6 +62,7 @@ nav:
       - Java calls Erlang: examples/gen-server.md
       - Erlang calls Java: examples/java-service.md
       - Crypto without NIFs: examples/crypto-java.md
+      - Million processes and a ring: examples/concurrency.md
       - Erlang HTTP service from Gradle: examples/http-service.md
       - A chat service over SSE: examples/chat-service.md
       - mnesia over distribution: examples/mnesia-service.md

@@ -110,5 +110,7 @@ built-in runtime does not need one.
 - **[Operating a node](operations.md)** — what the prototype exposes, and what it
   does not.
 - **[Benchmarks](benchmarks.md)** — measured against BEAM on the same machine,
-  including where JErlang loses.
+  including the million-process case JErlang does not reach.
+- **[Million processes and a ring](examples/concurrency.md)** — the concurrency
+  workload and its measured scaling limit.
 - **[Roadmap](roadmap.md)** — what has been demonstrated and what was dropped.

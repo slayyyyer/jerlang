@@ -271,7 +271,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        example: [gradle-embed, junit-harness, http-service, chat-service, mnesia-service, crypto-java]
+        example: [gradle-embed, junit-harness, http-service, chat-service, mnesia-service, crypto-java, concurrency]
     steps:
       - uses: actions/checkout@v5
 
@@ -306,6 +306,60 @@ jobs:
           ERLC: /nonexistent/erlc
           ERL: /nonexistent/erl
         run: cd examples/${{ matrix.example }} && gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" test
+
+  concurrency-bench:
+    # The same Erlang source runs on both runtimes. The JVM side uses the small
+    # checked-in case because the prototype does not reach 100,000 processes in
+    # five minutes; BEAM runs the full million. The numbers are reported, not
+    # asserted, for the same reason as the other benchmark jobs.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Set up Erlang/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: '29'
+
+      - name: Install the library under test
+        run: mvn -B -DskipTests install
+
+      - name: Write the local artifact repository
+        run: |
+          cat > "$RUNNER_TEMP/jerlang-local.init.gradle" <<'EOF'
+          allprojects {
+              repositories {
+                  mavenLocal {
+                      content {
+                          includeGroup 'io.github.slayyyyer'
+                      }
+                  }
+              }
+          }
+          EOF
+
+      - name: Run the JErlang column
+        run: |
+          cd examples/concurrency
+          gradle --no-daemon --init-script "$RUNNER_TEMP/jerlang-local.init.gradle" \
+            run --args="5000 1000 1000"
+
+      - name: Run the BEAM column
+        run: |
+          mkdir -p examples/concurrency/build/beam
+          erlc -o examples/concurrency/build/beam \
+            examples/concurrency/src/main/erl/concurrency_demo.erl \
+            examples/concurrency/beam_concurrency.erl
+          erl -noshell +P 2000000 -pa examples/concurrency/build/beam \
+            -s beam_concurrency main
 
   gradle-examples:
     # The OTP-backed Gradle example still compiles its modules with erlc and
