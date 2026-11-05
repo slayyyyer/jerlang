@@ -14,14 +14,19 @@ a module that only uses the runtime.
 
 ## Quickstarts
 
-Both checked-in examples compile `.erl` during the build with JErlang and call
-the resulting module from Java. A JDK is the only build toolchain; neither
-needs `erl` or `erlc`.
+The checked-in examples compile `.erl` during the build with JErlang and call
+the resulting module from Java. A JDK is the only build toolchain; none needs
+`erl` or `erlc`.
 
 | Build | Example | Command |
 | --- | --- | --- |
 | Maven | `examples/maven-embed` | `cd examples/maven-embed && mvn -B clean verify` |
 | Gradle | `examples/gradle-embed` | `cd examples/gradle-embed && gradle --no-daemon test` |
+| Spring Boot | `examples/spring-boot-embed` | `cd examples/spring-boot-embed && mvn -B clean verify` |
+
+The [Spring Boot variant](examples/spring-boot.md) adds the container
+lifecycle: one `Node` bean is created with the code path and closed by Spring
+when the context shuts down.
 
 For a local release candidate, install the thin artifact first with
 `mvn -B -DskipTests install`; the Gradle example then needs `mavenLocal()` or

@@ -6,10 +6,10 @@
     compile flow so they remain runnable today; the plugin path will be added
     when it lands.
 
-Twelve programs: the two directions of the Java interop, a crypto-through-Java
-example, a million-process and ring benchmark, four services built on the
-published artifact, a test harness, and the Maven and Gradle embedding
-quickstarts.
+Thirteen programs: the two directions of the Java interop, a crypto-through-Java
+example, a million-process and ring benchmark, the service examples built on the
+published artifact, a test harness, and the Maven, Gradle and Spring Boot
+embedding quickstarts.
 
 ## Which one do I want?
 
@@ -18,6 +18,7 @@ quickstarts.
 | call Erlang from Java, in-process | [`gen-server`](gen-server/README.md) |
 | build a Maven service with no Erlang toolchain | [`maven-embed`](maven-embed/README.md) |
 | build a Gradle service with no Erlang toolchain | [`gradle-embed`](gradle-embed/README.md) |
+| build a Spring Boot service with no Erlang toolchain | [`spring-boot-embed`](spring-boot-embed/README.md) |
 | call a Java class from Erlang | [`java-service`](java-service/README.md) |
 | hash or MAC without a NIF | [`crypto-java`](crypto-java/README.md) |
 | stress process spawning and a ring | [`concurrency`](concurrency/README.md) |
@@ -33,6 +34,7 @@ quickstarts.
 | `gen-server` | Java embeds the runtime, starts an Erlang `gen_server` and calls it. |
 | `maven-embed` | Maven compiles `.erl` with JErlang and Java calls it; no `erlc`. |
 | `gradle-embed` | The same workflow with Gradle and JErlang; no `erlc`. |
+| `spring-boot-embed` | Spring owns a `Node` bean and serves an HTTP endpoint through Erlang. |
 | `java-service` | Erlang calls static methods of a Java class through `java:call_static/3`. |
 | `crypto-java` | SHA-256, HMAC-SHA256 and secure random through the JDK's security APIs; no OTP `crypto` module. |
 | `concurrency` | Spawn count and a message-passing ring, with the same source measured on BEAM. |
@@ -70,6 +72,10 @@ mvn verify                  # compiles greeter.erl with JErlang, then tests it
 cd examples/gradle-embed
 gradle test                 # compiles greeter.erl with JErlang, then tests it
 
+cd examples/spring-boot-embed
+mvn clean verify            # compiles greeter.erl, then runs the Spring test
+mvn spring-boot:run         # http://127.0.0.1:8080/api/greet?name=Spring
+
 cd examples/http-service
 gradle run                 # http://127.0.0.1:8080/
 
@@ -104,18 +110,19 @@ erl -sname mnesia_node -setcookie examplecookie -noshell -pa otp -eval 'mnesia_n
 gradle run                 # http://127.0.0.1:8080/, in another terminal
 ```
 
-The Maven and Gradle quickstarts, `junit-harness`, `http-service`, `chat-service`
-and the JVM side of `mnesia-service` compile their modules with JErlang.
-`supervised-app` still uses `erlc` for its own modules because it runs OTP's own
-`application` and `supervisor`, and the OTP node in `mnesia-service` is compiled
-by the OTP installation that runs it.
+The Maven, Gradle and Spring Boot quickstarts, `junit-harness`, `http-service`,
+`chat-service` and the JVM side of `mnesia-service` compile their modules with
+JErlang. `supervised-app` still uses `erlc` for its own modules because it runs
+OTP's own `application` and `supervisor`, and the OTP node in `mnesia-service`
+is compiled by the OTP installation that runs it.
 
 Erlang at **run** time is needed only by `supervised-app` and by the OTP node
 that `mnesia-service` talks to. `http-service`, `chat-service`, `junit-harness`,
-`maven-embed`, `gradle-embed` and the JVM side of `mnesia-service` need none at
-all. See their READMEs and docs pages:
+`maven-embed`, `gradle-embed`, `spring-boot-embed` and the JVM side of
+`mnesia-service` need none at all. See their READMEs and docs pages:
 [maven-embed](maven-embed/README.md),
 [gradle-embed](gradle-embed/README.md),
+[spring-boot-embed](spring-boot-embed/README.md),
 [http-service](http-service/README.md),
 [chat-service](chat-service/README.md),
 [mnesia-service](mnesia-service/README.md),

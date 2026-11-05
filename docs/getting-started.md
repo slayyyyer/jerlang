@@ -211,7 +211,7 @@ The full value mapping â€” which Erlang term becomes which Java type, and back â
 is in [Java interoperability](java-interop.md). It is the compatibility
 contract, and `mvn verify` fails on a change to it without a version bump.
 
-For complete Maven and Gradle quickstarts, including which paths need an Erlang
+For complete Maven, Gradle and Spring Boot quickstarts, including which paths need an Erlang
 installation, see [Embedding in a JVM service](embedding.md). The packaging and
 lifecycle changes from 2.0 are in
 [Migrating from 2.0 to 3.0](migration-2-to-3.md).

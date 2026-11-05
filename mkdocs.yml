@@ -67,6 +67,7 @@ nav:
       - Million processes and a ring: examples/concurrency.md
       - Mixing OTP and JErlang: examples/mixed-cluster.md
       - Erlang HTTP service from Gradle: examples/http-service.md
+      - Spring Boot service: examples/spring-boot.md
       - A chat service over SSE: examples/chat-service.md
       - mnesia over distribution: examples/mnesia-service.md
       - Testing Erlang from JUnit: examples/junit-harness.md

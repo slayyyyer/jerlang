@@ -16,7 +16,7 @@ and a Java method is one reflective call away.
 
 JErlang 3.0.0 is the current release, published as
 `io.github.slayyyyer:jerlang:3.0.0`. The primary usage path is a Maven or Gradle
-dependency in a JVM service; both checked-in quickstarts compile `.erl` with
+dependency in a JVM service; the checked-in quickstarts compile `.erl` with
 JErlang and need only a JDK.
 
 === "Maven"
@@ -114,6 +114,8 @@ built-in runtime does not need one.
 
 - **[Embedding in a JVM service](embedding.md)** — the primary 3.0 path:
   Maven and Gradle quickstarts, the lifecycle contract and the OTP boundary.
+- **[Spring Boot service](examples/spring-boot.md)** — a singleton `Node` bean,
+  an HTTP endpoint and container-managed shutdown.
 - **[Getting started](getting-started.md)** — compile a module with the command
   line, then embed a node in Java.
 - **[Migrating from 2.0 to 3.0](migration-2-to-3.md)** — the artifact packaging,

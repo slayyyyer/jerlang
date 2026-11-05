@@ -12,8 +12,8 @@ An Erlang runtime for the [Java Virtual Machine](https://en.wikipedia.org/wiki/J
 > than equivalent Java actor code.
 
 JErlang 3.0.0 is the current release: `io.github.slayyyyer:jerlang:3.0.0` is
-available from Maven Central. The primary usage path is a Maven or Gradle
-dependency in a JVM service; the normal artifact is the thin library jar. The
+available from Maven Central. The primary usage path is a Maven, Gradle or
+Spring Boot dependency in a JVM service; the normal artifact is the thin library jar. The
 `all` classifier is for `java -jar` and one-file experiments. The documentation
 site is at <https://slayyyyer.github.io/jerlang/>.
 
@@ -30,8 +30,8 @@ implementation("io.github.slayyyyer:jerlang:3.0.0")
 ```
 
 Start with [Embedding in a JVM service](docs/embedding.md) for the checked-in
-Maven and Gradle quickstarts. Both compile `.erl` with JErlang and need only a
-JDK; OTP is a run-time choice for OTP modules and clusters.
+Maven, Gradle and Spring Boot quickstarts. Each compiles `.erl` with JErlang and
+needs only a JDK; OTP is a run-time choice for OTP modules and clusters.
 
 JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loads the BEAM files that `erlc` produces. Erlang processes, message passing, links, monitors and distribution are implemented in Java, and Java code is one reflective call away instead of a separate node, a port or an external term format round trip.
 
@@ -123,8 +123,13 @@ JErlang compiles Erlang source to BEAM and interprets it on the JVM. It also loa
 | 0.9     | Cluster and operations  | Metrics, reconnection and graceful shutdown under load       | Done    |
 | 1.0     | Release                 | Benchmarks against OTP 29, fuzzing, artifact (soak waived)    | Released |
 | 2.0     | Source compiler         | JErlang-built BEAM passes the compiler/OTP tests              | Released |
+| 3.0     | Embedding in a JVM service | Maven, Gradle and Spring Boot consumers compile `.erl` and resolve the thin artifact | Released |
 
-The full plan, including what was dropped from the original roadmap and why, is in [docs/roadmap.md](docs/roadmap.md).
+3.0.0 is the current release. The embedding milestones are closed; the deferred
+24-hour soak and the benchmark-budget misses are recorded in
+[docs/release.md](docs/release.md) and [docs/benchmarks.md](docs/benchmarks.md).
+The full milestone history, including what was dropped from the original
+roadmap and why, is in [docs/roadmap.md](docs/roadmap.md).
 
 ## Java interoperability
 
@@ -208,11 +213,12 @@ mvn pitest:mutationCoverage -DtargetClasses=org.jerlang.type.Nil -DtargetTests=o
 
 - [Documentation site](https://slayyyyer.github.io/jerlang/): the same guides,
   built from this repository and published to GitHub Pages, including a getting
-  started walkthrough and the two annotated examples
-- [docs/embedding.md](docs/embedding.md): the 3.0 plan for embedding Erlang in a JVM service, including Maven and Gradle quickstarts
+  started walkthrough and the annotated examples
+- [docs/embedding.md](docs/embedding.md): the embedding path for 3.0, including Maven, Gradle and Spring Boot quickstarts
+- [docs/examples/spring-boot.md](docs/examples/spring-boot.md): a Spring Boot service that owns a node and serves HTTP through Erlang
 - [docs/migration-2-to-3.md](docs/migration-2-to-3.md): packaging and lifecycle changes from 2.0
 - [docs/java-interop.md](docs/java-interop.md): the value mapping, the bridge rules and the embedding API
-- [docs/roadmap.md](docs/roadmap.md): milestones and what was dropped from the original plan
+- [docs/roadmap.md](docs/roadmap.md): current state, milestone history and what was dropped from the original plan
 - [docs/beam-compatibility.md](docs/beam-compatibility.md): opcode and language coverage
 - [docs/distribution.md](docs/distribution.md): distribution protocol and sockets
 - [docs/benchmarks.md](docs/benchmarks.md): the recorded performance baseline

@@ -1,7 +1,23 @@
-# Roadmap from 0.4 to production
+# Roadmap: current state and milestone history
 
-This replaces the 0.5–1.0 rows of the original roadmap. It is measured against
-what the code does today, not against the original intent.
+This records the current release and the milestone history from 0.4 onward. It
+is measured against what the code does today, not against the original intent.
+
+## Current release: 3.0.0
+
+JErlang 3.0.0 was published to Maven Central on 2026-11-05. The thin
+`io.github.slayyyyer:jerlang:3.0.0` artifact is the normal dependency; the
+`all` classifier is the runnable jar. The signed tag and artifact hashes are
+recorded in [release.md](release.md).
+
+The 3.0 embedding track is complete. Maven, Gradle and Spring Boot consumers
+compile `.erl` with JErlang and call it in-process without an Erlang
+installation; the [Spring Boot service](examples/spring-boot.md) shows the
+container lifecycle. Running OTP's own modules still requires an OTP root.
+
+Two caveats remain explicit: the 24-hour soak is deferred, and the benchmark
+budgets still miss on closures, function calls and ETS. The measured values are
+in [benchmarks.md](benchmarks.md).
 
 ## Where the project actually is
 
@@ -15,10 +31,10 @@ what the code does today, not against the original intent.
 | ETS | `set`, `ordered_set`, `bag` and `duplicate_bag`, with named tables and `{keypos, N}`. `new`, `insert`, `lookup`, `delete`, `tab2list`, `update_counter`, `all`, `whereis`, `match`, `match_object`, `select` and `give_away` work. A table is destroyed with its owner, `give_away` and heirs transfer ownership, table operations are locked, and `update_counter` is atomic across processes. `match_delete` and `select_delete` work. Match specs support patterns, bodies, comparisons, boolean guards, `is_map_key` and arithmetic guards. |
 | OTP behaviours | OTP's unmodified `gen_server`, `supervisor`, `application`, `proc_lib`, `logger` and `code` run from an OTP installation. `gen_statem` is not verified. The application controller models `.app` loading, dependencies, included applications, start phases, environment and key bookkeeping; `application_master` itself, distributed takeover and automatic restart of a crashed permanent application are not modelled. A dead tree is reaped when the controller is queried, and its included applications are stopped with it. |
 | Scheduler | One scheduler thread per processor with no balancing. A process gets 1,000 instructions per slice, and a CPU-bound loop in its outermost activation yields at the next instruction boundary; `process_info(reductions)` reports the count. Cross-module tail calls switch instruction streams in place, so a tail loop stays preemptible; a yield inside a nested non-tail call is still deferred until that call returns. Run queues are split by max/high/normal/low priority, and `process_flag(priority, ...)` moves a queued process. All timers use one 512-slot, 1 ms timer wheel. |
-| Tests | 653 unit/integration tests. Ten use an OTP installation and run in CI's `otp` job; 19 more are opt-in external or machine tests (12 live OTP peers, the pass-rate run, the benchmarks, the distribution benchmarks and the soak). The fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
+| Tests | 653 unit/integration tests in the main suite, plus the Maven, Gradle and Spring Boot consumer builds. The OTP-backed tests run in CI's `otp` job; the fuzzers run on every push at 200 iterations each and at any count locally, and the 0.5 conformance corpus (`src/test/erl/corpus`) runs in CI. |
 | Conformance | Every one of the 1366 modules that ship with OTP 29.1.2 loads, and every instruction in them has a handler. That is the opcode-level bar, not a language bar: running those modules needs the standard library. |
-| CI | GitHub Actions runs `mvn -B verify` on pull requests and pushes to `master`, including the runnable all-jar compile smoke test and the API gate; an `otp` job runs the OTP-backed behaviour tests, and a `conformance` job installs OTP and enforces the pass-rate floor. |
-| Performance | A benchmark suite exists and the 0.5 baseline is recorded in `docs/benchmarks.md`. Interpreted operations are sub-microsecond. A call across the Java/Erlang boundary costs about 0.1 ms, down from 108 ms once the scheduler stopped sleeping for 100 ms on an idle queue; what remains is two thread hand-offs. Nothing is measured against BEAM, so no speed claim is made. |
+| CI | GitHub Actions runs `mvn -B verify` on pull requests and pushes to `master`, including the runnable all-jar compile smoke test and the API gate. Separate `maven-embed`, `spring-boot-embed` and `gradle-embed` jobs build consumers without Erlang; the `otp` job runs OTP-backed behaviour tests, and `conformance` installs OTP and enforces the pass-rate floor. |
+| Performance | Benchmarks against OTP 29 on the same machine are recorded in `docs/benchmarks.md`. Message throughput is 0.20x BEAM and passes the 5x budget; closures (243.44x), function calls (38.33x against 35x) and ETS (7.66x against 5x) remain over budget. A Java-to-Erlang call costs about 0.1 ms after removing the scheduler poll. |
 
 The 0.4 claim — "multi-node applications can be interpreted" — is true for
 programs written to the implemented subset, and is proven by `acceptance_demo`
@@ -46,15 +62,14 @@ whether the VM is correct) and **B as the product surface** (it is what a
 production user buys). The beachhead release is B with enough of A to run
 `gen_server` and `supervisor` unmodified.
 
-Explicit non-goals for 1.0:
+Non-goals that still hold:
 
 * NIF-based OTP applications (`crypto`, `ssl`, `public_key` as shipped). JVM
   code is the replacement for NIFs; bridging to OpenSSL is a separate project.
 * Hot code upgrade and OTP release handling.
 * `global` name registration and multi-node `global` locks.
-* Bytecode compilation as a prerequisite for correctness. That boundary holds
-  for the 1.x line; 2.0 adds a compiler as a separate track, planned in
-  [compiler.md](compiler.md).
+* Bytecode compilation as a prerequisite for correctness. The 2.0 compiler is
+  a separate track, documented in [compiler.md](compiler.md).
 
 ## Milestones
 
@@ -272,7 +287,7 @@ shipped; it remains deferred work and is not a gate for 2.0.0.
 **Goal:** the day-long soak becomes a gate a release can actually be blocked by,
 rather than a command somebody is meant to run on a machine nobody has.
 
-**Status: deferred.** The 24-hour run is not part of the 2.0.0 release gate.
+**Status: deferred.** The 24-hour run is not part of the 3.0.0 release gate.
 1.0.0 also shipped without it, on a 330 second soak. This section records the
 work needed if the day-long gate is scheduled later; until then it is a known
 gap, not a blocker. The shorter target-load soak remains the release check.
@@ -303,7 +318,7 @@ gap, not a blocker. The shorter target-load soak remains the release check.
   been green is not evidence that it works.
 * [ ] The 24 hour run recorded in [release.md](release.md) as run, with its
   result and the hardware it ran on, so the waiver is closed when this work
-  lands rather than quietly persisting through the 2.x line.
+  lands rather than quietly persisting through the 3.x line.
 
 **Exit test (when scheduled):** a 24 hour soak at target load is green on a
 machine that stayed up, its sample stream and log are archived with the release,
@@ -312,7 +327,7 @@ release checklist contains no waived line.
 
 ## Cross-cutting work
 
-These are not milestones. They start now and continue through 1.0.
+These are not milestones. They start now and continue through the 3.x line.
 
 * **Conformance corpus and pass-rate metric.** The 0.5 corpus is checked in
   and runs in CI, and the pass rate over a larger corpus is measured in the
@@ -379,10 +394,10 @@ credible story; if it does not, the gaps are known and finite.
   including `Enum.map`, `list.map`, an Elixir `GenServer` and a supervised
   crash/restart. Treat either as a separate compatibility track with its own
   corpus, not as a side effect of Erlang support.
-* **The 1.0 waiver.** 1.0.0 shipped without the day-long run, so a leak slower
-  than roughly a megabyte a minute would have gone unseen. It is recorded as
-  deferred work, not a 2.0.0 gate, and the 1.x line carries the same gap and
-  says so in [release.md](release.md).
+* **The 24-hour soak waiver.** 1.0.0 and 3.0.0 shipped without the day-long run,
+  so a leak slower than roughly a megabyte a minute would have gone unseen. It
+  is recorded as deferred work, not a 3.0.0 gate, and the 3.x line carries the
+  same gap and says so in [release.md](release.md).
 * **Hot upgrade.** Deferred, and should be stated as such; production users who
   need it are not served by this runtime yet.
 
@@ -406,7 +421,15 @@ a build and runtime dependency: a Java service can keep its `.erl` sources
 beside its Java sources, compile them with JErlang, and call the resulting
 modules in the same process without installing Erlang.
 
-**Status: in progress.** The embedding milestones, exit tests and the first
-implementation are in [embedding.md](embedding.md). The Maven and Gradle
-consumer quickstarts are complete; the lifecycle, packaging and release gates
-follow them.
+**Status: released.** 3.0.0 was published on 2026-11-05. The embedding
+milestones E1-E5 are complete: Maven, Gradle and Spring Boot consumers compile
+their own modules, `Node` has a documented lifecycle, the thin/`all` split is
+final, and the release gate ran. The details are in
+[embedding.md](embedding.md) and [release.md](release.md).
+
+## After 3.0
+
+There is no committed next major milestone. Work after 3.0 is maintenance of
+the embedding surface: closing the deferred 24-hour soak, addressing the
+benchmark-budget misses, and widening standard-library coverage. A new
+milestone is added here only when it has an exit test that can run in CI.
