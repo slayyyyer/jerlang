@@ -38,11 +38,17 @@ public class PutMapAssoc {
             updates = updates.tail();
             map.set(key, val);
         }
+        // OTP stores the result in Y when the map survives a later call. Elixir
+        // emits that shape for Supervisor options, and erlc emits it for a map
+        // that is used after a call.
         if (destination.isXRegister()) {
             proc.setX(destination.toRegisterIndex(), map);
-            return null;
+        } else if (destination.isYRegister()) {
+            proc.setY(destination.toRegisterIndex(), map);
+        } else {
+            throw new Error("Not implemented: " + i);
         }
-        throw new Error("Not implemented: " + i);
+        return null;
     }
 
 }
