@@ -185,6 +185,7 @@ mvn pitest:mutationCoverage -DtargetClasses=org.jerlang.type.Nil -DtargetTests=o
 - [Documentation site](https://slayyyyer.github.io/jerlang/): the same guides,
   built from this repository and published to GitHub Pages, including a getting
   started walkthrough and the two annotated examples
+- [docs/embedding.md](docs/embedding.md): the 3.0 plan for embedding Erlang in a JVM service
 - [docs/java-interop.md](docs/java-interop.md): the value mapping, the bridge rules and the embedding API
 - [docs/roadmap.md](docs/roadmap.md): milestones and what was dropped from the original plan
 - [docs/beam-compatibility.md](docs/beam-compatibility.md): opcode and language coverage

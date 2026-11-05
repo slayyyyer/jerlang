@@ -87,6 +87,8 @@ the one remaining language-feature gap (native records).
 
 - **[Getting started](getting-started.md)** — install it, compile a module with
   the `compile` command or `erlc`, run it, and embed the runtime in Java.
+- **[Embedding in a JVM service](embedding.md)** — the 3.0 plan for building
+  `.erl` with JErlang and running it inside a Java service.
 - **[Java interoperability](java-interop.md)** — the value mapping between
   Erlang terms and Java types, object handle rules, and the embedding API.
 - **[Distribution](distribution.md)** — the protocol, EPMD, links and monitors,

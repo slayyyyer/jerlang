@@ -397,3 +397,15 @@ A1-A7 is complete; its definition of "BEAM compatible", milestones and
 agent-adjusted estimates are recorded in [compiler.md](compiler.md). Nothing in
 that track is a prerequisite for the 1.x line; the 2.0 compatibility bar is
 recorded in [release.md](release.md).
+
+## 3.0 — embedding in a JVM service
+
+2.0 made the runtime able to compile its own modules. 3.0 makes that usable as
+a build and runtime dependency: a Java service can keep its `.erl` sources
+beside its Java sources, compile them with JErlang, and call the resulting
+modules in the same process without installing Erlang.
+
+**Status: planning.** The embedding milestones, exit tests and the first
+implementation are in [embedding.md](embedding.md). The first milestone is the
+Maven consumer quickstart; the Gradle path, lifecycle, packaging and release
+gates follow it.
